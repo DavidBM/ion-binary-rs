@@ -11,25 +11,25 @@ pub enum IonBinSegment {
 
 #[derive(Eq, PartialEq, Debug)]
 pub enum ValueType {
-    Null,        // T = 0         : 0000
-    Bool,        // T = 1         : 0001
-    PositiveInt, // T = 2  : 0010
-    NegativeInt, // T = 3  : 0011
-    Float,       // T = 4        : 0100
-    Decimal,     // T = 5      : 0101
-    Timestamp,   // T = 6    : 0110
-    Symbol,      // T = 7       : 0111
-    String,      // T = 8       : 1000
-    Clob,        // T = 9         : 1001
-    Blob,        // T = 10        : 1010
-    List,        // T = 11        : 1011
-    SExpr,       // T = 12       : 1100
-    Struct,      // T = 13      : 1101
+    Null,        // T = 0   : 0000
+    Bool,        // T = 1   : 0001
+    PositiveInt, // T = 2   : 0010
+    NegativeInt, // T = 3   : 0011
+    Float,       // T = 4   : 0100
+    Decimal,     // T = 5   : 0101
+    Timestamp,   // T = 6   : 0110
+    Symbol,      // T = 7   : 0111
+    String,      // T = 8   : 1000
+    Clob,        // T = 9   : 1001
+    Blob,        // T = 10  : 1010
+    List,        // T = 11  : 1011
+    SExpr,       // T = 12  : 1100
+    Struct,      // T = 13  : 1101
     Annotation,  // T = 14  : 1110
-    Reserved,    // T = 15    : 1111
+    Reserved,    // T = 15  : 1111
 }
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub enum ValueLength {
     ShortLength(u8), // 0 <= L <= 13 and we omit the "length [VarUInt]" field
     LongLength, // L = 14 and the real length is in the field after this one: "length [VarUInt]"
@@ -55,15 +55,20 @@ pub enum ParsingError {
     NoDataToRead,
     ErrorReadingData(String),
     CannotReadZeroBytes,
+    BadFormedVersionHeader,
+    InvalidNullLength(ValueLength),
+    InvalidBoolLength(ValueLength),
+    InvalidAnnotationLength(ValueLength)
 }
 
 pub struct Lexer {
     reader: Box<dyn Read>,
+    current_ion_version: Option<(u8, u8)>
 }
 
 impl Lexer {
     pub fn new(reader: Box<dyn Read>) -> Lexer {
-        Lexer { reader }
+        Lexer { reader, current_ion_version: None }
     }
 
     fn read(&mut self, buffer: &mut [u8]) -> Result<usize, std::io::Error> {
@@ -181,6 +186,7 @@ impl Lexer {
 
         }
 
+        // If this doesn't work we want to fail as that should be impossible
         let mut final_value: i64 = final_value.try_into().unwrap();
 
         if is_negative {
@@ -213,7 +219,7 @@ impl Lexer {
         for byte in found_bytes {
             let byte = byte & 0b_0111_1111;
 
-            let mut value_buffer = byte.into();
+            let mut value_buffer: u64 = byte.into();
             value_buffer <<= bytes_displacement * 7;
 
             if bytes_displacement > 0 {
@@ -285,6 +291,7 @@ impl Lexer {
             final_value |= temporal_value;
         }
 
+        // If this doesn't work we want to fail as that should be impossible 
         let mut final_value: i64 = final_value.try_into().unwrap();
 
         if is_negative {
@@ -362,23 +369,104 @@ impl Lexer {
             Err(e) => Err(ParsingError::ErrorReadingData(e.to_string())),
             Ok(_) => {
 
-                let byte = byte;
+                let byte = byte[0];
 
-                let value_type = byte[0] & 0b1111_0000;
+                // If the byte has T as E (annotation) with a L of 0 (invalid) 
+                // it means that this is a ion version header, so we read it
+                // and set the decoder to the new version. 
+                if byte == 0xE0 {
+                    let version = self.consume_ion_version_once_identified()?;
+                    self.set_current_ion_version(version);
+                    return self.consume_value_header();
+                }
 
-                let value_length = byte[0] & 0b0000_1111;
+                let value_type = (byte & 0b1111_0000) >> 4;
+
+                let value_length = byte & 0b0000_1111;
 
                 let value_type = self.get_field_type(value_type);
                 let value_length = self.get_field_length(value_length);
 
                 match (value_type, value_length) {
-                    (Ok(r#type), Ok(length)) => Ok(ValueHeader { r#type, length }),
+                    (Ok(r#type), Ok(length)) => {
+                        self.verify_header(&r#type, &length)?;
+                        Ok(ValueHeader { r#type, length })
+                    },
                     (Err(e), _) => Err(e),
                     (_, Err(e)) => Err(e),
                 }
             }
         }
+    }
 
+    fn verify_header(&self, valtype: &ValueType, length: &ValueLength) -> Result<(), ParsingError> {
+        use ValueType::*;
+        use ValueLength::*;
+
+        match valtype {
+            Null => {
+                if let NullValue = length {
+                    Ok(())
+                } else {
+                    Err(ParsingError::InvalidNullLength(length.clone()))
+                }
+            },
+            Bool => {
+                if let ShortLength(len) = length {
+                    if len > &1 {
+                        Err(ParsingError::InvalidBoolLength(length.clone()))
+                    } else {
+                        Ok(())
+                    }
+                } else {
+                    Err(ParsingError::InvalidBoolLength(length.clone()))
+                }
+            },
+            Annotation => {
+                if let ShortLength(len) = length {
+                    if len < &3 {
+                        Err(ParsingError::InvalidAnnotationLength(length.clone()))
+                    } else {
+                        Ok(())
+                    }
+                } else {
+                    Ok(())
+                }
+            }
+            _ => Ok(())
+        }
+    }
+
+    //                        7    0 7     0 7     0 7    0
+    //                       +------+-------+-------+------+
+    // binary version marker | 0xE0 | major | minor | 0xEA |
+    //                       +------+-------+-------+------+
+    // When calling this function we have already consumed the first byte 
+    // (that is how we identify we need to call this function)
+    fn consume_ion_version_once_identified(&mut self) -> Result<(u8, u8), ParsingError>{
+        let mut byte = [0u8; 3];
+
+        let read_bytes = self.read(&mut byte);
+
+        match read_bytes {
+            Ok(0) => Err(ParsingError::NoDataToRead),
+            Err(e) => Err(ParsingError::ErrorReadingData(e.to_string())),
+            Ok(_) => {
+                if byte[2] != 0xEA {
+                    return Err(ParsingError::BadFormedVersionHeader);
+                }
+
+                Ok( (byte[0], byte[1]) )
+            }
+        }
+    }
+
+    fn set_current_ion_version(&mut self, version: (u8, u8)) {
+        self.current_ion_version = Some(version);
+    }
+
+    pub fn get_current_ion_version(&self) -> Option<(u8, u8)>{
+        self.current_ion_version
     }
 
     fn get_field_type(&mut self, id: u8) -> Result<ValueType, ParsingError> {
@@ -920,6 +1008,57 @@ fn decode_int_invalid_zero_len() {
 }
 
 #[test]
+fn decode_value_with_version_header() {
+    let ion_test = b"\xe0\x01\0\xea\xee\xa6\x81\x83\xde\xa2\x87\xbe\x9f\x83V".reader();
+
+    let mut lexer = Lexer::new(Box::new(ion_test));
+
+    assert_eq!(
+        lexer.consume_value_header(),
+        Ok(ValueHeader { 
+            r#type: ValueType::Annotation,
+            length: ValueLength::LongLength,
+        })
+    );
+}
+
+#[test]
 fn decode_full_ion() {
     let _ion = b"\xe0\x01\0\xea\xee\xa6\x81\x83\xde\xa2\x87\xbe\x9f\x83VIN\x84Type\x84Year\x84Make\x85Model\x85Color\xde\xb9\x8a\x8e\x911C4RJFAG0FC625797\x8b\x85Sedan\x8c\"\x07\xe3\x8d\x88Mercedes\x8e\x87CLK 350\x8f\x85White";
 }
+
+
+/*
+ION SYSTEM SYMBOL TABLE
+
+Symbol ID   Symbol Name
+1           $ion
+2           $ion_1_0
+3           $ion_symbol_table
+4           name
+5           version
+6           imports
+7           symbols
+8           max_id
+9           $ion_shared_symbol_table
+
+Basically, for QLDB, the first value that the DB sends is:
+Annotation: 
+    notation: 3 ($ion_symbol_table which means that is a local symbol table)
+    Struct
+        Symbols (via the id 7)
+        List: Which contains the list of new Symbols
+
+... After consuming the annotation header
+Annotation Length: Ok(38)
+Annotation annot_length: Ok(1)
+Annotation annot: Ok(3)
+Annotation value header: Ok(ValueHeader { type: Struct, length: LongLength })
+Annotation value length: Ok(34)
+Annotation value first key: Ok(7)
+Annotation value first value header: Ok(ValueHeader { type: List, length: LongLength })
+
+In the list, symbols are added in consecutive IDs following their insert order. 
+A symbol cannot replace an already existing symbol. So, the system symbols come first, 
+later the imported symbols, and finally, the local symbols. 
+ */
