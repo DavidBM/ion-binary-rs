@@ -75,14 +75,6 @@ impl Lexer {
         self.reader.read(buffer)
     }
 
-    pub fn consume(&mut self) -> IonBinSegment {
-        unimplemented!()
-    }
-
-    pub fn consume_field(&mut self) -> IonBinSegment {
-        unimplemented!()
-    }
-
     //             7                       0
     //            +-------------------------+
     // UInt field |          bits           |
@@ -327,34 +319,6 @@ impl Lexer {
         Ok(found_bytes)
     }
 
-    //             7       4 3       0
-    //            +---------+---------+
-    // Null value |    0    |    15   |
-    //            +---------+---------+
-    pub fn consume_null(&mut self) {
-        unimplemented!()
-    }
-
-    //             7       4 3       0
-    //            +---------+---------+
-    // Bool value |    1    |   rep   |
-    //            +---------+---------+
-    pub fn consume_bool(&mut self) -> bool {
-        unimplemented!()
-    }
-
-    //        7       4 3       0
-    //       +---------+---------+
-    // value |    T    |    L    |
-    //       +---------+---------+======+
-    //       :     length [VarUInt]     :
-    //       +==========================+
-    //       :      representation      :
-    //       +==========================+
-    pub fn consume_value(&mut self) -> IonBinSegment {
-        unimplemented!()
-    }
-
     //   7       4 3       0
     //  +---------+---------+
     //  |    T    |    L    |
@@ -513,6 +477,18 @@ fn decode_value_null() {
             r#type: ValueType::Null,
             length: ValueLength::NullValue,
         })
+    );
+}
+
+#[test]
+fn decode_value_invalid_null() {
+    let ion_test = [0b_0000_1110u8].reader();
+
+    let mut lexer = Lexer::new(Box::new(ion_test));
+
+    assert_eq!(
+        lexer.consume_value_header(),
+        Err(ParsingError::InvalidNullLength(ValueLength::LongLength))
     );
 }
 
