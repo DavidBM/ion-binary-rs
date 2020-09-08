@@ -2,18 +2,7 @@ use std::collections::HashMap;
 use std::io::Read;
 use crate::binary_parser::IonBinaryParser;
 
-#[derive(Debug)]
-pub enum SystemSymbolTableType {
-	Ion,
-	Ion1_0,
-	IonSymbolTable,
-	Name,
-	Version,
-	Imports,
-	Symbols,
-	MaxId,
-	IonSharedSymbolTable,
-}
+use crate::symbol_constants::SystemSymbolTableType;
 
 #[derive(Debug)]
 pub struct IonParser {
