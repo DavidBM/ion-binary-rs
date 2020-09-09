@@ -1,3 +1,6 @@
+use bytes::buf::ext::BufExt;
+use ion_bin_parser::binary_parser::IonBinaryParser;
+use ion_bin_parser::binary_parser_types::*;
 
 #[test]
 fn decode_value_null() {

@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 use std::io::Read;
 use crate::binary_parser::IonBinaryParser;
-
-use crate::symbol_constants::SystemSymbolTableType;
+use crate::binary_parser_types::*;
 
 #[derive(Debug)]
 pub struct IonParser {

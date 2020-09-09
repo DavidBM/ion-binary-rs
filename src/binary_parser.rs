@@ -1,21 +1,8 @@
+use crate::binary_parser_types::*;
 use std::fmt::Debug;
 use bytes::buf::BufExt;
 use std::convert::TryInto;
 use std::io::Read;
-
-use crate::ion_type::ValueType;
-use crate::error_type::ParsingError;
-use crate::length_type::ValueLength;
-
-//   7       4 3       0
-//  +---------+---------+
-//  |    T    |    L    |
-//  +---------+---------+
-#[derive(Eq, PartialEq, Debug)]
-pub struct ValueHeader {
-    r#type: ValueType,   // T
-    length: ValueLength, // L
-}
 
 pub struct IonBinaryParser {
     reader: Box<dyn Read>,
