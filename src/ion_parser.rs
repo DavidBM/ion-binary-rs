@@ -5,27 +5,28 @@ use crate::binary_parser_types::*;
 
 #[derive(Debug)]
 pub struct IonParser<T: Read> {
-	parser: IonBinaryParser<T>,
-	system_symbol_table: HashMap<usize, SystemSymbolTableType>,
+    parser: IonBinaryParser<T>,
+    system_symbol_table: HashMap<usize, SystemSymbolTableType>,
 }
 
 impl <T: Read>IonParser<T> {
     pub fn new(reader: T) -> IonParser<T> {
-    	let mut system_symbol_table = HashMap::new();
+        let mut system_symbol_table = HashMap::new();
 
-    	system_symbol_table.insert(1, SystemSymbolTableType::Ion); 
-    	system_symbol_table.insert(2, SystemSymbolTableType::Ion1_0); 
-    	system_symbol_table.insert(3, SystemSymbolTableType::IonSymbolTable); 
-    	system_symbol_table.insert(4, SystemSymbolTableType::Name); 
-    	system_symbol_table.insert(5, SystemSymbolTableType::Version); 
-    	system_symbol_table.insert(6, SystemSymbolTableType::Imports); 
-    	system_symbol_table.insert(7, SystemSymbolTableType::Symbols); 
-    	system_symbol_table.insert(8, SystemSymbolTableType::MaxId); 
-    	system_symbol_table.insert(9, SystemSymbolTableType::IonSharedSymbolTable); 
+        system_symbol_table.insert(0, SystemSymbolTableType::Zero); 
+        system_symbol_table.insert(1, SystemSymbolTableType::Ion); 
+        system_symbol_table.insert(2, SystemSymbolTableType::Ion1_0); 
+        system_symbol_table.insert(3, SystemSymbolTableType::IonSymbolTable); 
+        system_symbol_table.insert(4, SystemSymbolTableType::Name); 
+        system_symbol_table.insert(5, SystemSymbolTableType::Version); 
+        system_symbol_table.insert(6, SystemSymbolTableType::Imports); 
+        system_symbol_table.insert(7, SystemSymbolTableType::Symbols); 
+        system_symbol_table.insert(8, SystemSymbolTableType::MaxId); 
+        system_symbol_table.insert(9, SystemSymbolTableType::IonSharedSymbolTable); 
 
         IonParser { 
-        	parser: IonBinaryParser::new(reader),
-        	system_symbol_table
+            parser: IonBinaryParser::new(reader),
+            system_symbol_table
         }
     }
 }

@@ -1,5 +1,6 @@
 #[derive(Debug)]
 pub enum SystemSymbolTableType {
+	Zero,
 	Ion,
 	Ion1_0,
 	IonSymbolTable,
