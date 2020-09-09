@@ -31,18 +31,15 @@ impl <T: Read>IonParser<T> {
         }
     }
 
-    pub fn consume_value(&mut self) -> Result<(), IonParserError>{
+    pub fn consume_value(&mut self) -> Result<IonValue, IonParserError>{
         let value_header = self.parser.consume_value_header()?;
 
-        /*match value_header.r#type {
-            ValueType::Bool => match value_header.length {
-
-            }
-        }*/
-
-
-
-        unimplemented!()
+        match value_header.r#type {
+            ValueType::Bool(value) =>  {
+                Ok(IonValue::Bool(value))
+            },
+            _ => Err(IonParserError::Unimplemented)
+        }
     }
 }
 
