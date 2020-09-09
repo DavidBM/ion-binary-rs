@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::io::Read;
 use crate::binary_parser::IonBinaryParser;
+use crate::ion_parser_types::*;
 use crate::binary_parser_types::*;
 
 #[derive(Debug)]
@@ -28,6 +29,20 @@ impl <T: Read>IonParser<T> {
             parser: IonBinaryParser::new(reader),
             system_symbol_table
         }
+    }
+
+    pub fn consume_value(&mut self) -> Result<(), IonParserError>{
+        let value_header = self.parser.consume_value_header()?;
+
+        /*match value_header.r#type {
+            ValueType::Bool => match value_header.length {
+
+            }
+        }*/
+
+
+
+        unimplemented!()
     }
 }
 

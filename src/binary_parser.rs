@@ -31,11 +31,11 @@ impl <T: Read>IonBinaryParser<T> {
     //             n+7                     n
     pub fn consume_uint(&mut self, octets: usize) -> Result<u64, ParsingError> {
         if octets == 0 {
-            return Err(ParsingError::CannotReadZeroBytes)
+            return Err(ParsingError::CannotReadZeroBytes);
         }
 
         if octets > 8 {
-            return Err(ParsingError::TooBigForU64)
+            return Err(ParsingError::TooBigForU64);
         }
 
         let mut byte = [0u8; 1];
@@ -295,8 +295,11 @@ impl <T: Read>IonBinaryParser<T> {
                 let value_length = self.get_field_length(value_length);
 
                 match (value_type, value_length) {
-                    (Ok(r#type), Ok(length)) => {
+                    (Ok(mut r#type), Ok(length)) => {
                         self.verify_header(&r#type, &length)?;
+
+                        self.fill_bool_value(&mut r#type, &length)?; 
+
                         Ok(ValueHeader { r#type, length })
                     },
                     (Err(e), _) => Err(e),
@@ -304,6 +307,24 @@ impl <T: Read>IonBinaryParser<T> {
                 }
             }
         }
+    }
+
+    fn fill_bool_value(&self, r#type: &mut ValueType, length: &ValueLength) -> Result<(), ParsingError> {
+        match (&r#type, &length) {
+            (ValueType::Bool(_), ValueLength::ShortLength(0)) => {
+                *r#type = ValueType::Bool(false);
+            },
+            (ValueType::Bool(_), ValueLength::ShortLength(1)) => {
+                *r#type = ValueType::Bool(true);
+            },
+            (ValueType::Bool(_), _) => {
+                return Err(ParsingError::InvalidBoolLength(length.clone()));
+            },
+            _ => {}
+
+        };
+    
+        Ok(())
     }
 
     fn verify_header(&self, valtype: &ValueType, length: &ValueLength) -> Result<(), ParsingError> {
@@ -318,7 +339,7 @@ impl <T: Read>IonBinaryParser<T> {
                     Err(ParsingError::InvalidNullLength(length.clone()))
                 }
             },
-            Bool => {
+            Bool(_) => {
                 if let ShortLength(len) = length {
                     if len > &1 {
                         Err(ParsingError::InvalidBoolLength(length.clone()))
@@ -379,7 +400,7 @@ impl <T: Read>IonBinaryParser<T> {
     fn get_field_type(&mut self, id: u8) -> Result<ValueType, ParsingError> {
         match id {
             0 => Ok(ValueType::Null),
-            1 => Ok(ValueType::Bool),
+            1 => Ok(ValueType::Bool(false)),
             2 => Ok(ValueType::PositiveInt),
             3 => Ok(ValueType::NegativeInt),
             4 => Ok(ValueType::Float),
