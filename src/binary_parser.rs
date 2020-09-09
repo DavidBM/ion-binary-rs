@@ -55,13 +55,13 @@ pub enum ParsingError {
     InvalidAnnotationLength(ValueLength)
 }
 
-pub struct IonBinaryParser {
-    reader: Box<dyn Read>,
+pub struct IonBinaryParser<T: Read> {
+    reader: T,
     current_ion_version: Option<(u8, u8)>
 }
 
-impl IonBinaryParser {
-    pub fn new(reader: Box<dyn Read>) -> IonBinaryParser {
+impl <T: Read>IonBinaryParser<T> {
+    pub fn new(reader: T) -> IonBinaryParser<T> {
         IonBinaryParser { reader, current_ion_version: None }
     }
 
@@ -459,7 +459,7 @@ impl IonBinaryParser {
     }
 }
 
-impl Debug for IonBinaryParser {
+impl <T: Read> Debug for IonBinaryParser<T> {
     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> { 
         fmt.debug_struct("IonBinaryParser").finish()
     }
