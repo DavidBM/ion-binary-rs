@@ -4,13 +4,13 @@ use crate::binary_parser::IonBinaryParser;
 use crate::binary_parser_types::*;
 
 #[derive(Debug)]
-pub struct IonParser {
-	parser: IonBinaryParser,
+pub struct IonParser<T: Read> {
+	parser: IonBinaryParser<T>,
 	system_symbol_table: HashMap<usize, SystemSymbolTableType>,
 }
 
-impl IonParser {
-    pub fn new(reader: Box<dyn Read>) -> IonParser {
+impl <T: Read>IonParser<T> {
+    pub fn new(reader: T) -> IonParser<T> {
     	let mut system_symbol_table = HashMap::new();
 
     	system_symbol_table.insert(1, SystemSymbolTableType::Ion); 
