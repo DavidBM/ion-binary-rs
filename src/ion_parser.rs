@@ -2,17 +2,19 @@ use std::io::Read;
 use crate::binary_parser::IonBinaryParser;
 use crate::ion_parser_types::*;
 use crate::binary_parser_types::*;
+use crate::symbol_table::*;
 
 #[derive(Debug)]
 pub struct IonParser<T: Read> {
     parser: IonBinaryParser<T>,
-    // TODO: Add context
+    context: SymbolContext,
 }
 
 impl <T: Read>IonParser<T> {
     pub fn new(reader: T) -> IonParser<T> {
         IonParser { 
             parser: IonBinaryParser::new(reader),
+            context: SymbolContext::new(),
         }
     }
 

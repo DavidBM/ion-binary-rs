@@ -147,6 +147,10 @@ impl SymbolContext {
         let mut new_table = LocalSymbolTable::new();
 
         for import in imports {
+            if import.name == "$ion" {
+                continue;
+            }
+
             let version = if let Some(version) = import.version {
                 std::cmp::max(1, version)
             } else {
@@ -202,6 +206,14 @@ impl SymbolContext {
         new_table.add_symbols(&symbols);
 
         Ok(())
+    }
+
+    pub fn  get_symbol_by_id(&self, id: usize) -> Option<&Option<String>> {
+        self.current_table.get_symbol_by_id(id)
+    }
+
+    pub fn  get_id_by_symbol(&self, symbol: String) -> Option<usize> {
+        self.current_table.get_id_by_symbol(symbol)
     }
 }
 
