@@ -1,60 +1,36 @@
-use std::collections::HashMap;
 use std::io::Read;
 use crate::binary_parser::IonBinaryParser;
-
-#[derive(Debug)]
-pub enum SystemSymbolTableType {
-	Ion,
-	Ion1_0,
-	IonSymbolTable,
-	Name,
-	Version,
-	Imports,
-	Symbols,
-	MaxId,
-	IonSharedSymbolTable,
-}
+use crate::ion_parser_types::*;
+use crate::binary_parser_types::*;
+use crate::symbol_table::*;
 
 #[derive(Debug)]
 pub struct IonParser<T: Read> {
-	parser: IonBinaryParser<T>,
-	system_symbol_table: HashMap<usize, SystemSymbolTableType>,
+    parser: IonBinaryParser<T>,
+    context: SymbolContext,
 }
 
 impl <T: Read>IonParser<T> {
     pub fn new(reader: T) -> IonParser<T> {
-    	let mut system_symbol_table = HashMap::new();
-
-    	system_symbol_table.insert(1, SystemSymbolTableType::Ion); 
-    	system_symbol_table.insert(2, SystemSymbolTableType::Ion1_0); 
-    	system_symbol_table.insert(3, SystemSymbolTableType::IonSymbolTable); 
-    	system_symbol_table.insert(4, SystemSymbolTableType::Name); 
-    	system_symbol_table.insert(5, SystemSymbolTableType::Version); 
-    	system_symbol_table.insert(6, SystemSymbolTableType::Imports); 
-    	system_symbol_table.insert(7, SystemSymbolTableType::Symbols); 
-    	system_symbol_table.insert(8, SystemSymbolTableType::MaxId); 
-    	system_symbol_table.insert(9, SystemSymbolTableType::IonSharedSymbolTable); 
-
         IonParser { 
-        	parser: IonBinaryParser::new(reader),
-        	system_symbol_table
+            parser: IonBinaryParser::new(reader),
+            context: SymbolContext::new(),
+        }
+    }
+
+    pub fn consume_value(&mut self) -> Result<IonValue, IonParserError>{
+        let value_header = self.parser.consume_value_header()?;
+
+        match value_header.r#type {
+            ValueType::Bool(value) =>  {
+                Ok(IonValue::Bool(value))
+            },
+            _ => Err(IonParserError::Unimplemented)
         }
     }
 }
 
 /*
-ION SYSTEM SYMBOL TABLE
-
-Symbol ID   Symbol Name
-1           $ion
-2           $ion_1_0
-3           $ion_symbol_table
-4           name
-5           version
-6           imports
-7           symbols
-8           max_id
-9           $ion_shared_symbol_table
 
 Basically, for QLDB, the first value that the DB sends is:
 Annotation: 

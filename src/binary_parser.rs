@@ -1,59 +1,8 @@
+use crate::binary_parser_types::*;
 use std::fmt::Debug;
 use bytes::buf::BufExt;
 use std::convert::TryInto;
 use std::io::Read;
-
-#[derive(Eq, PartialEq, Debug)]
-pub enum ValueType {
-    Null,        // T = 0   : 0000
-    Bool,        // T = 1   : 0001
-    PositiveInt, // T = 2   : 0010
-    NegativeInt, // T = 3   : 0011
-    Float,       // T = 4   : 0100
-    Decimal,     // T = 5   : 0101
-    Timestamp,   // T = 6   : 0110
-    Symbol,      // T = 7   : 0111
-    String,      // T = 8   : 1000
-    Clob,        // T = 9   : 1001
-    Blob,        // T = 10  : 1010
-    List,        // T = 11  : 1011
-    SExpr,       // T = 12  : 1100
-    Struct,      // T = 13  : 1101
-    Annotation,  // T = 14  : 1110
-    Reserved,    // T = 15  : 1111
-}
-
-#[derive(Eq, PartialEq, Debug, Clone)]
-pub enum ValueLength {
-    ShortLength(u8), // 0 <= L <= 13 and we omit the "length [VarUInt]" field
-    LongLength, // L = 14 and the real length is in the field after this one: "length [VarUInt]"
-    NullValue,  // L = 15
-}
-
-//   7       4 3       0
-//  +---------+---------+
-//  |    T    |    L    |
-//  +---------+---------+
-#[derive(Eq, PartialEq, Debug)]
-pub struct ValueHeader {
-    r#type: ValueType,   // T
-    length: ValueLength, // L
-}
-
-#[derive(Eq, PartialEq, Debug)]
-pub enum ParsingError {
-    InvalidHeaderType,
-    InvalidHeaderLength,
-    TooBigForU64,
-    VarIntTooBigForI64,
-    NoDataToRead,
-    ErrorReadingData(String),
-    CannotReadZeroBytes,
-    BadFormedVersionHeader,
-    InvalidNullLength(ValueLength),
-    InvalidBoolLength(ValueLength),
-    InvalidAnnotationLength(ValueLength)
-}
 
 pub struct IonBinaryParser<T: Read> {
     reader: T,
@@ -82,11 +31,11 @@ impl <T: Read>IonBinaryParser<T> {
     //             n+7                     n
     pub fn consume_uint(&mut self, octets: usize) -> Result<u64, ParsingError> {
         if octets == 0 {
-            return Err(ParsingError::CannotReadZeroBytes)
+            return Err(ParsingError::CannotReadZeroBytes);
         }
 
         if octets > 8 {
-            return Err(ParsingError::TooBigForU64)
+            return Err(ParsingError::TooBigForU64);
         }
 
         let mut byte = [0u8; 1];
@@ -346,8 +295,11 @@ impl <T: Read>IonBinaryParser<T> {
                 let value_length = self.get_field_length(value_length);
 
                 match (value_type, value_length) {
-                    (Ok(r#type), Ok(length)) => {
+                    (Ok(mut r#type), Ok(length)) => {
                         self.verify_header(&r#type, &length)?;
+
+                        self.fill_bool_value(&mut r#type, &length)?; 
+
                         Ok(ValueHeader { r#type, length })
                     },
                     (Err(e), _) => Err(e),
@@ -355,6 +307,24 @@ impl <T: Read>IonBinaryParser<T> {
                 }
             }
         }
+    }
+
+    fn fill_bool_value(&self, r#type: &mut ValueType, length: &ValueLength) -> Result<(), ParsingError> {
+        match (&r#type, &length) {
+            (ValueType::Bool(_), ValueLength::ShortLength(0)) => {
+                *r#type = ValueType::Bool(false);
+            },
+            (ValueType::Bool(_), ValueLength::ShortLength(1)) => {
+                *r#type = ValueType::Bool(true);
+            },
+            (ValueType::Bool(_), _) => {
+                return Err(ParsingError::InvalidBoolLength(length.clone()));
+            },
+            _ => {}
+
+        };
+    
+        Ok(())
     }
 
     fn verify_header(&self, valtype: &ValueType, length: &ValueLength) -> Result<(), ParsingError> {
@@ -369,7 +339,7 @@ impl <T: Read>IonBinaryParser<T> {
                     Err(ParsingError::InvalidNullLength(length.clone()))
                 }
             },
-            Bool => {
+            Bool(_) => {
                 if let ShortLength(len) = length {
                     if len > &1 {
                         Err(ParsingError::InvalidBoolLength(length.clone()))
@@ -430,7 +400,7 @@ impl <T: Read>IonBinaryParser<T> {
     fn get_field_type(&mut self, id: u8) -> Result<ValueType, ParsingError> {
         match id {
             0 => Ok(ValueType::Null),
-            1 => Ok(ValueType::Bool),
+            1 => Ok(ValueType::Bool(false)),
             2 => Ok(ValueType::PositiveInt),
             3 => Ok(ValueType::NegativeInt),
             4 => Ok(ValueType::Float),
@@ -463,542 +433,4 @@ impl <T: Read> Debug for IonBinaryParser<T> {
     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> { 
         fmt.debug_struct("IonBinaryParser").finish()
     }
-}
-
-#[test]
-fn decode_value_null() {
-    let ion_test = [0b_0000_1111u8].reader();
-
-    let mut lexer = IonBinaryParser::new(Box::new(ion_test));
-
-    assert_eq!(
-        lexer.consume_value_header(),
-        Ok(ValueHeader {
-            r#type: ValueType::Null,
-            length: ValueLength::NullValue,
-        })
-    );
-}
-
-#[test]
-fn decode_value_invalid_null() {
-    let ion_test = [0b_0000_1110u8].reader();
-
-    let mut lexer = IonBinaryParser::new(Box::new(ion_test));
-
-    assert_eq!(
-        lexer.consume_value_header(),
-        Err(ParsingError::InvalidNullLength(ValueLength::LongLength))
-    );
-}
-
-#[test]
-fn decode_varuint_one_byte() {
-    let ion_test = [0b_1000_1000u8].reader();
-
-    let mut lexer = IonBinaryParser::new(Box::new(ion_test));
-
-    assert_eq!(lexer.consume_varuint(), Ok(8));
-}
-
-#[test]
-fn decode_varuint_two_byte_only_last_byte_significant() {
-    let ion_test = [0b_0000_0000, 0b_1000_1000].reader();
-
-    let mut lexer = IonBinaryParser::new(Box::new(ion_test));
-
-    assert_eq!(lexer.consume_varuint(), Ok(8));
-}
-
-#[test]
-fn decode_varuint_two_byte() {
-    let ion_test = [0b_0001_0000, 0b_1000_1000].reader();
-
-    let mut lexer = IonBinaryParser::new(Box::new(ion_test));
-
-    assert_eq!(lexer.consume_varuint(), Ok(2056));
-}
-
-#[test]
-fn decode_varuint_three_byte() {
-    let ion_test = [0b_0001_0000, 0b_0000_1000, 0b_1000_1000].reader();
-
-    let mut lexer = IonBinaryParser::new(Box::new(ion_test));
-
-    assert_eq!(lexer.consume_varuint(), Ok(263176));
-}
-
-#[test]
-fn decode_varuint_len_10() {
-    let ion_test = [
-        0b_0000_0001u8,
-        0b_0000_1000,
-        0b_0000_1000,
-        0b_0000_1000,
-        0b_0000_1000,
-        0b_0000_1000,
-        0b_0000_1000,
-        0b_0000_1000,
-        0b_0000_1000,
-        0b_1000_0000,
-    ]
-    .reader();
-
-    let mut lexer = IonBinaryParser::new(Box::new(ion_test));
-
-    assert_eq!(
-        lexer.consume_varuint(),
-        Ok(9804371850199958528)
-    );
-}
-
-#[test]
-fn decode_varuint_too_long_len_10() {
-    let ion_test = [
-        0b_0000_0010,
-        0b_0000_1000,
-        0b_0000_1000,
-        0b_0000_1000,
-        0b_0000_1000,
-        0b_0000_1000,
-        0b_0000_1000,
-        0b_0000_1000,
-        0b_0000_1000,
-        0b_1000_1000,
-    ]
-    .reader();
-
-    let mut lexer = IonBinaryParser::new(Box::new(ion_test));
-
-    assert_eq!(
-        lexer.consume_varuint(),
-        Err(ParsingError::TooBigForU64)
-    );
-}
-
-#[test]
-fn decode_varuint_too_long_len_11() {
-    let ion_test = [
-        0b_0001_0000,
-        0b_0000_1000,
-        0b_0000_1000,
-        0b_0000_1000,
-        0b_0000_1000,
-        0b_0000_1000,
-        0b_0000_1000,
-        0b_0000_1000,
-        0b_0000_1000,
-        0b_0000_1000,
-        0b_1000_1000,
-    ]
-    .reader();
-
-    let mut lexer = IonBinaryParser::new(Box::new(ion_test));
-
-    assert_eq!(
-        lexer.consume_varuint(),
-        Err(ParsingError::TooBigForU64)
-    );
-}
-
-#[test]
-fn decode_varint_one_byte_negative() {
-    let ion_test = [0b_1100_1000u8].reader();
-
-    let mut lexer = IonBinaryParser::new(Box::new(ion_test));
-
-    assert_eq!(lexer.consume_varint(), Ok(-8));
-}
-
-#[test]
-fn decode_varint_one_byte_positive() {
-    let ion_test = [0b_1000_1000u8].reader();
-
-    let mut lexer = IonBinaryParser::new(Box::new(ion_test));
-
-    assert_eq!(lexer.consume_varint(), Ok(8));
-}
-
-#[test]
-fn decode_varint_two_byte_only_last_byte_significant_negative() {
-    let ion_test = [0b_0100_0000, 0b_1000_1000].reader();
-
-    let mut lexer = IonBinaryParser::new(Box::new(ion_test));
-
-    assert_eq!(lexer.consume_varint(), Ok(-8));
-}
-
-#[test]
-fn decode_varint_two_byte_only_last_byte_significant_positive() {
-    let ion_test = [0b_0000_0000, 0b_1000_1000].reader();
-
-    let mut lexer = IonBinaryParser::new(Box::new(ion_test));
-
-    assert_eq!(lexer.consume_varint(), Ok(8));
-}
-
-#[test]
-fn decode_varint_two_byte_positive() {
-    let ion_test = [0b_0001_0000, 0b_1000_1000].reader();
-
-    let mut lexer = IonBinaryParser::new(Box::new(ion_test));
-
-    assert_eq!(lexer.consume_varint(), Ok(2056));
-}
-
-#[test]
-fn decode_varint_two_byte_negative() {
-    let ion_test = [0b_0101_0000, 0b_1000_1000].reader();
-
-    let mut lexer = IonBinaryParser::new(Box::new(ion_test));
-
-    assert_eq!(lexer.consume_varint(), Ok(-2056));
-}
-
-#[test]
-fn decode_varint_three_byte_positive() {
-    let ion_test = [0b_0001_0000, 0b_0000_1000, 0b_1000_1000].reader();
-
-    let mut lexer = IonBinaryParser::new(Box::new(ion_test));
-
-    assert_eq!(lexer.consume_varint(), Ok(263176));
-}
-
-#[test]
-fn decode_varint_three_byte_negative() {
-    let ion_test = [0b_0101_0000, 0b_0000_1000, 0b_1000_1000].reader();
-
-    let mut lexer = IonBinaryParser::new(Box::new(ion_test));
-
-    assert_eq!(lexer.consume_varint(), Ok(-263176));
-}
-
-#[test]
-fn decode_varint_len_10_positive() {
-    let ion_test = [
-        0b_0000_1000,
-        0b_0000_1000,
-        0b_0000_1000,
-        0b_0000_1000,
-        0b_0000_1000,
-        0b_0000_1000,
-        0b_0000_1000,
-        0b_0000_1000,
-        0b_1000_1000,
-    ]
-    .reader();
-
-    let mut lexer = IonBinaryParser::new(Box::new(ion_test));
-
-    assert_eq!(
-        lexer.consume_varint(),
-        Ok(580999813345182728)
-    );
-}
-
-#[test]
-// Technically correct, but we don't handle this case (yet?) 
-fn decode_varint_valid_but_not_handles_case_len_10_positive() {
-    let ion_test = [
-        0b_0000_0000,
-        0b_0111_1111,
-        0b_0111_1111,
-        0b_0111_1111,
-        0b_0111_1111,
-        0b_0111_1111,
-        0b_0111_1111,
-        0b_0111_1111,
-        0b_0111_1111,
-        0b_1111_1111,
-    ]
-    .reader();
-
-    let mut lexer = IonBinaryParser::new(Box::new(ion_test));
-
-    assert_eq!(
-        lexer.consume_varint(),
-        Err(ParsingError::VarIntTooBigForI64)
-    );
-}
-
-#[test]
-// Technically correct, but we don't handle this case (yet?) 
-fn decode_varint_valid_but_not_handles_case_len_10_negative() {
-    let ion_test = [
-        0b_0100_0000,
-        0b_0111_1111,
-        0b_0111_1111,
-        0b_0111_1111,
-        0b_0111_1111,
-        0b_0111_1111,
-        0b_0111_1111,
-        0b_0111_1111,
-        0b_0111_1111,
-        0b_1111_1111,
-    ]
-    .reader();
-
-    let mut lexer = IonBinaryParser::new(Box::new(ion_test));
-
-    assert_eq!(
-        lexer.consume_varint(),
-        Err(ParsingError::VarIntTooBigForI64)
-    );
-}
-
-#[test]
-// Technically correct, but we don't handle this case (yet?) 
-fn decode_varint_len_10_max_positive() {
-    let ion_test = [
-        0b_0011_1111,
-        0b_0111_1111,
-        0b_0111_1111,
-        0b_0111_1111,
-        0b_0111_1111,
-        0b_0111_1111,
-        0b_0111_1111,
-        0b_0111_1111,
-        0b_1111_1111,
-    ]
-    .reader();
-
-    let mut lexer = IonBinaryParser::new(Box::new(ion_test));
-
-    assert_eq!(
-        lexer.consume_varint(),
-        Ok(4611686018427387903)
-    );
-}
-
-#[test]
-// Technically correct, but we don't handle this case (yet?) 
-fn decode_varint_len_10_max_negative() {
-    let ion_test = [
-        0b_0111_1111,
-        0b_0111_1111,
-        0b_0111_1111,
-        0b_0111_1111,
-        0b_0111_1111,
-        0b_0111_1111,
-        0b_0111_1111,
-        0b_0111_1111,
-        0b_1111_1111,
-    ]
-    .reader();
-
-    let mut lexer = IonBinaryParser::new(Box::new(ion_test));
-
-    assert_eq!(
-        lexer.consume_varint(),
-        Ok(-4611686018427387903)
-    );
-}
-
-#[test]
-fn decode_uint_valid_len_8() {
-    let ion_test = [
-        0b_0000_0000,
-        0b_0000_0000,
-        0b_0000_0000,
-        0b_0000_0000,
-        0b_0000_0000,
-        0b_0000_0000,
-        0b_0000_0000,
-        0b_0000_1000,
-    ]
-    .reader();
-
-    let mut lexer = IonBinaryParser::new(Box::new(ion_test));
-
-    assert_eq!(
-        lexer.consume_uint(8),
-        Ok(8)
-    );
-}
-
-#[test]
-fn decode_uint_valid() {
-    let ion_test = [
-        0b_0000_1000,
-    ]
-    .reader();
-
-    let mut lexer = IonBinaryParser::new(Box::new(ion_test));
-
-    assert_eq!(
-        lexer.consume_uint(1),
-        Ok(8)
-    );
-}
-
-#[test]
-fn decode_uint_valid_2() {
-    let ion_test = [
-        0b_0000_1000,
-        0b_1000_1000,
-    ]
-    .reader();
-
-    let mut lexer = IonBinaryParser::new(Box::new(ion_test));
-
-    assert_eq!(
-        lexer.consume_uint(2),
-        Ok(2184)
-    );
-}
-
-#[test]
-fn decode_uint_invalid_zero_len() {
-    let ion_test = [
-        0b_1000_1000,
-    ]
-    .reader();
-
-    let mut lexer = IonBinaryParser::new(Box::new(ion_test));
-
-    assert_eq!(
-        lexer.consume_uint(0),
-        Err(ParsingError::CannotReadZeroBytes)
-    );
-}
-
-#[test]
-fn decode_int_valid_len_8_positive() {
-    let ion_test = [
-        0b_0000_0000,
-        0b_0000_0000,
-        0b_0000_0000,
-        0b_0000_0000,
-        0b_0000_0000,
-        0b_0000_0000,
-        0b_0000_0000,
-        0b_0000_1000,
-    ]
-    .reader();
-
-    let mut lexer = IonBinaryParser::new(Box::new(ion_test));
-
-    assert_eq!(
-        lexer.consume_int(8),
-        Ok(8)
-    );
-}
-
-#[test]
-fn decode_int_valid_len_8_negative() {
-    let ion_test = [
-        0b_1000_0000,
-        0b_0000_0000,
-        0b_0000_0000,
-        0b_0000_0000,
-        0b_0000_0000,
-        0b_0000_0000,
-        0b_0000_0000,
-        0b_0000_1000,
-    ]
-    .reader();
-
-    let mut lexer = IonBinaryParser::new(Box::new(ion_test));
-
-    assert_eq!(
-        lexer.consume_int(8),
-        Ok(-8)
-    );
-}
-
-#[test]
-fn decode_int_valid_positive() {
-    let ion_test = [
-        0b_0000_1000,
-    ]
-    .reader();
-
-    let mut lexer = IonBinaryParser::new(Box::new(ion_test));
-
-    assert_eq!(
-        lexer.consume_int(1),
-        Ok(8)
-    );
-}
-
-#[test]
-fn decode_int_valid_negative() {
-    let ion_test = [
-        0b_1000_1000,
-    ]
-    .reader();
-
-    let mut lexer = IonBinaryParser::new(Box::new(ion_test));
-
-    assert_eq!(
-        lexer.consume_int(1),
-        Ok(-8)
-    );
-}
-
-#[test]
-fn decode_int_valid_2_positive() {
-    let ion_test = [
-        0b_0000_1000,
-        0b_1000_1000,
-    ]
-    .reader();
-
-    let mut lexer = IonBinaryParser::new(Box::new(ion_test));
-
-    assert_eq!(
-        lexer.consume_int(2),
-        Ok(2184)
-    );
-}
-
-#[test]
-fn decode_int_valid_2_negative() {
-    let ion_test = [
-        0b_1000_1000,
-        0b_1000_1000,
-    ]
-    .reader();
-
-    let mut lexer = IonBinaryParser::new(Box::new(ion_test));
-
-    assert_eq!(
-        lexer.consume_int(2),
-        Ok(-2184)
-    );
-}
-
-#[test]
-fn decode_int_invalid_zero_len() {
-    let ion_test = [
-        0b_1000_1000,
-    ]
-    .reader();
-
-    let mut lexer = IonBinaryParser::new(Box::new(ion_test));
-
-    assert_eq!(
-        lexer.consume_int(0),
-        Err(ParsingError::CannotReadZeroBytes)
-    );
-}
-
-#[test]
-fn decode_value_with_version_header() {
-    let ion_test = b"\xe0\x01\0\xea\xee\xa6\x81\x83\xde\xa2\x87\xbe\x9f\x83V".reader();
-
-    let mut lexer = IonBinaryParser::new(Box::new(ion_test));
-
-    assert_eq!(
-        lexer.consume_value_header(),
-        Ok(ValueHeader { 
-            r#type: ValueType::Annotation,
-            length: ValueLength::LongLength,
-        })
-    );
-}
-
-#[test]
-fn decode_full_ion() {
-    let _ion = b"\xe0\x01\0\xea\xee\xa6\x81\x83\xde\xa2\x87\xbe\x9f\x83VIN\x84Type\x84Year\x84Make\x85Model\x85Color\xde\xb9\x8a\x8e\x911C4RJFAG0FC625797\x8b\x85Sedan\x8c\"\x07\xe3\x8d\x88Mercedes\x8e\x87CLK 350\x8f\x85White";
 }
