@@ -90,7 +90,9 @@ pub struct Import {
 #[derive(Debug)]
 pub enum SymbolContextError {
     TableVersionAlreadyThere,
-    MaxIdNeededWhenImportingASharedTableWhereVersionIsNotAvailable
+    MaxIdNeededWhenImportingASharedTableWhereVersionIsNotAvailable,
+    MaxIdNeededWhenImportingANotFoundSharedTable,
+    InternalParserErrorThisIsABug
 }
 
 #[derive(Debug)]
@@ -173,7 +175,7 @@ impl SymbolContext {
                                         table
                                     },
                                     None => {
-                                        panic!()
+                                        return Err(SymbolContextError::InternalParserErrorThisIsABug)
                                     }
                                 };
 
@@ -182,17 +184,24 @@ impl SymbolContext {
                             } else {
                                 return Err(SymbolContextError::MaxIdNeededWhenImportingASharedTableWhereVersionIsNotAvailable)
                             }
-
                         }
                     }
                 }, 
                 None => {
-                    // TODO: dummy
+                    if let Some(len) = import.max_len {
+                        new_table.insert_dummy_symbols(len);
+                    } else {
+                        return Err(SymbolContextError::MaxIdNeededWhenImportingANotFoundSharedTable);
+                    }
                 }
             }
         }
 
-        unimplemented!()
+        let symbols: Vec<Option<String>> = symbols.into_iter().map(|value| Some(value.into())).collect();
+
+        new_table.add_symbols(&symbols);
+
+        Ok(())
     }
 }
 
