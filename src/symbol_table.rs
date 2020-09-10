@@ -18,6 +18,18 @@ impl LocalSymbolTable {
     pub fn add_symbol(&mut self, symbol: String) {
         self.0.push(symbol);
     }
+
+    pub fn get_symbol_by_id(&self, id: usize) -> Option<&String> {
+        self.0.get(id)
+    }
+
+    pub fn get_id_by_symbol(&self, symbol: String) -> Option<usize> {
+        match self.0.iter().enumerate().find(|(_, value)| *value == &symbol) {
+            Some(value) => Some(value.0),
+            None => None,
+        }
+    }
+
 }
 
 #[derive(Debug)]
@@ -29,19 +41,28 @@ pub struct SharedSymbolTable {
 
 impl SharedSymbolTable {
     pub fn is_superset(&self, table: &SharedSymbolTable) -> bool {
-        for (index, symbol) in table.symbols.into_iter().enumerate() {
+        for (index, symbol) in table.symbols.iter().enumerate() {
             match self.symbols.get(index) {
-                Some(&value) if value == symbol => {},
+                Some(ref value) if *value == symbol => {},
                 _ => { return false; }
             }
         }
 
         true
     }
+
+    pub fn get_symbols_max_len(&self, max_len: usize) -> &[String] {
+        if max_len > self.symbols.len() {
+            return &self.symbols;
+        }
+
+        self.symbols.split_at(max_len).0
+    }
+
 }
 
 #[derive(Debug)]
-enum SymbolContextError {
+pub enum SymbolContextError {
     TableVersionAlreadyThere
 }
 
@@ -67,14 +88,14 @@ impl SymbolContext {
 
     pub fn add_shared_table(&mut self, name: String, version: u32, symbols: Vec<String>) -> Result<(), SymbolContextError>  {
         let new_table = SharedSymbolTable {
-            name,
+            name: name.clone(),
             version,
             symbols,
         };
 
         match self.shared_tables.get_mut(&name) {
             Some(table_collection) => match table_collection.1.get_mut(&version) {
-                Some(table) => Err(SymbolContextError::TableVersionAlreadyThere),
+                Some(_) => Err(SymbolContextError::TableVersionAlreadyThere),
                 None => {
                     if table_collection.0 < version {
                         table_collection.0 = version;
