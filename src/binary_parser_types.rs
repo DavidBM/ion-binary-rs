@@ -1,16 +1,15 @@
-#[derive(Debug)]
-pub enum SystemSymbolTableType {
-	Zero,
-	Ion,
-	Ion1_0,
-	IonSymbolTable,
-	Name,
-	Version,
-	Imports,
-	Symbols,
-	MaxId,
-	IonSharedSymbolTable,
-}
+pub const SYSTEM_SYMBOL_TABLE: &[&str; 10] = &[
+    "$0",
+    "$ion",
+    "$ion_1_0",
+    "$ion_symbol_table",
+    "name",
+    "version",
+    "imports",
+    "symbols",
+    "max_id",
+    "$ion_shared_symbol_table",
+];
 
 #[derive(Eq, PartialEq, Debug, Clone)]
 pub enum ValueLength {

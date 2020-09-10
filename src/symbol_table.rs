@@ -1,120 +1,97 @@
-use std::cmp;
-use std::rc::Rc;
+use std::collections::HashMap;
+use crate::binary_parser_types::SYSTEM_SYMBOL_TABLE;
 
 #[derive(Debug)]
-pub struct TableImport {
-    table: Rc<SymbolTable>,
-    max_id: usize,
-    dummy: bool,
-}
+pub struct LocalSymbolTable(Vec<String>);
 
-impl TableImport {
-    pub fn len(&self) -> usize {
-        cmp::min(self.max_id, self.table.total_len)
+impl LocalSymbolTable {
+    pub fn new() -> LocalSymbolTable {
+        LocalSymbolTable(
+            SYSTEM_SYMBOL_TABLE
+                .to_vec()
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+        )
+    }
+
+    pub fn add_symbol(&mut self, symbol: String) {
+        self.0.push(symbol);
     }
 }
 
-pub enum SymbolTableError {
-    NotInIndex,
-    TableImportNotFound,
-}
-
 #[derive(Debug)]
-pub struct SymbolTable {
+pub struct SharedSymbolTable {
     name: String,
-    shared: bool,
-    version: u64,
-    //Note: First table must be the system table
-    imported_tables: Vec<TableImport>,
-    values: Vec<String>,
-    total_len: usize,
+    version: u32,
+    symbols: Vec<String>,
 }
 
-impl SymbolTable {
-    pub fn new(
-        name: String,
-        shared: bool,
-        version: u64,
-        imported_tables: Vec<TableImport>,
-        values: Vec<String>,
-    ) -> SymbolTable {
-        let mut total_len = 0;
-
-        if !shared {
-            for imported_table in &imported_tables {
-                total_len += imported_table.len();
+impl SharedSymbolTable {
+    pub fn is_superset(&self, table: &SharedSymbolTable) -> bool {
+        for (index, symbol) in table.symbols.into_iter().enumerate() {
+            match self.symbols.get(index) {
+                Some(&value) if value == symbol => {},
+                _ => { return false; }
             }
         }
 
-        total_len += values.len();
+        true
+    }
+}
 
-        SymbolTable {
+#[derive(Debug)]
+enum SymbolContextError {
+    TableVersionAlreadyThere
+}
+
+#[derive(Debug)]
+pub struct SymbolContext {
+    current_table: LocalSymbolTable,
+    shared_tables: HashMap<String, (u32, HashMap<u32, SharedSymbolTable>)>
+}
+
+impl SymbolContext {
+    pub fn new() -> SymbolContext {
+        SymbolContext {
+            current_table: LocalSymbolTable::new(),
+            shared_tables: HashMap::new(),
+        }
+    }
+
+    pub fn set_tables_from_current(&mut self, symbols: Vec<String>) {
+        for symbol in symbols {
+            self.current_table.add_symbol(symbol);
+        }
+    }
+
+    pub fn add_shared_table(&mut self, name: String, version: u32, symbols: Vec<String>) -> Result<(), SymbolContextError>  {
+        let new_table = SharedSymbolTable {
             name,
             version,
-            imported_tables,
-            values,
-            shared,
-            total_len,
-        }
-    }
+            symbols,
+        };
 
-    fn substract_to_index(&self, index: &mut usize, value: usize) -> Result<(), SymbolTableError> {
-        match index.checked_sub(value) {
-            Some(value) => {
-                *index = value;
-                Ok(())
-            }
-            None => Err(SymbolTableError::NotInIndex),
-        }
-    }
-
-    fn search_in_imported_table(
-        &self,
-        imported_table: &TableImport,
-        mut index: &mut usize,
-        id: usize,
-    ) -> Result<Option<String>, SymbolTableError> {
-        match imported_table.table.find(id) {
-            Ok(value) => {
-                if imported_table.dummy {
-                    Err(SymbolTableError::TableImportNotFound)
-                } else {
-                    Ok(Some(value))
+        match self.shared_tables.get_mut(&name) {
+            Some(table_collection) => match table_collection.1.get_mut(&version) {
+                Some(table) => Err(SymbolContextError::TableVersionAlreadyThere),
+                None => {
+                    if table_collection.0 < version {
+                        table_collection.0 = version;
+                    }
+                    table_collection.1.insert(version, new_table);
+                    Ok(())
                 }
-            }
-            Err(SymbolTableError::NotInIndex) => {
-                self.substract_to_index(&mut index, imported_table.max_id)?;
-                Ok(None)
-            }
-            Err(SymbolTableError::TableImportNotFound) => {
-                Err(SymbolTableError::TableImportNotFound)
+            },
+            None => {
+                
             }
         }
     }
+}
 
-    pub fn find(&self, id: usize) -> Result<String, SymbolTableError> {
-        let mut index = id.clone();
-
-        if !self.shared {
-            for imported_table in &self.imported_tables {
-                if index > imported_table.max_id {
-                    self.substract_to_index(&mut index, imported_table.max_id)?;
-                    continue;
-                }
-
-                if let Some(value) =
-                    self.search_in_imported_table(imported_table, &mut index, id)?
-                {
-                    return Ok(value);
-                }
-            }
-        }
-
-        self.substract_to_index(&mut index, 1)?;
-
-        match self.values.get(index).map(|value| value.clone()) {
-            Some(value) => Ok(value),
-            None => Err(SymbolTableError::NotInIndex),
-        }
+impl Default for SymbolContext {
+    fn default() -> Self {
+        Self::new()
     }
 }
