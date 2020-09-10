@@ -84,7 +84,11 @@ impl SymbolContext {
                 }
             },
             None => {
-                
+                let mut new_hashmap = HashMap::new();
+                new_hashmap.insert(version, new_table);
+                let new_tuple = (version, new_hashmap);
+                self.shared_tables.insert(name, new_tuple);
+                Ok(())
             }
         }
     }
