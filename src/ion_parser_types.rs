@@ -4,7 +4,8 @@ use chrono::{DateTime, Utc};
 
 #[derive(Debug)]
 pub enum IonParserError {
-    Unimplemented
+    Unimplemented,
+    BadFormatLengthFound,
 } 
 
 impl From<ParsingError> for IonParserError {

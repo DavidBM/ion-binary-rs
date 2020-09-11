@@ -35,7 +35,7 @@ fn decode_varuint_one_byte() {
 
     let mut lexer = IonBinaryParser::new(Box::new(ion_test));
 
-    assert_eq!(lexer.consume_varuint(), Ok(8));
+    assert_eq!(lexer.consume_varuint(), Ok((8, 1)));
 }
 
 #[test]
@@ -44,7 +44,7 @@ fn decode_varuint_two_byte_only_last_byte_significant() {
 
     let mut lexer = IonBinaryParser::new(Box::new(ion_test));
 
-    assert_eq!(lexer.consume_varuint(), Ok(8));
+    assert_eq!(lexer.consume_varuint(), Ok((8, 2)));
 }
 
 #[test]
@@ -53,7 +53,7 @@ fn decode_varuint_two_byte() {
 
     let mut lexer = IonBinaryParser::new(Box::new(ion_test));
 
-    assert_eq!(lexer.consume_varuint(), Ok(2056));
+    assert_eq!(lexer.consume_varuint(), Ok((2056, 2)));
 }
 
 #[test]
@@ -62,7 +62,7 @@ fn decode_varuint_three_byte() {
 
     let mut lexer = IonBinaryParser::new(Box::new(ion_test));
 
-    assert_eq!(lexer.consume_varuint(), Ok(263176));
+    assert_eq!(lexer.consume_varuint(), Ok((263176, 3)));
 }
 
 #[test]
@@ -85,7 +85,7 @@ fn decode_varuint_len_10() {
 
     assert_eq!(
         lexer.consume_varuint(),
-        Ok(9804371850199958528)
+        Ok((9804371850199958528, 10))
     );
 }
 

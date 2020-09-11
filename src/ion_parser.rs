@@ -3,6 +3,7 @@ use crate::binary_parser::IonBinaryParser;
 use crate::ion_parser_types::*;
 use crate::binary_parser_types::*;
 use crate::symbol_table::*;
+use std::convert::TryFrom;
 
 #[derive(Debug)]
 pub struct IonParser<T: Read> {
@@ -18,15 +19,47 @@ impl <T: Read>IonParser<T> {
         }
     }
 
-    pub fn consume_value(&mut self) -> Result<IonValue, IonParserError>{
+    pub fn consume_value(&mut self) -> Result<IonValue, IonParserError> {
         let value_header = self.parser.consume_value_header()?;
 
         match value_header.r#type {
             ValueType::Bool(value) =>  {
                 Ok(IonValue::Bool(value))
             },
+            ValueType::Annotation => {
+                self.consume_annotation(&value_header)
+            },
             _ => Err(IonParserError::Unimplemented)
         }
+    }
+
+    pub fn consume_annotation(&mut self, header: &ValueHeader) -> Result<IonValue, IonParserError> {
+        let length = match header.length {
+            ValueLength::LongLength => self.parser.consume_varuint()?.0,
+            ValueLength::ShortLength(len) => len.into(),
+            ValueLength::NullValue => panic!()
+        };
+
+        let mut remaining_annot_bytes = self.parser.consume_varuint()?.0;
+
+        let mut symbols = Vec::new();
+
+        while remaining_annot_bytes > 0 {
+            let (annot, consumed_bytes) = self.parser.consume_varuint()?;
+
+            symbols.push(annot);
+
+            remaining_annot_bytes = match remaining_annot_bytes.checked_sub(consumed_bytes as u64) {
+                Some(result) => result,
+                None => return Err(IonParserError::BadFormatLengthFound) 
+            }
+        }
+
+        let value = self.consume_value()?;
+
+        //TODO: Check annotation symbols in order to know what to do with the content. It can be a symtem table, shared table, etc
+
+        unimplemented!()
     }
 }
 

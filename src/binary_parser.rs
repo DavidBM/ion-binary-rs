@@ -131,24 +131,51 @@ impl <T: Read>IonBinaryParser<T> {
         Ok(final_value)
     }
 
+    // Each byte has 7 bits forming the "VarUInt", so we cannot have more than
+    // 9 segments of 7 meaningful bytes because 7 * 9 is already 63 bytes. Or we
+    // can have 10 7 bites bytes, but the first one needs to be 1 or 0 (because
+    // we only have one free bit in the u64).
+    fn assert_valid_size_for_u64(consumed_bytes_len: usize, found_bytes: &[u8]) -> Result<(), ParsingError> {
+        let max_bytes_allowed = 10;
+
+        if consumed_bytes_len > max_bytes_allowed || 
+            (consumed_bytes_len == max_bytes_allowed && (found_bytes[0] & 0b0111_1111) >= 0b_0000_0010) {
+                return Err(ParsingError::TooBigForU64);
+        }
+
+        Ok(())
+    }
+
+    // Note that with this design, we can only get 62 bits for the value instead
+    // of 64 as we do with the u64. This is because in 9 bytes there are 2 bites
+    // for the format (end marker + sign), so in order to give the full 63 for the
+    // Rust i64, we would need to add an extra bit, but because that extra bit will
+    // change the layout of the second, that means that the byte would have only 0 
+    // in their value part. Given that it makes things harder we won't decode that 
+    // case and instead our decoder will decode only 63bits i64. Knowing this makes
+    // me hope the best for who is making the ion binary encoder.
+    fn assert_valid_size_for_i64(found_bytes: &[u8]) -> Result<(), ParsingError> {
+        let max_bytes_allowed = 9;
+
+        if found_bytes.len() > max_bytes_allowed {
+            return Err(ParsingError::VarIntTooBigForI64);
+        }
+
+        Ok(())
+    }
+
     //                 7  6                   0       n+7 n+6                 n
     //               +===+=====================+     +---+---------------------+
     // VarUInt field : 0 :         bits        :  …  | 1 |         bits        |
     //               +===+=====================+     +---+---------------------+
-    pub fn consume_varuint(&mut self) -> Result<u64, ParsingError> {
+    pub fn consume_varuint(&mut self) -> Result<(u64, usize), ParsingError> {
         let found_bytes = self.consume_var_number()?;
 
-        // Each byte has 7 bits forming the "VarUInt", so we cannot have more than
-        // 9 segments of 7 meaningful bytes because 7 * 9 is already 63 bytes. Or we
-        // can have 10 7 bites bytes, but the first one needs to be 1 or 0 (because
-        // we only have one free bite in the u64).
-        if found_bytes.len() > 10
-            || (found_bytes.len() == 10 && (found_bytes[0] & 0b0111_1111) >= 0b_0000_0010)
-        {
-            return Err(ParsingError::TooBigForU64);
-        }
+        let consumed_bytes_len =  found_bytes.len();
 
-        let mut bytes_displacement = found_bytes.len() - 1;
+        IonBinaryParser::<T>::assert_valid_size_for_u64(consumed_bytes_len, &found_bytes)?;
+
+        let mut bytes_displacement = consumed_bytes_len - 1;
         let mut final_value = 0_u64;
 
         for byte in found_bytes {
@@ -166,7 +193,7 @@ impl <T: Read>IonBinaryParser<T> {
             value_buffer = 0;
         }
 
-        Ok(final_value)
+        Ok((final_value, consumed_bytes_len))
     }
 
     //                7   6  5               0       n+7 n+6                 n
@@ -191,17 +218,7 @@ impl <T: Read>IonBinaryParser<T> {
     pub fn consume_varint(&mut self) -> Result<i64, ParsingError> {
         let found_bytes = self.consume_var_number()?;
 
-        // Note that with this design, we can only get 62 bits for the value instead
-        // of 64 as we do with the u64. This is because in 9 bytes there are 2 bites
-        // for the format (end marker + sign), so in order to give the full 63 for the
-        // Rust i64, we would need to add an extra bit, but because that extra bit will
-        // change the layout of the second, that means that the byte would have only 0 
-        // in their value part. Given that it makes things harder we won't decode that 
-        // case and instead our decoder will decode only 63bits i64. Knowing this makes
-        // me hope the best for who is making the ion binary encoder.
-        if found_bytes.len() > 9 {
-            return Err(ParsingError::VarIntTooBigForI64);
-        }
+        IonBinaryParser::<T>::assert_valid_size_for_i64(&found_bytes)?;
 
         // consume_var_number function is guaranteed to return at least one byte.
         let is_negative = (found_bytes[0] & 0b0100_0000) > 0;
