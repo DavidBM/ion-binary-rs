@@ -37,7 +37,7 @@ impl <T: Read>IonParser<T> {
         let length = match header.length {
             ValueLength::LongLength => self.parser.consume_varuint()?.0,
             ValueLength::ShortLength(len) => len.into(),
-            ValueLength::NullValue => panic!()
+            ValueLength::NullValue => return Err(IonParserError::NullAnnotationFound),
         };
 
         let mut remaining_annot_bytes = self.parser.consume_varuint()?.0;

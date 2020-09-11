@@ -6,6 +6,7 @@ use chrono::{DateTime, Utc};
 pub enum IonParserError {
     Unimplemented,
     BadFormatLengthFound,
+    NullAnnotationFound,
 } 
 
 impl From<ParsingError> for IonParserError {
