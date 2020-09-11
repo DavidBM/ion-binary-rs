@@ -1,8 +1,14 @@
 use std::collections::HashMap;
 use crate::binary_parser_types::SYSTEM_SYMBOL_TABLE;
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum Symbol {
+    Symbol(String),
+    Dummy,
+}
+
 #[derive(Debug)]
-pub struct LocalSymbolTable(Vec<Option<String>>);
+pub struct LocalSymbolTable(Vec<Symbol>);
 
 impl LocalSymbolTable {
     pub fn new() -> LocalSymbolTable {
@@ -10,28 +16,28 @@ impl LocalSymbolTable {
             SYSTEM_SYMBOL_TABLE
                 .to_vec()
                 .iter()
-                .map(|s| Some(s.to_string()))
+                .map(|s| Symbol::Symbol(s.to_string()))
                 .collect(),
         )
     }
 
-    pub fn add_symbol(&mut self, symbol: Option<String>) {
+    pub fn add_symbol(&mut self, symbol: Symbol) {
         self.0.push(symbol);
     }
 
-    pub fn add_symbols(&mut self, slice: &[Option<String>]) {
+    pub fn add_symbols(&mut self, slice: &[Symbol]) {
         for symbol in slice {
             self.add_symbol(symbol.clone());
         }
     }
 
-    pub fn get_symbol_by_id(&self, id: usize) -> Option<&Option<String>> {
+    pub fn get_symbol_by_id(&self, id: usize) -> Option<&Symbol> {
         self.0.get(id)
     }
 
     pub fn get_id_by_symbol(&self, symbol: String) -> Option<usize> {
         match self.0.iter().enumerate().find(|(_, value)| {
-            if let Some(value) = value {
+            if let Symbol::Symbol(value) = value {
                 *value == symbol
             } else {
                 false
@@ -44,7 +50,7 @@ impl LocalSymbolTable {
 
     pub fn insert_dummy_symbols(&mut self, max_len: usize) {
         for _ in 0..max_len {
-            self.add_symbol(None);
+            self.add_symbol(Symbol::Dummy);
         }
     }
 }
@@ -53,7 +59,7 @@ impl LocalSymbolTable {
 pub struct SharedSymbolTable {
     name: String,
     version: u32,
-    symbols: Vec<Option<String>>,
+    symbols: Vec<Symbol>,
 }
 
 impl SharedSymbolTable {
@@ -68,7 +74,7 @@ impl SharedSymbolTable {
         true
     }
 
-    pub fn get_symbols_max_len(&self, max_len: usize) -> &[Option<String>] {
+    pub fn get_symbols_max_len(&self, max_len: usize) -> &[Symbol] {
         if max_len > self.symbols.len() {
             return &self.symbols;
         }
@@ -76,7 +82,7 @@ impl SharedSymbolTable {
         self.symbols.split_at(max_len).0
     }
 
-    pub fn get_all_symbols(&self) -> &[Option<String>] {
+    pub fn get_all_symbols(&self) -> &[Symbol] {
         &self.symbols
     }
 }
@@ -111,7 +117,7 @@ impl SymbolContext {
 
     pub fn set_new_table_from_current(&mut self, symbols: &[String]) {
         for symbol in symbols {
-            self.current_table.add_symbol(Some(symbol.into()));
+            self.current_table.add_symbol(Symbol::Symbol(symbol.into()));
         }
     }
 
@@ -119,7 +125,7 @@ impl SymbolContext {
         let new_table = SharedSymbolTable {
             name: name.clone(),
             version,
-            symbols: symbols.into_iter().map(|value| Some(value.into())).collect(),
+            symbols: symbols.into_iter().map(|value| Symbol::Symbol(value.into())).collect(),
         };
 
         match self.shared_tables.get_mut(&name) {
@@ -145,6 +151,8 @@ impl SymbolContext {
 
     pub fn set_new_table(&mut self, imports: &[Import], symbols: &[String]) -> Result<(), SymbolContextError> {
         let mut new_table = LocalSymbolTable::new();
+
+        let symbols: Vec<Symbol> = symbols.into_iter().map(|s| Symbol::Symbol(s.clone())).collect();
 
         for import in imports {
             if import.name == "$ion" {
@@ -201,14 +209,12 @@ impl SymbolContext {
             }
         }
 
-        let symbols: Vec<Option<String>> = symbols.into_iter().map(|value| Some(value.into())).collect();
-
         new_table.add_symbols(&symbols);
 
         Ok(())
     }
 
-    pub fn  get_symbol_by_id(&self, id: usize) -> Option<&Option<String>> {
+    pub fn  get_symbol_by_id(&self, id: usize) -> Option<&Symbol> {
         self.current_table.get_symbol_by_id(id)
     }
 

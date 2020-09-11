@@ -11,6 +11,19 @@ pub const SYSTEM_SYMBOL_TABLE: &[&str; 10] = &[
     "$ion_shared_symbol_table",
 ];
 
+pub(crate) enum SystemSymbolIds {
+    Zero = 0x00,
+    Ion = 0x01,
+    Ion10 = 0x02,
+    IonSymbolTable = 0x03,
+    Name = 0x04,
+    Version = 0x05,
+    Imports = 0x06,
+    Symbols = 0x07,
+    MaxId = 0x08,
+    IonSharedSymbolTable = 0x09,
+}
+
 #[derive(Eq, PartialEq, Debug, Clone)]
 pub enum ValueLength {
     ShortLength(u8), // 0 <= L <= 13 and we omit the "length [VarUInt]" field
