@@ -81,7 +81,7 @@ impl <T: Read>IonBinaryParser<T> {
             Err(e) => return Err(ParsingError::ErrorReadingData(e.to_string())),
             Ok(len) => {
                 if len < buffer.len() {
-                    return Err(ParsingError::NotEnoughtDataToRead(len)),
+                    return Err(ParsingError::NotEnoughtDataToRead(len));
                 }
 
                 Ok(())

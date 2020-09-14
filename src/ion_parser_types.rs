@@ -23,7 +23,8 @@ pub enum IonParserError {
 } 
 
 impl From<ParsingError> for IonParserError {
-    fn from(_: ParsingError) -> Self { 
+    fn from(err: ParsingError) -> Self {
+        println!("{:?}", err); 
         IonParserError::Unimplemented
     }
 }

@@ -534,8 +534,3 @@ fn decode_value_with_version_header() {
         })
     );
 }
-
-#[test]
-fn decode_full_ion() {
-    let _ion = b"\xe0\x01\0\xea\xee\xa6\x81\x83\xde\xa2\x87\xbe\x9f\x83VIN\x84Type\x84Year\x84Make\x85Model\x85Color\xde\xb9\x8a\x8e\x911C4RJFAG0FC625797\x8b\x85Sedan\x8c\"\x07\xe3\x8d\x88Mercedes\x8e\x87CLK 350\x8f\x85White";
-}

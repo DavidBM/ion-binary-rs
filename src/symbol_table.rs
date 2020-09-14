@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use crate::binary_parser_types::SYSTEM_SYMBOL_TABLE;
+use log::trace;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Symbol {
@@ -209,7 +210,11 @@ impl SymbolContext {
             }
         }
 
+        trace!("Add symbols to Local table {:?}", symbols);
+
         new_table.add_symbols(&symbols);
+
+        self.current_table = new_table;
 
         Ok(())
     }
