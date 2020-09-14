@@ -59,6 +59,7 @@ pub enum ParsingError {
     TooBigForU64,
     VarIntTooBigForI64,
     NoDataToRead,
+    NotEnoughtDataToRead(usize),
     ErrorReadingData(String),
     CannotReadZeroBytes,
     BadFormedVersionHeader,

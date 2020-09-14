@@ -2,7 +2,7 @@ use crate::binary_parser::IonBinaryParser;
 use crate::binary_parser_types::*;
 use crate::ion_parser_types::*;
 use crate::symbol_table::*;
-use std::convert::TryInto;
+use std::convert::{TryInto, TryFrom};
 use std::{collections::HashMap, io::Read};
 
 #[derive(Debug)]
@@ -34,6 +34,8 @@ impl<T: Read> IonParser<T> {
             ValueType::Struct => self.consume_struct(&value_header)?,
             ValueType::List => self.consume_list(&value_header)?,
             ValueType::Symbol => self.consume_symbol(&value_header)?,
+            ValueType::PositiveInt => self.consume_int(&value_header, false)?,
+            ValueType::NegativeInt => self.consume_int(&value_header, true)?,
             _ => Err(IonParserError::Unimplemented)?,
         };
 
@@ -41,6 +43,35 @@ impl<T: Read> IonParser<T> {
         value.1 += 1;
 
         Ok(value)
+    }
+
+    pub fn consume_string(&mut self, header: &ValueHeader, negative: bool) -> Result<(IonValue, usize), IonParserError> {
+        let (length, _, total) = self.consume_value_len(header)?;
+
+        let mut buffer = Vec::with_capacity(length as usize);
+
+        self.parser.read_bytes(&mut buffer)?;
+
+        let text = match String::from_utf8(buffer) {
+            Ok(text) => text,
+            Err(_) => return Err(IonParserError::NonUtf8String),
+        };
+
+        Ok((IonValue::String(text), total))
+    }
+
+    pub fn consume_int(&mut self, header: &ValueHeader, negative: bool) -> Result<(IonValue, usize), IonParserError> {
+        let (length, _, total) = self.consume_value_len(header)?;
+
+        let value = self.parser.consume_uint(length.try_into().expect("Symbol length too big for usize"))?;
+
+        let value: i64 = if negative {
+            -(i64::try_from(value).expect("integer doesn't fit into i64"))
+        } else {
+            value.try_into().expect("integer doesn't fit into i64")
+        };
+
+        Ok((IonValue::Integer(value), total))
     }
 
     pub fn consume_struct(&mut self, header: &ValueHeader) -> Result<(IonValue, usize), IonParserError> {

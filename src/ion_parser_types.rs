@@ -18,7 +18,8 @@ pub enum IonParserError {
     LocalTableDefinitionWIthoutImportsField,
     LocalSymbolTableWithoutValidImport,
     SymbolNotFoundInTable,
-    ListLengthWasTooShort
+    ListLengthWasTooShort,
+    NonUtf8String
 } 
 
 impl From<ParsingError> for IonParserError {

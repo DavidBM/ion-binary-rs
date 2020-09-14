@@ -62,6 +62,33 @@ impl <T: Read>IonBinaryParser<T> {
         Ok(final_value)
     }
 
+    //             7                       0
+    //            +-------------------------+
+    // UInt field |          bits           |
+    //            +-------------------------+
+    //            :          bits           :
+    //            +=========================+
+    //                        ⋮
+    //            +=========================+
+    //            :          bits           :
+    //            +=========================+
+    //             n+7                     n
+    pub fn read_bytes(&mut self, buffer: &mut [u8]) -> Result<(), ParsingError> {
+        let read_bytes = self.read(buffer);
+
+        match read_bytes {
+            Ok(0) => return Err(ParsingError::NoDataToRead),
+            Err(e) => return Err(ParsingError::ErrorReadingData(e.to_string())),
+            Ok(len) => {
+                if len < buffer.len() {
+                    return Err(ParsingError::NotEnoughtDataToRead(len)),
+                }
+
+                Ok(())
+            }
+        }
+    }
+
     //              7  6                   0
     //            +---+---------------------+
     // Int field  |   |      bits           |
