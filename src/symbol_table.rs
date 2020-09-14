@@ -121,11 +121,11 @@ impl SymbolContext {
         }
     }
 
-    pub fn add_shared_table(&mut self, name: String, version: u32, symbols: &[String]) -> Result<(), SymbolContextError>  {
+    pub fn add_shared_table(&mut self, name: String, version: u32, symbols: &[Symbol]) -> Result<(), SymbolContextError>  {
         let new_table = SharedSymbolTable {
             name: name.clone(),
             version,
-            symbols: symbols.into_iter().map(|value| Symbol::Symbol(value.into())).collect(),
+            symbols: symbols.to_vec(),
         };
 
         match self.shared_tables.get_mut(&name) {
@@ -149,10 +149,10 @@ impl SymbolContext {
         }
     }
 
-    pub fn set_new_table(&mut self, imports: &[Import], symbols: &[String]) -> Result<(), SymbolContextError> {
+    pub fn set_new_table(&mut self, imports: &[Import], symbols: &[Symbol]) -> Result<(), SymbolContextError> {
         let mut new_table = LocalSymbolTable::new();
 
-        let symbols: Vec<Symbol> = symbols.into_iter().map(|s| Symbol::Symbol(s.clone())).collect();
+        let symbols: Vec<Symbol> = symbols.to_vec();
 
         for import in imports {
             if import.name == "$ion" {
