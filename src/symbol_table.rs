@@ -88,9 +88,9 @@ impl SharedSymbolTable {
 }
 
 pub struct Import {
-    name: String,
-    version: Option<u32>,
-    max_len: Option<usize>,
+    pub(crate) name: String,
+    pub(crate) version: Option<u32>,
+    pub(crate) max_len: Option<usize>,
 }
 
 #[derive(Debug)]

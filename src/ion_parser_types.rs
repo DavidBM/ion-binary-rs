@@ -8,13 +8,17 @@ pub enum IonParserError {
     Unimplemented,
     BadFormatLengthFound,
     NullAnnotationFound,
+    NullSymbolFound,
     SharedTableAndLocalTableDeclarationIntTheSameAnnotation,
     SymbolIdNotDefined,
     LocalTableWithoutInternalStruct,
     SharedTableDefinitionWithoutName,
     ErrorAddingSharedTableToContext(SymbolContextError),
+    ErrorAddingCreatingLocal(SymbolContextError),
     LocalTableDefinitionWIthoutImportsField,
     LocalSymbolTableWithoutValidImport,
+    SymbolNotFoundInTable,
+    ListLengthWasTooShort
 } 
 
 impl From<ParsingError> for IonParserError {

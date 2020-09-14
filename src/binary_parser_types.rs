@@ -64,7 +64,7 @@ pub enum ParsingError {
     BadFormedVersionHeader,
     InvalidNullLength(ValueLength),
     InvalidBoolLength(ValueLength),
-    InvalidAnnotationLength(ValueLength)
+    InvalidAnnotationLength(ValueLength),
 }
 
 //   7       4 3       0
