@@ -1,6 +1,6 @@
 use bytes::buf::ext::BufExt;
-use ion_bin_parser::binary_parser::IonBinaryParser;
-use ion_bin_parser::binary_parser_types::*;
+use crate::binary_parser::IonBinaryParser;
+use crate::binary_parser_types::*;
 
 #[test]
 fn decode_value_null() {
@@ -144,7 +144,7 @@ fn decode_varint_one_byte_negative() {
 
     let mut lexer = IonBinaryParser::new(Box::new(ion_test));
 
-    assert_eq!(lexer.consume_varint(), Ok(-8));
+    assert_eq!(lexer.consume_varint(), Ok((-8, 1)));
 }
 
 #[test]
@@ -153,7 +153,7 @@ fn decode_varint_one_byte_positive() {
 
     let mut lexer = IonBinaryParser::new(Box::new(ion_test));
 
-    assert_eq!(lexer.consume_varint(), Ok(8));
+    assert_eq!(lexer.consume_varint(), Ok((8, 1)));
 }
 
 #[test]
@@ -162,7 +162,7 @@ fn decode_varint_two_byte_only_last_byte_significant_negative() {
 
     let mut lexer = IonBinaryParser::new(Box::new(ion_test));
 
-    assert_eq!(lexer.consume_varint(), Ok(-8));
+    assert_eq!(lexer.consume_varint(), Ok((-8, 2)));
 }
 
 #[test]
@@ -171,7 +171,7 @@ fn decode_varint_two_byte_only_last_byte_significant_positive() {
 
     let mut lexer = IonBinaryParser::new(Box::new(ion_test));
 
-    assert_eq!(lexer.consume_varint(), Ok(8));
+    assert_eq!(lexer.consume_varint(), Ok((8, 2)));
 }
 
 #[test]
@@ -180,7 +180,7 @@ fn decode_varint_two_byte_positive() {
 
     let mut lexer = IonBinaryParser::new(Box::new(ion_test));
 
-    assert_eq!(lexer.consume_varint(), Ok(2056));
+    assert_eq!(lexer.consume_varint(), Ok((2056, 2)));
 }
 
 #[test]
@@ -189,7 +189,7 @@ fn decode_varint_two_byte_negative() {
 
     let mut lexer = IonBinaryParser::new(Box::new(ion_test));
 
-    assert_eq!(lexer.consume_varint(), Ok(-2056));
+    assert_eq!(lexer.consume_varint(), Ok((-2056, 2)));
 }
 
 #[test]
@@ -198,7 +198,7 @@ fn decode_varint_three_byte_positive() {
 
     let mut lexer = IonBinaryParser::new(Box::new(ion_test));
 
-    assert_eq!(lexer.consume_varint(), Ok(263176));
+    assert_eq!(lexer.consume_varint(), Ok((263176, 3)));
 }
 
 #[test]
@@ -207,7 +207,7 @@ fn decode_varint_three_byte_negative() {
 
     let mut lexer = IonBinaryParser::new(Box::new(ion_test));
 
-    assert_eq!(lexer.consume_varint(), Ok(-263176));
+    assert_eq!(lexer.consume_varint(), Ok((-263176, 3)));
 }
 
 #[test]
@@ -229,7 +229,7 @@ fn decode_varint_len_10_positive() {
 
     assert_eq!(
         lexer.consume_varint(),
-        Ok(580999813345182728)
+        Ok((580999813345182728, 9))
     );
 }
 
@@ -303,7 +303,7 @@ fn decode_varint_len_10_max_positive() {
 
     assert_eq!(
         lexer.consume_varint(),
-        Ok(4611686018427387903)
+        Ok((4611686018427387903, 9))
     );
 }
 
@@ -327,7 +327,7 @@ fn decode_varint_len_10_max_negative() {
 
     assert_eq!(
         lexer.consume_varint(),
-        Ok(-4611686018427387903)
+        Ok((-4611686018427387903, 9))
     );
 }
 

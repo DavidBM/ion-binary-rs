@@ -2,9 +2,13 @@ use crate::binary_parser::IonBinaryParser;
 use crate::binary_parser_types::*;
 use crate::ion_parser_types::*;
 use crate::symbol_table::*;
-use std::convert::{TryInto, TryFrom};
-use std::{collections::HashMap, io::Read};
+use chrono::{
+    naive::{NaiveDate, NaiveDateTime},
+    Duration,
+};
 use log::trace;
+use std::convert::{TryFrom, TryInto};
+use std::{collections::HashMap, io::Read};
 
 #[derive(Debug)]
 pub struct IonParser<T: Read> {
@@ -30,7 +34,7 @@ impl<T: Read> IonParser<T> {
                 (None, consumed_bytes) => {
                     let value = self.consume_value()?;
                     (value.0, value.1 + consumed_bytes)
-                },
+                }
             },
             ValueType::Struct => self.consume_struct(&value_header)?,
             ValueType::List => self.consume_list(&value_header)?,
@@ -41,21 +45,24 @@ impl<T: Read> IonParser<T> {
             _ => Err(IonParserError::Unimplemented)?,
         };
 
-        //We increase the consumed bytes count as we must ccount for the already consumed ValueHeader
+        //We increase the consumed bytes count as we must count for the already consumed ValueHeader
         value.1 += 1;
 
         Ok(value)
     }
 
-    fn consume_string(&mut self, header: &ValueHeader) -> Result<(IonValue, usize), IonParserError> {
+    fn consume_string(
+        &mut self,
+        header: &ValueHeader,
+    ) -> Result<(IonValue, usize), IonParserError> {
         trace!("Consuming String");
 
         let (length, _, total) = self.consume_value_len(header)?;
-        
+
         let mut buffer = vec![0; length as usize];
-        
+
         self.parser.read_bytes(&mut buffer)?;
-        
+
         let text = match String::from_utf8(buffer) {
             Ok(text) => text,
             Err(_) => return Err(IonParserError::NonUtf8String),
@@ -64,12 +71,18 @@ impl<T: Read> IonParser<T> {
         Ok((IonValue::String(text), total))
     }
 
-    fn consume_int(&mut self, header: &ValueHeader, negative: bool) -> Result<(IonValue, usize), IonParserError> {
+    fn consume_int(
+        &mut self,
+        header: &ValueHeader,
+        negative: bool,
+    ) -> Result<(IonValue, usize), IonParserError> {
         trace!("Consuming Integer");
 
         let (length, _, total) = self.consume_value_len(header)?;
 
-        let value = self.parser.consume_uint(length.try_into().expect("Symbol length too big for usize"))?;
+        let value = self
+            .parser
+            .consume_uint(length.try_into().expect("Symbol length too big for usize"))?;
 
         let value: i64 = if negative {
             -(i64::try_from(value).expect("integer doesn't fit into i64"))
@@ -80,7 +93,10 @@ impl<T: Read> IonParser<T> {
         Ok((IonValue::Integer(value), total))
     }
 
-    fn consume_struct(&mut self, header: &ValueHeader) -> Result<(IonValue, usize), IonParserError> {
+    fn consume_struct(
+        &mut self,
+        header: &ValueHeader,
+    ) -> Result<(IonValue, usize), IonParserError> {
         trace!("Consuming Struct");
 
         let (length, _, total) = self.consume_value_len(header)?;
@@ -97,7 +113,10 @@ impl<T: Read> IonParser<T> {
 
             println!("Struct field -> Key: {:?}, Values: {:?}", key, values);
 
-            let key = match self.context.get_symbol_by_id(key.0.try_into().expect("Struct key doesn't fir into usize")) {
+            let key = match self
+                .context
+                .get_symbol_by_id(key.0.try_into().expect("Struct key doesn't fir into usize"))
+            {
                 Some(Symbol::Symbol(text)) => text.clone(),
                 _ => return Err(IonParserError::SymbolNotFoundInTable),
             };
@@ -106,9 +125,9 @@ impl<T: Read> IonParser<T> {
         }
 
         if let None = length.checked_sub(consumed_bytes) {
-            return Err(IonParserError::ListLengthWasTooShort)
+            return Err(IonParserError::ListLengthWasTooShort);
         }
-        
+
         Ok((IonValue::Struct(values), total))
     }
 
@@ -118,7 +137,7 @@ impl<T: Read> IonParser<T> {
         let (length, _, total) = self.consume_value_len(header)?;
 
         let mut consumed_bytes = 0;
-        let mut values = vec!();
+        let mut values = vec![];
 
         while length - consumed_bytes > 0 {
             let value = self.consume_value()?;
@@ -128,13 +147,16 @@ impl<T: Read> IonParser<T> {
         }
 
         if let None = length.checked_sub(consumed_bytes) {
-            return Err(IonParserError::ListLengthWasTooShort)
+            return Err(IonParserError::ListLengthWasTooShort);
         }
-        
+
         Ok((IonValue::List(values), total))
     }
 
-    fn consume_symbol(&mut self, header: &ValueHeader) -> Result<(IonValue, usize), IonParserError> {
+    fn consume_symbol(
+        &mut self,
+        header: &ValueHeader,
+    ) -> Result<(IonValue, usize), IonParserError> {
         trace!("Consuming Symbol");
 
         let (length, _, total_consumed_bytes) = self.consume_value_len(header)?;
@@ -153,6 +175,98 @@ impl<T: Read> IonParser<T> {
         };
 
         Ok((IonValue::Symbol(text), total_consumed_bytes))
+    }
+
+    fn consume_timestamp(
+        &mut self,
+        header: &ValueHeader,
+    ) -> Result<(IonValue, usize), IonParserError> {
+        trace!("Consuming Timestamp");
+
+        let (length, _, mut total_consumed_bytes) = self.consume_value_len(header)?;
+
+        let (offset, consumed) = self.parser.consume_varint()?;
+        total_consumed_bytes += consumed;
+        let (year, consumed) = self.parser.consume_varuint()?;
+        total_consumed_bytes += consumed;
+
+        let mut values = vec![];
+
+        for _ in 0..6 {
+            if total_consumed_bytes as u64 >= length {
+                break;
+            }
+
+            let (value, consumed) = self.parser.consume_varuint()?;
+            total_consumed_bytes += consumed;
+            values.push(value);
+        }
+
+        let month: u32 = values
+            .get(0)
+            .unwrap_or(&0)
+            .clone()
+            .try_into()
+            .expect("Month doesn't fit into i32");
+        let day: u32 = values
+            .get(1)
+            .unwrap_or(&0)
+            .clone()
+            .try_into()
+            .expect("Day doesn't fit into i32");
+        let hour: u32 = values
+            .get(2)
+            .unwrap_or(&0)
+            .clone()
+            .try_into()
+            .expect("Hour doesn't fit into i32");
+        let minute: u32 = values
+            .get(3)
+            .unwrap_or(&0)
+            .clone()
+            .try_into()
+            .expect("Minute doesn't fit into i32");
+        let second: u32 = values
+            .get(4)
+            .unwrap_or(&0)
+            .clone()
+            .try_into()
+            .expect("Second doesn't fit into i32");
+
+        let fraction_exponent: i32 = if (total_consumed_bytes as u64) < length {
+            let value = self.parser.consume_varint()?;
+            total_consumed_bytes += value.1;
+            value.0
+                .try_into()
+                .expect("fraction_exponent length doesn't fit in a u32")
+        } else {
+            0
+        };
+
+        let fraction_coefficient: i32 = if (total_consumed_bytes as u64) < length {
+            let length: usize = length
+                .try_into()
+                .expect("Timestamp length doesn't fit in a i32");
+            let remaining_bytes = length - total_consumed_bytes;
+            let value = self.parser.consume_int(remaining_bytes)?;
+            total_consumed_bytes += remaining_bytes;
+            value
+                .try_into()
+                .expect("fraction_exponent length doesn't fit in a u32")
+        } else {
+            0
+        };
+
+        let second_fraction: f64 = ((10f64.powi(fraction_exponent)) * fraction_coefficient as f64) * 1e9;
+
+        let date = NaiveDate::from_ymd(year.try_into().expect("Year too bug for i32"), month, day)
+            .and_hms_nano(hour, minute, second, second_fraction as u32);
+
+        // TODO handle the time zone
+        // https://docs.rs/chrono/0.4.15/chrono/struct.DateTime.html#method.from_utc
+        // https://docs.rs/chrono/0.4.15/chrono/struct.DateTime.html#method.with_timezone
+
+        unimplemented!()
     }
 
     fn consume_annotation(
@@ -207,7 +321,10 @@ impl<T: Read> IonParser<T> {
         }
     }
 
-    fn consume_value_len(&mut self, header: &ValueHeader) -> Result<(u64, usize, usize), IonParserError> {
+    fn consume_value_len(
+        &mut self,
+        header: &ValueHeader,
+    ) -> Result<(u64, usize, usize), IonParserError> {
         let mut consumed_bytes: usize = 0;
 
         let length = match header.length {
@@ -231,32 +348,21 @@ impl<T: Read> IonParser<T> {
         Ok((length, consumed_bytes, total))
     }
 
-    fn load_local_table(&mut self, table: IonValue) -> Result<(), IonParserError> {
-        trace!("Loading Local Table");
-
-        let table = if let IonValue::Struct(table) = table {
-            table
+    fn get_parsed_struct_hashmap<'a>(
+        &self,
+        table: &'a IonValue,
+    ) -> Result<&'a HashMap<String, IonValue>, IonParserError> {
+        if let IonValue::Struct(table) = table {
+            Ok(table)
         } else {
-            return Err(IonParserError::LocalTableWithoutInternalStruct);
-        };
+            Err(IonParserError::LocalTableWithoutInternalStruct)
+        }
+    }
 
-        let imports = table
-            .get(self.get_symbol_name_by_type(SystemSymbolIds::Imports));
-
-        let imports = match imports {
-            None => Vec::new(),
-            Some(IonValue::Symbol(symbol))
-                if symbol == self.get_symbol_name_by_type(SystemSymbolIds::IonSymbolTable) =>
-            {
-                Vec::new()
-            }
-            Some(IonValue::List(list)) => self.decode_imports(list)?,
-            _ => return Err(IonParserError::LocalSymbolTableWithoutValidImport),
-        };
-
+    fn get_symbols_string(&self, table: &HashMap<String, IonValue>) -> Vec<Symbol> {
         let symbols = table.get(self.get_symbol_name_by_type(SystemSymbolIds::Symbols));
 
-        let symbols: Vec<Symbol> = if let Some(IonValue::List(symbols)) = symbols {
+        if let Some(IonValue::List(symbols)) = symbols {
             let mut symbols_string = Vec::new();
 
             for symbol in symbols {
@@ -270,6 +376,28 @@ impl<T: Read> IonParser<T> {
             symbols_string
         } else {
             Vec::new()
+        }
+    }
+
+    fn load_local_table(&mut self, table: IonValue) -> Result<(), IonParserError> {
+        trace!("Loading Local Table");
+
+        let table = self.get_parsed_struct_hashmap(&table)?;
+
+        let symbols = self.get_symbols_string(&table);
+
+        let imports = table.get(self.get_symbol_name_by_type(SystemSymbolIds::Imports));
+
+        let imports = match imports {
+            None => Vec::new(),
+            Some(IonValue::Symbol(symbol))
+                if symbol == self.get_symbol_name_by_type(SystemSymbolIds::IonSymbolTable) =>
+            {
+                self.context.set_new_table_from_current(symbols);
+                return Ok(());
+            }
+            Some(IonValue::List(list)) => self.decode_imports(list)?,
+            _ => return Err(IonParserError::LocalSymbolTableWithoutValidImport),
         };
 
         self.context
@@ -324,19 +452,13 @@ impl<T: Read> IonParser<T> {
     fn load_shared_table(&mut self, table: IonValue) -> Result<(), IonParserError> {
         trace!("Loading Shared Table");
 
-        let table = if let IonValue::Struct(table) = table {
-            table
-        } else {
-            return Err(IonParserError::LocalTableWithoutInternalStruct);
-        };
+        let table = self.get_parsed_struct_hashmap(&table)?;
 
         let name = table
             .get(self.get_symbol_name_by_type(SystemSymbolIds::Name))
             .ok_or(IonParserError::SharedTableDefinitionWithoutName)?;
 
         let version = table.get(self.get_symbol_name_by_type(SystemSymbolIds::Version));
-
-        let symbols = table.get(self.get_symbol_name_by_type(SystemSymbolIds::Symbols));
 
         let version: u32 = if let Some(IonValue::Integer(version)) = version {
             (*version)
@@ -352,21 +474,7 @@ impl<T: Read> IonParser<T> {
             return Err(IonParserError::SharedTableDefinitionWithoutName);
         };
 
-        let symbols: Vec<Symbol> = if let Some(IonValue::List(symbols)) = symbols {
-            let mut symbols_string = Vec::new();
-
-            for symbol in symbols {
-                if let IonValue::String(text) = symbol {
-                    symbols_string.push(Symbol::Symbol(text.clone()));
-                } else {
-                    symbols_string.push(Symbol::Dummy);
-                }
-            }
-
-            symbols_string
-        } else {
-            Vec::new()
-        };
+        let symbols = self.get_symbols_string(&table);
 
         self.context
             .add_shared_table(name, version, &symbols)
@@ -405,26 +513,3 @@ impl<T: Read> IonParser<T> {
         }
     }
 }
-
-/*
-
-Basically, for QLDB, the first value that the DB sends is:
-Annotation:
-    notation: 3 ($ion_symbol_table which means that is a local symbol table)
-    Struct
-        Symbols (via the id 7)
-        List: Which contains the list of new Symbols
-
-... After consuming the annotation header
-Annotation Length: Ok(38)
-Annotation annot_length: Ok(1)
-Annotation annot: Ok(3)
-Annotation value header: Ok(ValueHeader { type: Struct, length: LongLength })
-Annotation value length: Ok(34)
-Annotation value first key: Ok(7)
-Annotation value first value header: Ok(ValueHeader { type: List, length: LongLength })
-
-In the list, symbols are added in consecutive IDs following their insert order.
-A symbol cannot replace an already existing symbol. So, the system symbols come first,
-later the imported symbols, and finally, the local symbols.
- */

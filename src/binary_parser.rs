@@ -1,6 +1,5 @@
 use crate::binary_parser_types::*;
 use std::fmt::Debug;
-use bytes::buf::BufExt;
 use std::convert::TryInto;
 use std::io::Read;
 
@@ -62,17 +61,6 @@ impl <T: Read>IonBinaryParser<T> {
         Ok(final_value)
     }
 
-    //             7                       0
-    //            +-------------------------+
-    // UInt field |          bits           |
-    //            +-------------------------+
-    //            :          bits           :
-    //            +=========================+
-    //                        ⋮
-    //            +=========================+
-    //            :          bits           :
-    //            +=========================+
-    //             n+7                     n
     pub fn read_bytes(&mut self, buffer: &mut [u8]) -> Result<(), ParsingError> {
         let read_bytes = self.read(buffer);
 
@@ -242,15 +230,17 @@ impl <T: Read>IonBinaryParser<T> {
     //                                 ^
     //                                 |
     //                                 +--sign
-    pub fn consume_varint(&mut self) -> Result<i64, ParsingError> {
+    pub fn consume_varint(&mut self) -> Result<(i64, usize), ParsingError> {
         let found_bytes = self.consume_var_number()?;
+
+        let consumed_bytes_len =  found_bytes.len();
 
         IonBinaryParser::<T>::assert_valid_size_for_i64(&found_bytes)?;
 
         // consume_var_number function is guaranteed to return at least one byte.
         let is_negative = (found_bytes[0] & 0b0100_0000) > 0;
         // How many iteration we will do. If only one byte, 0 iterations in the while loop
-        let mut bytes_displacement = found_bytes.len() - 1;
+        let mut bytes_displacement = consumed_bytes_len - 1;
 
         // We ignore the first bit and the second (sign bit)
         let mut final_value: u64 = ((found_bytes[0] & 0b0011_1111) as u8).into();
@@ -277,7 +267,7 @@ impl <T: Read>IonBinaryParser<T> {
             final_value = -final_value;
         }
 
-        Ok(final_value)
+        Ok((final_value, consumed_bytes_len))
     }
 
     // Note: Guarantees to return at least one byte if it succeed
@@ -435,10 +425,6 @@ impl <T: Read>IonBinaryParser<T> {
 
     fn set_current_ion_version(&mut self, version: (u8, u8)) {
         self.current_ion_version = Some(version);
-    }
-
-    pub fn get_current_ion_version(&self) -> Option<(u8, u8)>{
-        self.current_ion_version
     }
 
     fn get_field_type(&mut self, id: u8) -> Result<ValueType, ParsingError> {

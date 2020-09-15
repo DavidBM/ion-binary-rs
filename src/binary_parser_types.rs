@@ -11,6 +11,7 @@ pub const SYSTEM_SYMBOL_TABLE: &[&str; 10] = &[
     "$ion_shared_symbol_table",
 ];
 
+#[allow(dead_code)]
 #[derive(Eq, PartialEq, Debug, Clone, Copy)]
 pub(crate) enum SystemSymbolIds {
     Zero = 0x00,
