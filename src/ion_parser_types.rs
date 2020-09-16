@@ -46,7 +46,7 @@ pub enum IonValue {
     List(Vec<IonValue>), 
     SExpr(Vec<IonValue>),
     Struct(HashMap<String, IonValue>),
-    Annotation((Vec<String>, Box<IonValue>))
+    Annotation((Vec<String>, Box<IonValue>)),
 }
 
 impl Eq for IonValue { }

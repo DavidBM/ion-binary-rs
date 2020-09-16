@@ -81,9 +81,7 @@ impl<T: Read> IonParser<T> {
 
         let (length, _, total) = self.consume_value_len(header)?;
 
-        let value = self
-            .parser
-            .consume_uint(length.try_into().expect("Symbol length too big for usize"))?;
+        let value = self.parser.consume_uint(length)?;
 
         let value: i64 = if negative {
             -(i64::try_from(value).expect("integer doesn't fit into i64"))
@@ -109,8 +107,8 @@ impl<T: Read> IonParser<T> {
             let key = self.parser.consume_varuint()?;
             let value = self.consume_value()?;
 
-            consumed_bytes += value.1 as u64;
-            consumed_bytes += key.1 as u64;
+            consumed_bytes += value.1;
+            consumed_bytes += key.1;
 
             println!("Struct field -> Key: {:?}, Values: {:?}", key, values);
 
@@ -143,7 +141,7 @@ impl<T: Read> IonParser<T> {
         while length - consumed_bytes > 0 {
             let value = self.consume_value()?;
 
-            consumed_bytes += value.1 as u64;
+            consumed_bytes += value.1;
             values.push(value.0);
         }
 
@@ -176,7 +174,7 @@ impl<T: Read> IonParser<T> {
 
         let symbol_id = self
             .parser
-            .consume_uint(length.try_into().expect("Symbol length too big for usize"))?;
+            .consume_uint(length)?;
 
         let symbol = self
             .context
@@ -206,7 +204,7 @@ impl<T: Read> IonParser<T> {
         let mut components = [0u32, 0, 0, 0, 0];
 
         for component in &mut components {
-            if consumed_bytes as u64 >= length {
+            if consumed_bytes >= length {
                 break;
             }
 
@@ -217,7 +215,7 @@ impl<T: Read> IonParser<T> {
 
         let [month, day, hour, minute, second] = components;
 
-        let fraction_exponent: i32 = if (consumed_bytes as u64) < length {
+        let fraction_exponent: i32 = if consumed_bytes < length {
             let value = self.parser.consume_varint()?;
             consumed_bytes += value.1;
             value
@@ -228,7 +226,7 @@ impl<T: Read> IonParser<T> {
             0
         };
 
-        let fraction_coefficient: i32 = if (consumed_bytes as u64) < length {
+        let fraction_coefficient: i32 = if (consumed_bytes) < length {
             let length: usize = length
                 .try_into()
                 .expect("Timestamp length doesn't fit in a i32");
@@ -264,20 +262,20 @@ impl<T: Read> IonParser<T> {
 
         let (length, _, _) = self.consume_value_len(header)?;
 
-        Ok(if length == 0 {
-            (IonValue::Float32(0f32), 0)
-        } else if length == FOUR_BYTES as u64 {
-            let mut buffer = [0u8; FOUR_BYTES];
-            self.parser.read_bytes(&mut buffer)?;
-            (IonValue::Float32(f32::from_be_bytes(buffer)), FOUR_BYTES)
-        } else if length == EIGHT_BYTES as u64 {
-            let mut buffer = [0u8; EIGHT_BYTES];
-            self.parser.read_bytes(&mut buffer)?;
-            (IonValue::Float64(f64::from_be_bytes(buffer)), EIGHT_BYTES)
-        } else if length == 15 {
-            panic!("Null Float found")
-        } else {
-            panic!()
+        Ok(match length {
+            0 => (IonValue::Float32(0f32), 0),
+            FOUR_BYTES => {
+                let mut buffer = [0u8; FOUR_BYTES];
+                self.parser.read_bytes(&mut buffer)?;
+                (IonValue::Float32(f32::from_be_bytes(buffer)), FOUR_BYTES)
+            },
+            EIGHT_BYTES => {
+                let mut buffer = [0u8; EIGHT_BYTES];
+                self.parser.read_bytes(&mut buffer)?;
+                (IonValue::Float64(f64::from_be_bytes(buffer)), EIGHT_BYTES)
+            },
+            15 => panic!("Null Float found"),
+            _ => panic!()
         })
     }
 
@@ -385,14 +383,14 @@ impl<T: Read> IonParser<T> {
     fn consume_value_len(
         &mut self,
         header: &ValueHeader,
-    ) -> Result<(u64, usize, usize), IonParserError> {
+    ) -> Result<(usize, usize, usize), IonParserError> {
         let mut consumed_bytes: usize = 0;
 
-        let length = match header.length {
+        let length: usize = match header.length {
             ValueLength::LongLength => {
                 let len = self.parser.consume_varuint()?;
                 consumed_bytes += len.1;
-                len.0
+                usize::try_from(len.0).expect("Value length does not fit into usize")
             }
             ValueLength::ShortLength(len) => len.into(),
             ValueLength::NullValue => return Err(IonParserError::NullAnnotationFound),
@@ -401,8 +399,6 @@ impl<T: Read> IonParser<T> {
         let total = consumed_bytes
             .checked_add(
                 length
-                    .try_into()
-                    .expect("Value length doesn't fit in usize"),
             )
             .unwrap();
 
