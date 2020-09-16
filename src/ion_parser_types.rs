@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use crate::binary_parser_types::*;
 use chrono::{DateTime, FixedOffset};
 use crate::symbol_table::SymbolContextError;
-
+use bigdecimal::BigDecimal;
 #[derive(Debug)]
 pub enum IonParserError {
     Unimplemented,
@@ -35,7 +35,7 @@ pub enum IonValue {
     Bool(bool),
     Integer(i64),
     Float(f64),
-    Decimal((u64, i64)),
+    Decimal(BigDecimal),
     DateTime(DateTime<FixedOffset>),
     String(String),
     Symbol(String),

@@ -6,6 +6,7 @@ use chrono::{naive::NaiveDate, DateTime, FixedOffset};
 use log::trace;
 use std::convert::{TryFrom, TryInto};
 use std::{collections::HashMap, io::Read};
+use bigdecimal::BigDecimal;
 
 #[derive(Debug)]
 pub struct IonParser<T: Read> {
@@ -40,7 +41,13 @@ impl<T: Read> IonParser<T> {
             ValueType::NegativeInt => self.consume_int(&value_header, true)?,
             ValueType::String => self.consume_string(&value_header)?,
             ValueType::Timestamp => self.consume_timestamp(&value_header)?,
-            _ => Err(IonParserError::Unimplemented)?,
+            ValueType::Null => (IonValue::Null, 1),
+            ValueType::Float => { unimplemented!() }
+            ValueType::Decimal => self.consume_decimal(&value_header)?,
+            ValueType::Clob => { unimplemented!() }
+            ValueType::Blob => { unimplemented!() }
+            ValueType::SExpr => { unimplemented!() }
+            ValueType::Reserved => { unimplemented!() }
         };
 
         //We increase the consumed bytes count as we must count for the already consumed ValueHeader
@@ -239,6 +246,34 @@ impl<T: Read> IonParser<T> {
         let datetime = DateTime::<FixedOffset>::from_utc(datetime, FixedOffset::east(offset * 60));
 
         Ok((IonValue::DateTime(datetime), consumed_bytes))
+    }
+
+    fn _consume_float(&mut self, _header: &ValueHeader) -> Result<(IonValue, usize), IonParserError> {
+        trace!("Consuming float");
+
+        unimplemented!()
+    }
+    
+    fn consume_decimal(&mut self, header: &ValueHeader) -> Result<(IonValue, usize), IonParserError> {
+        trace!("Consuming decimal");
+
+        let (length, _, total) = self.consume_value_len(header)?;
+
+        if length > 0 {
+            let (exponent, consumed_bytes) = self.parser.consume_varint()?;
+            let length = usize::try_from(length).expect("Not enough sice for the decimal coefficient");
+            let coefficient_size = length - consumed_bytes;
+
+            let coefficient = if coefficient_size > 0 {
+                self.parser.consume_int(coefficient_size)?
+            } else {
+                0
+            };
+            
+            Ok((IonValue::Decimal(BigDecimal::new(coefficient.into(), -exponent)), total))
+        } else {
+            Ok((IonValue::Decimal(BigDecimal::new(0.into(), 0)), total))
+        }
     }
 
     fn consume_annotation(
