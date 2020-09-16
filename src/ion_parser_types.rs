@@ -19,7 +19,8 @@ pub enum IonParserError {
     LocalSymbolTableWithoutValidImport,
     SymbolNotFoundInTable,
     ListLengthWasTooShort,
-    NonUtf8String
+    NonUtf8String,
+    DidNotGetAListConsumingAListThisIsABug,
 } 
 
 impl From<ParsingError> for IonParserError {
@@ -34,7 +35,8 @@ pub enum IonValue {
     Null,
     Bool(bool),
     Integer(i64),
-    Float(f64),
+    Float32(f32),
+    Float64(f64),
     Decimal(BigDecimal),
     DateTime(DateTime<FixedOffset>),
     String(String),

@@ -65,8 +65,8 @@ impl <T: Read>IonBinaryParser<T> {
         let read_bytes = self.read(buffer);
 
         match read_bytes {
-            Ok(0) => return Err(ParsingError::NoDataToRead),
-            Err(e) => return Err(ParsingError::ErrorReadingData(e.to_string())),
+            Ok(0) => Err(ParsingError::NoDataToRead),
+            Err(e) => Err(ParsingError::ErrorReadingData(e.to_string())),
             Ok(len) => {
                 if len < buffer.len() {
                     return Err(ParsingError::NotEnoughtDataToRead(len));
