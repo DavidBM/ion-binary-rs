@@ -204,8 +204,6 @@ impl <T: Read>IonBinaryParser<T> {
             }
 
             final_value |= value_buffer;
-
-            value_buffer = 0;
         }
 
         Ok((final_value, consumed_bytes_len))

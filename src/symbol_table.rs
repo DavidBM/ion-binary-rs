@@ -64,7 +64,8 @@ pub struct SharedSymbolTable {
 }
 
 impl SharedSymbolTable {
-    pub fn is_superset(&self, table: &SharedSymbolTable) -> bool {
+    // TODO: Apply this function
+    /*pub fn is_superset(&self, table: &SharedSymbolTable) -> bool {
         for (index, symbol) in table.symbols.iter().enumerate() {
             match self.symbols.get(index) {
                 Some(ref value) if *value == symbol => {},
@@ -73,7 +74,7 @@ impl SharedSymbolTable {
         }
 
         true
-    }
+    }*/
 
     pub fn get_symbols_max_len(&self, max_len: usize) -> &[Symbol] {
         if max_len > self.symbols.len() {
