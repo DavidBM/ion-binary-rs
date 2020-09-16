@@ -2,10 +2,7 @@ use crate::binary_parser::IonBinaryParser;
 use crate::binary_parser_types::*;
 use crate::ion_parser_types::*;
 use crate::symbol_table::*;
-use chrono::{
-    naive::{NaiveDate, NaiveDateTime},
-    Duration,
-};
+use chrono::{naive::NaiveDate, DateTime, FixedOffset};
 use log::trace;
 use std::convert::{TryFrom, TryInto};
 use std::{collections::HashMap, io::Read};
@@ -42,6 +39,7 @@ impl<T: Read> IonParser<T> {
             ValueType::PositiveInt => self.consume_int(&value_header, false)?,
             ValueType::NegativeInt => self.consume_int(&value_header, true)?,
             ValueType::String => self.consume_string(&value_header)?,
+            ValueType::Timestamp => self.consume_timestamp(&value_header)?,
             _ => Err(IonParserError::Unimplemented)?,
         };
 
@@ -183,73 +181,45 @@ impl<T: Read> IonParser<T> {
     ) -> Result<(IonValue, usize), IonParserError> {
         trace!("Consuming Timestamp");
 
-        let (length, _, mut total_consumed_bytes) = self.consume_value_len(header)?;
+        let (length, mut consumed_bytes, _) = self.consume_value_len(header)?;
 
         let (offset, consumed) = self.parser.consume_varint()?;
-        total_consumed_bytes += consumed;
+        consumed_bytes += consumed;
         let (year, consumed) = self.parser.consume_varuint()?;
-        total_consumed_bytes += consumed;
+        consumed_bytes += consumed;
 
-        let mut values = vec![];
+        let mut values = [0u32, 0, 0, 0, 0];
 
-        for _ in 0..6 {
-            if total_consumed_bytes as u64 >= length {
+        for index in 0..(values.len()) {
+            if consumed_bytes as u64 >= length {
                 break;
             }
 
             let (value, consumed) = self.parser.consume_varuint()?;
-            total_consumed_bytes += consumed;
-            values.push(value);
+            consumed_bytes += consumed;
+            values[index] = value.try_into().expect("Month doesn't fit into u32");
         }
 
-        let month: u32 = values
-            .get(0)
-            .unwrap_or(&0)
-            .clone()
-            .try_into()
-            .expect("Month doesn't fit into i32");
-        let day: u32 = values
-            .get(1)
-            .unwrap_or(&0)
-            .clone()
-            .try_into()
-            .expect("Day doesn't fit into i32");
-        let hour: u32 = values
-            .get(2)
-            .unwrap_or(&0)
-            .clone()
-            .try_into()
-            .expect("Hour doesn't fit into i32");
-        let minute: u32 = values
-            .get(3)
-            .unwrap_or(&0)
-            .clone()
-            .try_into()
-            .expect("Minute doesn't fit into i32");
-        let second: u32 = values
-            .get(4)
-            .unwrap_or(&0)
-            .clone()
-            .try_into()
-            .expect("Second doesn't fit into i32");
+        let [month, day, hour, minute, second] = values;
 
-        let fraction_exponent: i32 = if (total_consumed_bytes as u64) < length {
+        let fraction_exponent: i32 = if (consumed_bytes as u64) < length {
             let value = self.parser.consume_varint()?;
-            total_consumed_bytes += value.1;
-            value.0
+            consumed_bytes += value.1;
+            value
+                .0
                 .try_into()
                 .expect("fraction_exponent length doesn't fit in a u32")
         } else {
             0
         };
 
-        let fraction_coefficient: i32 = if (total_consumed_bytes as u64) < length {
+        let fraction_coefficient: i32 = if (consumed_bytes as u64) < length {
             let length: usize = length
                 .try_into()
                 .expect("Timestamp length doesn't fit in a i32");
-            let remaining_bytes = length - total_consumed_bytes;
+            let remaining_bytes = length - consumed_bytes;
             let value = self.parser.consume_int(remaining_bytes)?;
-            total_consumed_bytes += remaining_bytes;
+            consumed_bytes += remaining_bytes;
             value
                 .try_into()
                 .expect("fraction_exponent length doesn't fit in a u32")
@@ -257,16 +227,18 @@ impl<T: Read> IonParser<T> {
             0
         };
 
-        let second_fraction: f64 = ((10f64.powi(fraction_exponent)) * fraction_coefficient as f64) * 1e9;
+        let second_fraction: f64 =
+            ((10f64.powi(fraction_exponent)) * fraction_coefficient as f64) * 1e9;
 
-        let date = NaiveDate::from_ymd(year.try_into().expect("Year too bug for i32"), month, day)
-            .and_hms_nano(hour, minute, second, second_fraction as u32);
+        let datetime =
+            NaiveDate::from_ymd(year.try_into().expect("Year too bug for i32"), month, day)
+                .and_hms_nano(hour, minute, second, second_fraction as u32);
 
-        // TODO handle the time zone
-        // https://docs.rs/chrono/0.4.15/chrono/struct.DateTime.html#method.from_utc
-        // https://docs.rs/chrono/0.4.15/chrono/struct.DateTime.html#method.with_timezone
+        let offset: i32 = offset.try_into().expect("Offset doesn't fit into i32");
 
-        unimplemented!()
+        let datetime = DateTime::<FixedOffset>::from_utc(datetime, FixedOffset::east(offset * 60));
+
+        Ok((IonValue::DateTime(datetime), consumed_bytes))
     }
 
     fn consume_annotation(

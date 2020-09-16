@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use crate::binary_parser_types::*;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, FixedOffset};
 use crate::symbol_table::SymbolContextError;
 
 #[derive(Debug)]
@@ -36,7 +36,7 @@ pub enum IonValue {
     Integer(i64),
     Float(f64),
     Decimal((u64, i64)),
-    Timestamp(DateTime<Utc>),
+    DateTime(DateTime<FixedOffset>),
     String(String),
     Symbol(String),
     Clob(Vec<u8>),
