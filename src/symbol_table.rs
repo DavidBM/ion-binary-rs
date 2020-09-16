@@ -64,8 +64,8 @@ pub struct SharedSymbolTable {
 }
 
 impl SharedSymbolTable {
-    // TODO: Apply this function
-    /*pub fn is_superset(&self, table: &SharedSymbolTable) -> bool {
+
+    pub fn is_superset(&self, table: &SharedSymbolTable) -> bool {
         for (index, symbol) in table.symbols.iter().enumerate() {
             match self.symbols.get(index) {
                 Some(ref value) if *value == symbol => {},
@@ -74,7 +74,7 @@ impl SharedSymbolTable {
         }
 
         true
-    }*/
+    }
 
     pub fn get_symbols_max_len(&self, max_len: usize) -> &[Symbol] {
         if max_len > self.symbols.len() {
@@ -100,7 +100,8 @@ pub enum SymbolContextError {
     TableVersionAlreadyThere,
     MaxIdNeededWhenImportingASharedTableWhereVersionIsNotAvailable,
     MaxIdNeededWhenImportingANotFoundSharedTable,
-    InternalParserErrorThisIsABug
+    InternalParserErrorThisIsABug,
+    NewTableIsNotSuperSetOfPrevious
 }
 
 #[derive(Debug)]
@@ -134,6 +135,9 @@ impl SymbolContext {
             Some(table_collection) => match table_collection.1.get_mut(&version) {
                 Some(_) => Err(SymbolContextError::TableVersionAlreadyThere),
                 None => {
+
+                    SymbolContext::assert_new_table_is_superset(&new_table, &version, &table_collection.1)?;
+
                     if table_collection.0 < version {
                         table_collection.0 = version;
                     }
@@ -149,6 +153,21 @@ impl SymbolContext {
                 Ok(())
             }
         }
+    }
+
+    pub fn assert_new_table_is_superset(table: &SharedSymbolTable, version: &u32, tables: &HashMap<u32, SharedSymbolTable>) -> Result<(), SymbolContextError> {
+
+        for index in (*version - 1)..=0 {
+            if let Some(existing_table) = tables.get(&index) {
+                if !table.is_superset(existing_table) {
+                    return Err(SymbolContextError::NewTableIsNotSuperSetOfPrevious);
+                } else {
+                    return Ok(());
+                }
+            }
+        }
+
+        Ok(())
     }
 
     pub fn set_new_table(&mut self, imports: &[Import], symbols: &[Symbol]) -> Result<(), SymbolContextError> {
