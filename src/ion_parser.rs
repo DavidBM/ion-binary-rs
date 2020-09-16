@@ -47,10 +47,10 @@ impl<T: Read> IonParser<T> {
             ValueType::Clob => self.consume_clob(&value_header)?,
             ValueType::Blob => self.consume_blob(&value_header)?,
             ValueType::SExpr => self.consume_sexpr(&value_header)?,
-            ValueType::Reserved => unimplemented!(),
+            ValueType::Reserved => return Err(IonParserError::Unimplemented),
         };
 
-        //We increase the consumed bytes count as we must count for the already consumed ValueHeader
+        // We increase the consumed bytes count as we must count for the already consumed ValueHeader
         value.1 += 1;
 
         Ok(value)
@@ -76,18 +76,24 @@ impl<T: Read> IonParser<T> {
         Ok((IonValue::String(text), total))
     }
 
-    fn consume_int(&mut self, header: &ValueHeader, negative: bool) -> Result<(IonValue, usize), IonParserError> {
+    fn consume_int(
+        &mut self,
+        header: &ValueHeader,
+        negative: bool,
+    ) -> Result<(IonValue, usize), IonParserError> {
         trace!("Consuming Integer");
 
         let (length, _, total) = self.consume_value_len(header)?;
 
         let value = self.parser.consume_uint(length)?;
 
-        let value: i64 = if negative {
-            -(i64::try_from(value).expect("integer doesn't fit into i64"))
-        } else {
-            value.try_into().expect("integer doesn't fit into i64")
-        };
+        let mut value: i64 = value
+            .try_into()
+            .map_err(|_| IonParserError::IntegerTooBig)?;
+
+        if negative {
+            value = -value;
+        }
 
         Ok((IonValue::Integer(value), total))
     }
@@ -112,10 +118,11 @@ impl<T: Read> IonParser<T> {
 
             println!("Struct field -> Key: {:?}, Values: {:?}", key, values);
 
-            let key = match self
-                .context
-                .get_symbol_by_id(key.0.try_into().expect("Struct key doesn't fir into usize"))
-            {
+            let key = match self.context.get_symbol_by_id(
+                key.0
+                    .try_into()
+                    .map_err(|_| IonParserError::SymbolIdTooBigForUsize)?,
+            ) {
                 Some(Symbol::Symbol(text)) => text.clone(),
                 _ => return Err(IonParserError::SymbolNotFoundInTable),
             };
@@ -172,13 +179,13 @@ impl<T: Read> IonParser<T> {
 
         let (length, _, total_consumed_bytes) = self.consume_value_len(header)?;
 
-        let symbol_id = self
-            .parser
-            .consume_uint(length)?;
+        let symbol_id = self.parser.consume_uint(length)?;
 
-        let symbol = self
-            .context
-            .get_symbol_by_id(symbol_id.try_into().expect("Symbol id too big for usize"));
+        let symbol = self.context.get_symbol_by_id(
+            symbol_id
+                .try_into()
+                .map_err(|_| IonParserError::SymbolIdTooBigForUsize)?,
+        );
 
         let text = match symbol {
             Some(Symbol::Symbol(text)) => text.clone(),
@@ -201,6 +208,10 @@ impl<T: Read> IonParser<T> {
         let (year, consumed) = self.parser.consume_varuint()?;
         consumed_bytes += consumed;
 
+        let year: i32 = year
+            .try_into()
+            .map_err(|_| IonParserError::DateValueTooBig)?;
+
         let mut components = [0u32, 0, 0, 0, 0];
 
         for component in &mut components {
@@ -210,7 +221,9 @@ impl<T: Read> IonParser<T> {
 
             let (value, consumed) = self.parser.consume_varuint()?;
             consumed_bytes += consumed;
-            *component = value.try_into().expect("Month doesn't fit into u32");
+            *component = value
+                .try_into()
+                .map_err(|_| IonParserError::DateValueTooBig)?;
         }
 
         let [month, day, hour, minute, second] = components;
@@ -221,7 +234,7 @@ impl<T: Read> IonParser<T> {
             value
                 .0
                 .try_into()
-                .expect("fraction_exponent length doesn't fit in a u32")
+                .map_err(|_| IonParserError::DateValueTooBig)?
         } else {
             0
         };
@@ -229,13 +242,13 @@ impl<T: Read> IonParser<T> {
         let fraction_coefficient: i32 = if (consumed_bytes) < length {
             let length: usize = length
                 .try_into()
-                .expect("Timestamp length doesn't fit in a i32");
+                .map_err(|_| IonParserError::DateValueTooBig)?;
             let remaining_bytes = length - consumed_bytes;
             let value = self.parser.consume_int(remaining_bytes)?;
             consumed_bytes += remaining_bytes;
             value
                 .try_into()
-                .expect("fraction_exponent length doesn't fit in a u32")
+                .map_err(|_| IonParserError::DateValueTooBig)?
         } else {
             0
         };
@@ -243,11 +256,19 @@ impl<T: Read> IonParser<T> {
         let second_fraction: f64 =
             ((10f64.powi(fraction_exponent)) * fraction_coefficient as f64) * 1e9;
 
-        let datetime =
-            NaiveDate::from_ymd(year.try_into().expect("Year too bug for i32"), month, day)
-                .and_hms_nano(hour, minute, second, second_fraction as u32);
+        let second_fraction =
+            u32::try_from(second_fraction as u64).map_err(|_| IonParserError::DateValueTooBig)?;
 
-        let offset: i32 = offset.try_into().expect("Offset doesn't fit into i32");
+        let datetime = NaiveDate::from_ymd(year, month, day).and_hms_nano(
+            hour,
+            minute,
+            second,
+            second_fraction,
+        );
+
+        let offset: i32 = offset
+            .try_into()
+            .map_err(|_| IonParserError::DateValueTooBig)?;
 
         let datetime = DateTime::<FixedOffset>::from_utc(datetime, FixedOffset::east(offset * 60));
 
@@ -260,22 +281,25 @@ impl<T: Read> IonParser<T> {
         const FOUR_BYTES: usize = 4;
         const EIGHT_BYTES: usize = 8;
 
-        let (length, _, _) = self.consume_value_len(header)?;
-
-        Ok(match length {
-            0 => (IonValue::Float32(0f32), 0),
-            FOUR_BYTES => {
-                let mut buffer = [0u8; FOUR_BYTES];
-                self.parser.read_bytes(&mut buffer)?;
-                (IonValue::Float32(f32::from_be_bytes(buffer)), FOUR_BYTES)
-            },
-            EIGHT_BYTES => {
-                let mut buffer = [0u8; EIGHT_BYTES];
-                self.parser.read_bytes(&mut buffer)?;
-                (IonValue::Float64(f64::from_be_bytes(buffer)), EIGHT_BYTES)
-            },
-            15 => panic!("Null Float found"),
-            _ => panic!()
+        Ok(match header.length {
+            ValueLength::ShortLength(len) => {
+                match len {
+                    0 => (IonValue::Float32(0f32), 0),
+                    4 => {
+                        let mut buffer = [0u8; FOUR_BYTES];
+                        self.parser.read_bytes(&mut buffer)?;
+                        (IonValue::Float32(f32::from_be_bytes(buffer)), FOUR_BYTES)
+                    }
+                    8 => {
+                        let mut buffer = [0u8; EIGHT_BYTES];
+                        self.parser.read_bytes(&mut buffer)?;
+                        (IonValue::Float64(f64::from_be_bytes(buffer)), EIGHT_BYTES)
+                    },
+                    _ => return Err(IonParserError::NotValidLengthFloat),
+                }
+            }, 
+            ValueLength::NullValue =>  return Err(IonParserError::Unimplemented),
+            ValueLength::LongLength => return Err(IonParserError::NotValidLengthFloat),
         })
     }
 
@@ -289,8 +313,6 @@ impl<T: Read> IonParser<T> {
 
         if length > 0 {
             let (exponent, consumed_bytes) = self.parser.consume_varint()?;
-            let length =
-                usize::try_from(length).expect("Not enough sice for the decimal coefficient");
             let coefficient_size = length - consumed_bytes;
 
             let coefficient = if coefficient_size > 0 {
@@ -371,12 +393,10 @@ impl<T: Read> IonParser<T> {
                 self.load_local_table(value.0)?;
                 Ok((None, total_consumed_bytes))
             }
-            (false, false) => {
-                Ok((
-                    Some(self.construct_raw_annotation(&symbols, value.0)?),
-                    total_consumed_bytes,
-                ))
-            }
+            (false, false) => Ok((
+                Some(self.construct_raw_annotation(&symbols, value.0)?),
+                total_consumed_bytes,
+            )),
         }
     }
 
@@ -390,17 +410,13 @@ impl<T: Read> IonParser<T> {
             ValueLength::LongLength => {
                 let len = self.parser.consume_varuint()?;
                 consumed_bytes += len.1;
-                usize::try_from(len.0).expect("Value length does not fit into usize")
+                usize::try_from(len.0).map_err(|_| IonParserError::ValueLenTooBig)?
             }
             ValueLength::ShortLength(len) => len.into(),
             ValueLength::NullValue => return Err(IonParserError::NullAnnotationFound),
         };
 
-        let total = consumed_bytes
-            .checked_add(
-                length
-            )
-            .unwrap();
+        let total = consumed_bytes + length;
 
         Ok((length, consumed_bytes, total))
     }
@@ -482,7 +498,7 @@ impl<T: Read> IonParser<T> {
                 match value.get(self.get_symbol_name_by_type(SystemSymbolIds::Version)) {
                     Some(IonValue::Integer(version)) => (*version)
                         .try_into()
-                        .expect("Import version in Local table import is bigger than u32."),
+                        .map_err(|_| IonParserError::TableVersionTooBig)?,
                     _ => 1,
                 };
 
@@ -491,7 +507,7 @@ impl<T: Read> IonParser<T> {
                     Some(IonValue::Integer(version)) => Some(
                         (*version)
                             .try_into()
-                            .expect("Import version in Local table import is bigger than u32."),
+                            .map_err(|_| IonParserError::TableVersionTooBig)?,
                     ),
                     _ => None,
                 };
@@ -520,7 +536,7 @@ impl<T: Read> IonParser<T> {
         let version: u32 = if let Some(IonValue::Integer(version)) = version {
             (*version)
                 .try_into()
-                .expect("Shared table version too big. It doesn't fit into a u32")
+                .map_err(|_| IonParserError::TableVersionTooBig)?
         } else {
             1
         };
@@ -564,7 +580,7 @@ impl<T: Read> IonParser<T> {
     }
 
     fn get_symbol_name(&self, symbol_id: u64) -> Result<String, IonParserError> {
-        match self.context.get_symbol_by_id(symbol_id.try_into().unwrap()) {
+        match self.context.get_symbol_by_id(symbol_id.try_into().map_err(|_| IonParserError::SymbolIdTooBigForUsize)?) {
             Some(Symbol::Symbol(name)) => Ok(name.clone()),
             Some(Symbol::Dummy) | None => Err(IonParserError::SymbolIdNotDefined),
         }

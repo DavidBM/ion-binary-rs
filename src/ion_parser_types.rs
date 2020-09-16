@@ -21,11 +21,19 @@ pub enum IonParserError {
     ListLengthWasTooShort,
     NonUtf8String,
     DidNotGetAListConsumingAListThisIsABug,
+    SymbolIdTooBigForUsize,
+    TableVersionTooBig,
+    IntegerTooBig,
+    DateValueTooBig,
+    ValueLenTooBig,
+    NotValidLengthFloat,
+
 } 
 
 impl From<ParsingError> for IonParserError {
     fn from(err: ParsingError) -> Self {
-        println!("{:?}", err); 
+        // TODO: This needs to transfor all errors from the binary parser to the top parser.
+        // We should use thiserror library.
         IonParserError::Unimplemented
     }
 }

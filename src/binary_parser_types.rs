@@ -67,6 +67,7 @@ pub enum ParsingError {
     InvalidNullLength(ValueLength),
     InvalidBoolLength(ValueLength),
     InvalidAnnotationLength(ValueLength),
+    ParsedIntTooBigThisIsABug,
 }
 
 //   7       4 3       0

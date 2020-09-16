@@ -137,7 +137,7 @@ impl <T: Read>IonBinaryParser<T> {
         }
 
         // If this doesn't work we want to fail as that should be impossible
-        let mut final_value: i64 = final_value.try_into().unwrap();
+        let mut final_value: i64 = final_value.try_into().map_err(|_| ParsingError::ParsedIntTooBigThisIsABug)?;
 
         if is_negative {
             final_value = -final_value;
@@ -259,7 +259,7 @@ impl <T: Read>IonBinaryParser<T> {
         }
 
         // If this doesn't work we want to fail as that should be impossible 
-        let mut final_value: i64 = final_value.try_into().unwrap();
+        let mut final_value: i64 = final_value.try_into().map_err(|_| ParsingError::ParsedIntTooBigThisIsABug)?;
 
         if is_negative {
             final_value = -final_value;
