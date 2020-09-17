@@ -485,6 +485,7 @@ impl<T: Read> IonParser<T> {
 
     fn consume_value_len(&mut self, header: &ValueHeader) -> Result<(usize, usize, usize), IonParserError> {
         let mut consumed_bytes: usize = 0;
+        let null_length = 15;
 
         let length: usize = match header.length {
             ValueLength::LongLength => {
@@ -493,7 +494,7 @@ impl<T: Read> IonParser<T> {
                 usize::try_from(len.0).map_err(|_| IonParserError::ValueLenTooBig)?
             }
             ValueLength::ShortLength(len) => len.into(),
-            ValueLength::NullValue => return Err(IonParserError::NullAnnotationFound),
+            ValueLength::NullValue => null_length,
         };
 
         let total = consumed_bytes + length;
