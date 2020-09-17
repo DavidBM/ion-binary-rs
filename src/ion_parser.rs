@@ -32,7 +32,7 @@ impl<T: Read> IonParser<T> {
         self.consume_value_body(&value_header)
     }
 
-    pub fn consume_value_body(&mut self, value_header: &ValueHeader) -> ConsumerResult {
+    fn consume_value_body(&mut self, value_header: &ValueHeader) -> ConsumerResult {
         let mut value = match value_header.r#type {
             ValueType::Bool => self.consume_bool(&value_header)?,
             ValueType::Annotation => match self.consume_annotation(value_header)? {
