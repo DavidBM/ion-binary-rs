@@ -215,7 +215,9 @@ impl <T: Read>IonBinaryParser<T> {
                     (Ok(mut r#type), Ok(length)) => {
                         self.verify_header(&r#type, &length)?;
 
-                        self.fill_bool_value(&mut r#type, &length)?; 
+                        self.if_nop_fill_nop_padding(&mut r#type, &length);
+
+                        self.if_bool_fill_bool_value(&mut r#type, &length)?; 
 
                         Ok(ValueHeader { r#type, length })
                     },
@@ -226,7 +228,16 @@ impl <T: Read>IonBinaryParser<T> {
         }
     }
 
-    fn fill_bool_value(&self, r#type: &mut ValueType, length: &ValueLength) -> Result<(), ParsingError> {
+    fn if_nop_fill_nop_padding(&self, r#type: &mut ValueType, length: &ValueLength) {
+        match (&r#type, &length) {
+             (ValueType::Null, ValueLength::ShortLength(_)) | (ValueType::Null, ValueLength::LongLength) => {
+                *r#type = ValueType::Nop;
+            },
+            _ => {}
+        }
+    }
+
+    fn if_bool_fill_bool_value(&self, r#type: &mut ValueType, length: &ValueLength) -> Result<(), ParsingError> {
         match (&r#type, &length) {
             (ValueType::Bool(_), ValueLength::ShortLength(0)) => {
                 *r#type = ValueType::Bool(false);
@@ -249,13 +260,6 @@ impl <T: Read>IonBinaryParser<T> {
         use ValueLength::*;
 
         match valtype {
-            Null => {
-                if let NullValue = length {
-                    Ok(())
-                } else {
-                    Err(ParsingError::InvalidNullLength(length.clone()))
-                }
-            },
             Bool(_) => {
                 if let ShortLength(len) = length {
                     if len > &1 {

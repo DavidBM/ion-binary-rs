@@ -27,28 +27,38 @@ impl<T: Read> IonParser<T> {
     pub fn consume_value(&mut self) -> Result<(IonValue, usize), IonParserError> {
         let value_header = self.parser.consume_value_header()?;
 
+        self.consume_value_body(&value_header)
+    }
+
+    pub fn consume_value_body(&mut self, value_header: &ValueHeader) -> Result<(IonValue, usize), IonParserError> {
+
         let mut value = match value_header.r#type {
             ValueType::Bool(value) => (IonValue::Bool(value), 1),
-            ValueType::Annotation => match self.consume_annotation(&value_header)? {
+            ValueType::Annotation => match self.consume_annotation(value_header)? {
                 (Some(annotation), consumed_bytes) => (annotation, consumed_bytes),
                 (None, consumed_bytes) => {
                     let value = self.consume_value()?;
                     (value.0, value.1 + consumed_bytes)
                 }
             },
-            ValueType::Struct => self.consume_struct(&value_header)?,
-            ValueType::List => self.consume_list(&value_header)?,
-            ValueType::Symbol => self.consume_symbol(&value_header)?,
-            ValueType::PositiveInt => self.consume_int(&value_header, false)?,
-            ValueType::NegativeInt => self.consume_int(&value_header, true)?,
-            ValueType::String => self.consume_string(&value_header)?,
-            ValueType::Timestamp => self.consume_timestamp(&value_header)?,
+            ValueType::Struct => self.consume_struct(value_header)?,
+            ValueType::List => self.consume_list(value_header)?,
+            ValueType::Symbol => self.consume_symbol(value_header)?,
+            ValueType::PositiveInt => self.consume_int(value_header, false)?,
+            ValueType::NegativeInt => self.consume_int(value_header, true)?,
+            ValueType::String => self.consume_string(value_header)?,
+            ValueType::Timestamp => self.consume_timestamp(value_header)?,
             ValueType::Null => (IonValue::Null, 1),
-            ValueType::Float => self.consume_float(&value_header)?,
-            ValueType::Decimal => self.consume_decimal(&value_header)?,
-            ValueType::Clob => self.consume_clob(&value_header)?,
-            ValueType::Blob => self.consume_blob(&value_header)?,
-            ValueType::SExpr => self.consume_sexpr(&value_header)?,
+            ValueType::Nop => {
+                let consumed_bytes = self.consume_nop(value_header)?;
+                let value = self.consume_value()?;
+                (value.0, value.1 + consumed_bytes)
+            },
+            ValueType::Float => self.consume_float(value_header)?,
+            ValueType::Decimal => self.consume_decimal(value_header)?,
+            ValueType::Clob => self.consume_clob(value_header)?,
+            ValueType::Blob => self.consume_blob(value_header)?,
+            ValueType::SExpr => self.consume_sexpr(value_header)?,
             ValueType::Reserved => return Err(IonParserError::Unimplemented),
         };
 
@@ -57,6 +67,22 @@ impl<T: Read> IonParser<T> {
 
         Ok(value)
     }
+
+    fn consume_nop(
+        &mut self,
+        header: &ValueHeader,
+    ) -> Result<usize, IonParserError> {
+        trace!("Consuming String");
+
+        let (length, _, total) = self.consume_value_len(header)?;
+
+        let mut buffer = vec![0; length as usize];
+
+        self.parser.read_bytes(&mut buffer)?;
+
+        Ok(total)
+    }
+
 
     fn consume_string(
         &mut self,
@@ -120,12 +146,20 @@ impl<T: Read> IonParser<T> {
 
         while length - consumed_bytes > 0 {
             let key = self.parser.consume_varuint()?;
-            let value = self.consume_value()?;
+
+            let value_header = self.parser.consume_value_header()?;
+
+            if let ValueType::Nop = value_header.r#type {
+                self.consume_nop(&value_header)?;
+                continue;
+            }
+
+            let value = self.consume_value_body(&value_header)?;
 
             consumed_bytes += value.1;
             consumed_bytes += key.1;
 
-            println!("Struct field -> Key: {:?}, Values: {:?}", key, values);
+            trace!("Struct field -> Key: {:?}, Values: {:?}", key, values);
 
             let key = match self.context.get_symbol_by_id(
                 key.0

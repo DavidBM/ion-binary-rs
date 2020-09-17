@@ -19,18 +19,6 @@ fn decode_value_null() {
 }
 
 #[test]
-fn decode_value_invalid_null() {
-    let ion_test = [0b_0000_1110u8].reader();
-
-    let mut lexer = IonBinaryParser::new(Box::new(ion_test));
-
-    assert_eq!(
-        lexer.consume_value_header(),
-        Err(ParsingError::InvalidNullLength(ValueLength::LongLength))
-    );
-}
-
-#[test]
 fn decode_varuint_one_byte() {
     let ion_test = [0b_1000_1000u8].reader();
 

@@ -36,6 +36,7 @@ pub enum ValueLength {
 #[derive(Eq, PartialEq, Debug)]
 pub enum ValueType {
     Null,        // T = 0   : 0000
+    Nop,         // T = 0   : 0000 (with length < 15)
     Bool(bool),  // T = 1   : 0001
     PositiveInt, // T = 2   : 0010
     NegativeInt, // T = 3   : 0011
