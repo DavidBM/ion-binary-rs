@@ -27,14 +27,12 @@ pub enum IonParserError {
     DateValueTooBig,
     ValueLenTooBig,
     NotValidLengthFloat,
-
+    BinaryError(ParsingError)
 } 
 
 impl From<ParsingError> for IonParserError {
     fn from(err: ParsingError) -> Self {
-        // TODO: This needs to transfor all errors from the binary parser to the top parser.
-        // We should use thiserror library.
-        IonParserError::Unimplemented
+        IonParserError::BinaryError(err)
     }
 }
 
