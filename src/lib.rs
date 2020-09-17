@@ -11,5 +11,4 @@ pub use ion_parser::IonParser;
 pub use ion_parser_types::{IonValue, IonParserError};
 
 // TODO: Add tests for Big numbers for varuing, varint, int and uint. In positive and negative.
-// TODO: Add NOP Spacing
 // TODO: Add Null values

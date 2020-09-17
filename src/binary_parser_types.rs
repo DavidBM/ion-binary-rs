@@ -37,7 +37,7 @@ pub enum ValueLength {
 pub enum ValueType {
     Null,        // T = 0   : 0000
     Nop,         // T = 0   : 0000 (with length < 15)
-    Bool(bool),  // T = 1   : 0001
+    Bool,        // T = 1   : 0001
     PositiveInt, // T = 2   : 0010
     NegativeInt, // T = 3   : 0011
     Float,       // T = 4   : 0100
@@ -66,7 +66,6 @@ pub enum ParsingError {
     CannotReadZeroBytes,
     BadFormedVersionHeader,
     InvalidNullLength(ValueLength),
-    InvalidBoolLength(ValueLength),
     InvalidAnnotationLength(ValueLength),
     ParsedIntTooBigThisIsABug,
     ThisIsABugConsumingVarUInt,

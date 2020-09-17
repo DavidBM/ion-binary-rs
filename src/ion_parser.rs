@@ -5,10 +5,10 @@ use crate::symbol_table::*;
 use bigdecimal::BigDecimal;
 use chrono::{naive::NaiveDate, DateTime, FixedOffset};
 use log::trace;
-use std::convert::{TryFrom, TryInto};
-use std::{collections::HashMap, io::Read};
 use num_bigint::{BigInt, BigUint};
 use num_traits::ops::checked::CheckedSub;
+use std::convert::{TryFrom, TryInto};
+use std::{collections::HashMap, io::Read};
 
 #[derive(Debug)]
 pub struct IonParser<T: Read> {
@@ -30,10 +30,12 @@ impl<T: Read> IonParser<T> {
         self.consume_value_body(&value_header)
     }
 
-    pub fn consume_value_body(&mut self, value_header: &ValueHeader) -> Result<(IonValue, usize), IonParserError> {
-
+    pub fn consume_value_body(
+        &mut self,
+        value_header: &ValueHeader,
+    ) -> Result<(IonValue, usize), IonParserError> {
         let mut value = match value_header.r#type {
-            ValueType::Bool(value) => (IonValue::Bool(value), 1),
+            ValueType::Bool => self.consume_bool(&value_header)?,
             ValueType::Annotation => match self.consume_annotation(value_header)? {
                 (Some(annotation), consumed_bytes) => (annotation, consumed_bytes),
                 (None, consumed_bytes) => {
@@ -48,12 +50,12 @@ impl<T: Read> IonParser<T> {
             ValueType::NegativeInt => self.consume_int(value_header, true)?,
             ValueType::String => self.consume_string(value_header)?,
             ValueType::Timestamp => self.consume_timestamp(value_header)?,
-            ValueType::Null => (IonValue::Null, 1),
+            ValueType::Null => (IonValue::Null(NullIonValue::Null), 1),
             ValueType::Nop => {
                 let consumed_bytes = self.consume_nop(value_header)?;
                 let value = self.consume_value()?;
                 (value.0, value.1 + consumed_bytes)
-            },
+            }
             ValueType::Float => self.consume_float(value_header)?,
             ValueType::Decimal => self.consume_decimal(value_header)?,
             ValueType::Clob => self.consume_clob(value_header)?,
@@ -68,10 +70,7 @@ impl<T: Read> IonParser<T> {
         Ok(value)
     }
 
-    fn consume_nop(
-        &mut self,
-        header: &ValueHeader,
-    ) -> Result<usize, IonParserError> {
+    fn consume_nop(&mut self, header: &ValueHeader) -> Result<usize, IonParserError> {
         trace!("Consuming String");
 
         let (length, _, total) = self.consume_value_len(header)?;
@@ -83,6 +82,14 @@ impl<T: Read> IonParser<T> {
         Ok(total)
     }
 
+    fn consume_bool(&mut self, header: &ValueHeader) -> Result<(IonValue, usize), IonParserError> {
+        Ok(match &header.length {
+            ValueLength::NullValue => (IonValue::Null(NullIonValue::Bool), 1),
+            ValueLength::ShortLength(1) => (IonValue::Bool(true), 1),
+            ValueLength::ShortLength(0) => (IonValue::Bool(false), 1),
+            _ => Err(IonParserError::InvalidBoolLength(header.length.clone()))?
+        })
+    }
 
     fn consume_string(
         &mut self,
@@ -104,7 +111,11 @@ impl<T: Read> IonParser<T> {
         Ok((IonValue::String(text), total))
     }
 
-    fn consume_int(&mut self, header: &ValueHeader, negative: bool) -> Result<(IonValue, usize), IonParserError> {
+    fn consume_int(
+        &mut self,
+        header: &ValueHeader,
+        negative: bool,
+    ) -> Result<(IonValue, usize), IonParserError> {
         trace!("Consuming Integer");
 
         let (length, _, total) = self.consume_value_len(header)?;
@@ -112,15 +123,14 @@ impl<T: Read> IonParser<T> {
 
         let value = match i64::try_from(&value) {
             Ok(mut value) => {
-
                 if negative {
                     value = -value;
                 }
 
                 IonValue::Integer(value)
-            },
+            }
             Err(_) => {
-                let mut value = BigInt::from(value);                
+                let mut value = BigInt::from(value);
 
                 if negative {
                     value = -value;
@@ -325,23 +335,21 @@ impl<T: Read> IonParser<T> {
         const EIGHT_BYTES: usize = 8;
 
         Ok(match header.length {
-            ValueLength::ShortLength(len) => {
-                match len {
-                    0 => (IonValue::Float32(0f32), 0),
-                    4 => {
-                        let mut buffer = [0u8; FOUR_BYTES];
-                        self.parser.read_bytes(&mut buffer)?;
-                        (IonValue::Float32(f32::from_be_bytes(buffer)), FOUR_BYTES)
-                    }
-                    8 => {
-                        let mut buffer = [0u8; EIGHT_BYTES];
-                        self.parser.read_bytes(&mut buffer)?;
-                        (IonValue::Float64(f64::from_be_bytes(buffer)), EIGHT_BYTES)
-                    },
-                    _ => return Err(IonParserError::NotValidLengthFloat),
+            ValueLength::ShortLength(len) => match len {
+                0 => (IonValue::Float32(0f32), 0),
+                4 => {
+                    let mut buffer = [0u8; FOUR_BYTES];
+                    self.parser.read_bytes(&mut buffer)?;
+                    (IonValue::Float32(f32::from_be_bytes(buffer)), FOUR_BYTES)
                 }
-            }, 
-            ValueLength::NullValue =>  return Err(IonParserError::Unimplemented),
+                8 => {
+                    let mut buffer = [0u8; EIGHT_BYTES];
+                    self.parser.read_bytes(&mut buffer)?;
+                    (IonValue::Float64(f64::from_be_bytes(buffer)), EIGHT_BYTES)
+                }
+                _ => return Err(IonParserError::NotValidLengthFloat),
+            },
+            ValueLength::NullValue => return Err(IonParserError::Unimplemented),
             ValueLength::LongLength => return Err(IonParserError::NotValidLengthFloat),
         })
     }
@@ -364,14 +372,19 @@ impl<T: Read> IonParser<T> {
                 BigInt::from(0)
             };
 
-            let exponent: i64 = exponent.try_into().map_err(|_| IonParserError::DecimalExponentTooBig)?;
+            let exponent: i64 = exponent
+                .try_into()
+                .map_err(|_| IonParserError::DecimalExponentTooBig)?;
 
             Ok((
                 IonValue::Decimal(BigDecimal::new(coefficient, -exponent)),
                 total,
             ))
         } else {
-            Ok((IonValue::Decimal(BigDecimal::new(BigInt::from(0), 0)), total))
+            Ok((
+                IonValue::Decimal(BigDecimal::new(BigInt::from(0), 0)),
+                total,
+            ))
         }
     }
 
@@ -410,14 +423,17 @@ impl<T: Read> IonParser<T> {
         while remaining_annot_bytes > BigUint::from(0u8) {
             let (annot, consumed_bytes) = self.parser.consume_varuint()?;
 
-            let id_u64 = annot.try_into().map_err(|_| IonParserError::SymbolIdTooBig )?;
-            
+            let id_u64 = annot
+                .try_into()
+                .map_err(|_| IonParserError::SymbolIdTooBig)?;
+
             symbols.push(id_u64);
 
-            remaining_annot_bytes = match BigUint::checked_sub(&remaining_annot_bytes, &BigUint::from(consumed_bytes)) {
-                Some(result) => result,
-                None => return Err(IonParserError::BadFormatLengthFound),
-            }
+            remaining_annot_bytes =
+                match BigUint::checked_sub(&remaining_annot_bytes, &BigUint::from(consumed_bytes)) {
+                    Some(result) => result,
+                    None => return Err(IonParserError::BadFormatLengthFound),
+                }
         }
 
         let is_shared_table_declaration =
@@ -627,7 +643,11 @@ impl<T: Read> IonParser<T> {
     }
 
     fn get_symbol_name(&self, symbol_id: usize) -> Result<String, IonParserError> {
-        match self.context.get_symbol_by_id(symbol_id.try_into().map_err(|_| IonParserError::SymbolIdTooBig)?) {
+        match self.context.get_symbol_by_id(
+            symbol_id
+                .try_into()
+                .map_err(|_| IonParserError::SymbolIdTooBig)?,
+        ) {
             Some(Symbol::Symbol(name)) => Ok(name.clone()),
             Some(Symbol::Dummy) | None => Err(IonParserError::SymbolIdNotDefined),
         }

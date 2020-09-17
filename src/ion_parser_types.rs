@@ -28,6 +28,7 @@ pub enum IonParserError {
     NotValidLengthFloat,
     BinaryError(ParsingError),
     DecimalExponentTooBig,
+    InvalidBoolLength(ValueLength),
 } 
 
 impl From<ParsingError> for IonParserError {
@@ -38,7 +39,7 @@ impl From<ParsingError> for IonParserError {
 
 #[derive(PartialEq, Debug)]
 pub enum IonValue {
-    Null,
+    Null(NullIonValue),
     Bool(bool),
     Integer(i64),
     BigInteger(BigInt),
@@ -57,3 +58,23 @@ pub enum IonValue {
 }
 
 impl Eq for IonValue { }
+
+#[derive(PartialEq, Debug)]
+pub enum NullIonValue {
+    Null,
+    Bool,
+    Integer,
+    BigInteger,
+    Float32,
+    Float64,
+    Decimal,
+    DateTime,
+    String,
+    Symbol,
+    Clob,
+    Blob,
+    List,
+    SExpr,
+    Struct,
+    Annotation,
+}
