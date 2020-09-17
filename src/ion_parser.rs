@@ -7,6 +7,8 @@ use chrono::{naive::NaiveDate, DateTime, FixedOffset};
 use log::trace;
 use std::convert::{TryFrom, TryInto};
 use std::{collections::HashMap, io::Read};
+use num_bigint::{BigInt, BigUint};
+use num_traits::ops::checked::CheckedSub;
 
 #[derive(Debug)]
 pub struct IonParser<T: Read> {
@@ -76,26 +78,33 @@ impl<T: Read> IonParser<T> {
         Ok((IonValue::String(text), total))
     }
 
-    fn consume_int(
-        &mut self,
-        header: &ValueHeader,
-        negative: bool,
-    ) -> Result<(IonValue, usize), IonParserError> {
+    fn consume_int(&mut self, header: &ValueHeader, negative: bool) -> Result<(IonValue, usize), IonParserError> {
         trace!("Consuming Integer");
 
         let (length, _, total) = self.consume_value_len(header)?;
-
         let value = self.parser.consume_uint(length)?;
 
-        let mut value: i64 = value
-            .try_into()
-            .map_err(|_| IonParserError::IntegerTooBig)?;
+        let value = match i64::try_from(&value) {
+            Ok(mut value) => {
 
-        if negative {
-            value = -value;
-        }
+                if negative {
+                    value = -value;
+                }
 
-        Ok((IonValue::Integer(value), total))
+                IonValue::Integer(value)
+            },
+            Err(_) => {
+                let mut value = BigInt::from(value);                
+
+                if negative {
+                    value = -value;
+                }
+
+                IonValue::BigInteger(value)
+            }
+        };
+
+        Ok((value, total))
     }
 
     fn consume_struct(
@@ -121,7 +130,7 @@ impl<T: Read> IonParser<T> {
             let key = match self.context.get_symbol_by_id(
                 key.0
                     .try_into()
-                    .map_err(|_| IonParserError::SymbolIdTooBigForUsize)?,
+                    .map_err(|_| IonParserError::SymbolIdTooBig)?,
             ) {
                 Some(Symbol::Symbol(text)) => text.clone(),
                 _ => return Err(IonParserError::SymbolNotFoundInTable),
@@ -184,7 +193,7 @@ impl<T: Read> IonParser<T> {
         let symbol = self.context.get_symbol_by_id(
             symbol_id
                 .try_into()
-                .map_err(|_| IonParserError::SymbolIdTooBigForUsize)?,
+                .map_err(|_| IonParserError::SymbolIdTooBig)?,
         );
 
         let text = match symbol {
@@ -318,15 +327,17 @@ impl<T: Read> IonParser<T> {
             let coefficient = if coefficient_size > 0 {
                 self.parser.consume_int(coefficient_size)?
             } else {
-                0
+                BigInt::from(0)
             };
 
+            let exponent: i64 = exponent.try_into().map_err(|_| IonParserError::DecimalExponentTooBig)?;
+
             Ok((
-                IonValue::Decimal(BigDecimal::new(coefficient.into(), -exponent)),
+                IonValue::Decimal(BigDecimal::new(coefficient, -exponent)),
                 total,
             ))
         } else {
-            Ok((IonValue::Decimal(BigDecimal::new(0.into(), 0)), total))
+            Ok((IonValue::Decimal(BigDecimal::new(BigInt::from(0), 0)), total))
         }
     }
 
@@ -360,14 +371,16 @@ impl<T: Read> IonParser<T> {
 
         let mut remaining_annot_bytes = self.parser.consume_varuint()?.0;
 
-        let mut symbols = Vec::new();
+        let mut symbols: Vec<usize> = Vec::new();
 
-        while remaining_annot_bytes > 0 {
+        while remaining_annot_bytes > BigUint::from(0u8) {
             let (annot, consumed_bytes) = self.parser.consume_varuint()?;
 
-            symbols.push(annot);
+            let id_u64 = annot.try_into().map_err(|_| IonParserError::SymbolIdTooBig )?;
+            
+            symbols.push(id_u64);
 
-            remaining_annot_bytes = match remaining_annot_bytes.checked_sub(consumed_bytes as u64) {
+            remaining_annot_bytes = match BigUint::checked_sub(&remaining_annot_bytes, &BigUint::from(consumed_bytes)) {
                 Some(result) => result,
                 None => return Err(IonParserError::BadFormatLengthFound),
             }
@@ -562,7 +575,7 @@ impl<T: Read> IonParser<T> {
 
     fn construct_raw_annotation(
         &self,
-        symbols: &[u64],
+        symbols: &[usize],
         value: IonValue,
     ) -> Result<IonValue, IonParserError> {
         let mut symbols_names = Vec::new();
@@ -575,12 +588,12 @@ impl<T: Read> IonParser<T> {
         Ok(IonValue::Annotation((symbols_names, Box::new(value))))
     }
 
-    fn contains_system_symbol(&self, symbols: &[u64], symbol: SystemSymbolIds) -> bool {
-        symbols.iter().any(|&s| s == symbol as u64)
+    fn contains_system_symbol(&self, symbols: &[usize], symbol: SystemSymbolIds) -> bool {
+        symbols.iter().any(|&s| s == symbol as usize)
     }
 
-    fn get_symbol_name(&self, symbol_id: u64) -> Result<String, IonParserError> {
-        match self.context.get_symbol_by_id(symbol_id.try_into().map_err(|_| IonParserError::SymbolIdTooBigForUsize)?) {
+    fn get_symbol_name(&self, symbol_id: usize) -> Result<String, IonParserError> {
+        match self.context.get_symbol_by_id(symbol_id.try_into().map_err(|_| IonParserError::SymbolIdTooBig)?) {
             Some(Symbol::Symbol(name)) => Ok(name.clone()),
             Some(Symbol::Dummy) | None => Err(IonParserError::SymbolIdNotDefined),
         }

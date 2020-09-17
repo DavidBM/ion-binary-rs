@@ -2,6 +2,7 @@ use crate::binary_parser_types::*;
 use std::fmt::Debug;
 use std::convert::TryInto;
 use std::io::Read;
+use num_bigint::{BigInt, Sign, BigUint};
 
 pub struct IonBinaryParser<T: Read> {
     reader: T,
@@ -28,37 +29,18 @@ impl <T: Read>IonBinaryParser<T> {
     //            :          bits           :
     //            +=========================+
     //             n+7                     n
-    pub fn consume_uint(&mut self, octets: usize) -> Result<u64, ParsingError> {
+    pub fn consume_uint(&mut self, octets: usize) -> Result<BigUint, ParsingError> {
         if octets == 0 {
-            return Err(ParsingError::CannotReadZeroBytes);
+            return Err(ParsingError::CannotReadZeroBytes)
         }
+        
+        let mut buffer = vec![0u8; octets];
 
-        if octets > 8 {
-            return Err(ParsingError::TooBigForU64);
-        }
+        self.read_bytes(&mut buffer)?;
 
-        let mut byte = [0u8; 1];
+        let number = BigUint::from_bytes_be(&buffer);
 
-        let mut final_value = 0_u64;
-
-        for displacement in 0..octets {
-            let displacement = octets - 1 - displacement;
-
-            let read_bytes = self.read(&mut byte);
-
-            match read_bytes {
-                Ok(0) => return Err(ParsingError::NoDataToRead),
-                Err(e) => return Err(ParsingError::ErrorReadingData(e.to_string())),
-                Ok(_) => {
-                    let mut temporal_value: u64 = byte[0].into();
-                    temporal_value <<= displacement * 8;
-                    final_value |= temporal_value;
-                }
-            }
-
-        }
-
-        Ok(final_value)
+        Ok(number)
     }
 
     pub fn read_bytes(&mut self, buffer: &mut [u8]) -> Result<(), ParsingError> {
@@ -92,58 +74,27 @@ impl <T: Read>IonBinaryParser<T> {
     //            :          bits           :
     //            +=========================+
     //             n+7                     n
-    pub fn consume_int(&mut self, octets: usize) -> Result<i64, ParsingError> {
+    pub fn consume_int(&mut self, octets: usize) -> Result<BigInt, ParsingError> {
+        
         if octets == 0 {
             return Err(ParsingError::CannotReadZeroBytes)
         }
+        
+        let mut buffer = vec![0u8; octets];
+        
+        self.read_bytes(&mut buffer)?;
 
-        if octets > 8 {
-            return Err(ParsingError::TooBigForU64)
-        }
+        let is_negative = (buffer[0] & 0b1000_0000) > 0;
 
-        let mut byte = [0u8; 1];
+        buffer[0] = buffer[0] & 0b0111_1111;
 
-
-        let read_bytes = self.read(&mut byte);
-
-        if let Ok(0) = read_bytes {
-            return Err(ParsingError::NoDataToRead);
-        }
-
-        if let Err(e) = read_bytes {
-            return Err(ParsingError::ErrorReadingData(e.to_string()));
-        }
-
-        let is_negative = (byte[0] & 0b1000_0000) > 0;
-
-        let mut final_value: u64 = (byte[0] & 0b0111_1111).into();
-        final_value <<= (octets - 1) * 8;
-
-        for displacement in 1..octets {
-            let displacement = octets - 1 - displacement;
-
-            let read_bytes = self.read(&mut byte);
-
-            match read_bytes {
-                Ok(0) => return Err(ParsingError::NoDataToRead),
-                Err(e) => return Err(ParsingError::ErrorReadingData(e.to_string())),
-                Ok(_) => {
-                    let mut temporal_value: u64 = byte[0].into();
-                    temporal_value <<= displacement * 8;
-                    final_value |= temporal_value;
-                }
-            }
-
-        }
-
-        // If this doesn't work we want to fail as that should be impossible
-        let mut final_value: i64 = final_value.try_into().map_err(|_| ParsingError::ParsedIntTooBigThisIsABug)?;
+        let mut number = BigInt::from_bytes_be(Sign::Plus, &buffer);
 
         if is_negative {
-            final_value = -final_value;
+            number =  -number;
         }
 
-        Ok(final_value)
+        Ok(number)
     }
 
     // Each byte has 7 bits forming the "VarUInt", so we cannot have more than
@@ -183,30 +134,17 @@ impl <T: Read>IonBinaryParser<T> {
     //               +===+=====================+     +---+---------------------+
     // VarUInt field : 0 :         bits        :  …  | 1 |         bits        |
     //               +===+=====================+     +---+---------------------+
-    pub fn consume_varuint(&mut self) -> Result<(u64, usize), ParsingError> {
+    pub fn consume_varuint(&mut self) -> Result<(BigUint, usize), ParsingError> {
         let found_bytes = self.consume_var_number()?;
 
-        let consumed_bytes_len =  found_bytes.len();
+        let bytes: Vec<u8> = found_bytes.into_iter().map(|byte| byte & 0b0111_1111).collect();
 
-        IonBinaryParser::<T>::assert_valid_size_for_u64(consumed_bytes_len, &found_bytes)?;
+        let number = match BigUint::from_radix_be(&bytes, 128) {
+            Some(number) => number,
+            None => return Err(ParsingError::ThisIsABugConsumingVarUInt),
+        };
 
-        let mut bytes_displacement = consumed_bytes_len - 1;
-        let mut final_value = 0_u64;
-
-        for byte in found_bytes {
-            let byte = byte & 0b_0111_1111;
-
-            let mut value_buffer: u64 = byte.into();
-            value_buffer <<= bytes_displacement * 7;
-
-            if bytes_displacement > 0 {
-                bytes_displacement -= 1;
-            }
-
-            final_value |= value_buffer;
-        }
-
-        Ok((final_value, consumed_bytes_len))
+        Ok((number, bytes.len()))
     }
 
     //                7   6  5               0       n+7 n+6                 n
@@ -228,44 +166,25 @@ impl <T: Read>IonBinaryParser<T> {
     //                                 ^
     //                                 |
     //                                 +--sign
-    pub fn consume_varint(&mut self) -> Result<(i64, usize), ParsingError> {
+    pub fn consume_varint(&mut self) -> Result<(BigInt, usize), ParsingError> {
         let found_bytes = self.consume_var_number()?;
 
-        let consumed_bytes_len =  found_bytes.len();
+        let mut bytes: Vec<u8> = found_bytes.into_iter().map(|byte| byte & 0b0111_1111).collect();
 
-        IonBinaryParser::<T>::assert_valid_size_for_i64(&found_bytes)?;
+        let is_negative = bytes[0] & 0b0100_0000 > 0;
 
-        // consume_var_number function is guaranteed to return at least one byte.
-        let is_negative = (found_bytes[0] & 0b0100_0000) > 0;
-        // How many iteration we will do. If only one byte, 0 iterations in the while loop
-        let mut bytes_displacement = consumed_bytes_len - 1;
+        bytes[0] &= 0b0011_1111;
 
-        // We ignore the first bit and the second (sign bit)
-        let mut final_value: u64 = ((found_bytes[0] & 0b0011_1111) as u8).into();
-
-        final_value <<= bytes_displacement * 7;
-
-        //ignore the first byte, as it has already been processed
-        for byte in &found_bytes[1..] {
-            bytes_displacement -= 1;
-
-            let current_byte_value: u8 = byte & 0b0111_1111;
-
-            let mut temporal_value: u64 = current_byte_value.into();
-
-            temporal_value <<= bytes_displacement * 7;
-
-            final_value |= temporal_value;
-        }
-
-        // If this doesn't work we want to fail as that should be impossible 
-        let mut final_value: i64 = final_value.try_into().map_err(|_| ParsingError::ParsedIntTooBigThisIsABug)?;
+        let mut number = match BigInt::from_radix_be(Sign::Plus, &bytes, 128) {
+            Some(number) => number,
+            None => return Err(ParsingError::ThisIsABugConsumingVarInt),
+        };
 
         if is_negative {
-            final_value = -final_value;
+            number = -number;
         }
 
-        Ok((final_value, consumed_bytes_len))
+        Ok((number, bytes.len()))
     }
 
     // Note: Guarantees to return at least one byte if it succeed

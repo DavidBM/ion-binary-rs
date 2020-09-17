@@ -1,3 +1,5 @@
+use num_bigint::BigInt;
+
 pub const SYSTEM_SYMBOL_TABLE: &[&str; 10] = &[
     "$0",
     "$ion",
@@ -68,6 +70,8 @@ pub enum ParsingError {
     InvalidBoolLength(ValueLength),
     InvalidAnnotationLength(ValueLength),
     ParsedIntTooBigThisIsABug,
+    ThisIsABugConsumingVarUInt,
+    ThisIsABugConsumingVarInt,
 }
 
 //   7       4 3       0
@@ -79,4 +83,3 @@ pub struct ValueHeader {
     pub r#type: ValueType,   // T
     pub length: ValueLength, // L
 }
-

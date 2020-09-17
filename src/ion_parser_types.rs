@@ -3,6 +3,8 @@ use crate::binary_parser_types::*;
 use chrono::{DateTime, FixedOffset};
 use crate::symbol_table::SymbolContextError;
 use bigdecimal::BigDecimal;
+use num_bigint::BigInt;
+
 #[derive(Debug)]
 pub enum IonParserError {
     Unimplemented,
@@ -21,13 +23,14 @@ pub enum IonParserError {
     ListLengthWasTooShort,
     NonUtf8String,
     DidNotGetAListConsumingAListThisIsABug,
-    SymbolIdTooBigForUsize,
+    SymbolIdTooBig,
     TableVersionTooBig,
     IntegerTooBig,
     DateValueTooBig,
     ValueLenTooBig,
     NotValidLengthFloat,
-    BinaryError(ParsingError)
+    BinaryError(ParsingError),
+    DecimalExponentTooBig,
 } 
 
 impl From<ParsingError> for IonParserError {
@@ -41,6 +44,7 @@ pub enum IonValue {
     Null,
     Bool(bool),
     Integer(i64),
+    BigInteger(BigInt),
     Float32(f32),
     Float64(f64),
     Decimal(BigDecimal),
