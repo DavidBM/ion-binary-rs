@@ -84,7 +84,7 @@ impl<T: Read> IonParser<T> {
             ValueLength::NullValue => (IonValue::Null(NullIonValue::Bool), 0),
             ValueLength::ShortLength(1) => (IonValue::Bool(true), 0),
             ValueLength::ShortLength(0) => (IonValue::Bool(false), 0),
-            _ => Err(IonParserError::InvalidBoolLength(header.length.clone()))?
+            _ => return Err(IonParserError::InvalidBoolLength(header.length.clone())),
         })
     }
 
@@ -297,9 +297,6 @@ impl<T: Read> IonParser<T> {
         };
 
         let fraction_coefficient: i32 = if (consumed_bytes) < length {
-            let length: usize = length
-                .try_into()
-                .map_err(|_| IonParserError::DateValueTooBig)?;
             let remaining_bytes = length - consumed_bytes;
             let value = self.parser.consume_int(remaining_bytes)?;
             consumed_bytes += remaining_bytes;
@@ -425,7 +422,10 @@ impl<T: Read> IonParser<T> {
         Ok((IonValue::Blob(buffer), total))
     }
 
-    fn consume_annotation(&mut self, header: &ValueHeader) -> Result<(Option<IonValue>, usize), IonParserError> {
+    fn consume_annotation(
+        &mut self,
+        header: &ValueHeader,
+    ) -> Result<(Option<IonValue>, usize), IonParserError> {
         trace!("Consuming Annotation");
 
         if self.is_value_null(header) {
@@ -483,7 +483,10 @@ impl<T: Read> IonParser<T> {
         header.length == ValueLength::NullValue
     }
 
-    fn consume_value_len(&mut self, header: &ValueHeader) -> Result<(usize, usize, usize), IonParserError> {
+    fn consume_value_len(
+        &mut self,
+        header: &ValueHeader,
+    ) -> Result<(usize, usize, usize), IonParserError> {
         let mut consumed_bytes: usize = 0;
         let null_length = 15;
 
@@ -502,7 +505,10 @@ impl<T: Read> IonParser<T> {
         Ok((length, consumed_bytes, total))
     }
 
-    fn get_parsed_struct_hashmap<'a>(&self, table: &'a IonValue) -> Result<&'a HashMap<String, IonValue>, IonParserError> {
+    fn get_parsed_struct_hashmap<'a>(
+        &self,
+        table: &'a IonValue,
+    ) -> Result<&'a HashMap<String, IonValue>, IonParserError> {
         if let IonValue::Struct(table) = table {
             Ok(table)
         } else {
@@ -638,7 +644,11 @@ impl<T: Read> IonParser<T> {
         SYSTEM_SYMBOL_TABLE[symbol as usize]
     }
 
-    fn construct_raw_annotation(&self, symbols: &[usize], value: IonValue) -> Result<IonValue, IonParserError> {
+    fn construct_raw_annotation(
+        &self,
+        symbols: &[usize],
+        value: IonValue,
+    ) -> Result<IonValue, IonParserError> {
         let mut symbols_names = Vec::new();
 
         for symbol in symbols.iter() {
@@ -654,11 +664,7 @@ impl<T: Read> IonParser<T> {
     }
 
     fn get_symbol_name(&self, symbol_id: usize) -> Result<String, IonParserError> {
-        match self.context.get_symbol_by_id(
-            symbol_id
-                .try_into()
-                .map_err(|_| IonParserError::SymbolIdTooBig)?,
-        ) {
+        match self.context.get_symbol_by_id(symbol_id) {
             Some(Symbol::Symbol(name)) => Ok(name.clone()),
             Some(Symbol::Dummy) | None => Err(IonParserError::SymbolIdNotDefined),
         }

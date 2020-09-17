@@ -1,9 +1,9 @@
-use std::collections::HashMap;
 use crate::binary_parser_types::*;
-use chrono::{DateTime, FixedOffset};
 use crate::symbol_table::SymbolContextError;
 use bigdecimal::BigDecimal;
+use chrono::{DateTime, FixedOffset};
 use num_bigint::BigInt;
+use std::collections::HashMap;
 
 #[derive(Debug)]
 pub enum IonParserError {
@@ -29,7 +29,7 @@ pub enum IonParserError {
     BinaryError(ParsingError),
     DecimalExponentTooBig,
     InvalidBoolLength(ValueLength),
-} 
+}
 
 impl From<ParsingError> for IonParserError {
     fn from(err: ParsingError) -> Self {
@@ -51,13 +51,13 @@ pub enum IonValue {
     Symbol(String),
     Clob(Vec<u8>),
     Blob(Vec<u8>),
-    List(Vec<IonValue>), 
+    List(Vec<IonValue>),
     SExpr(Vec<IonValue>),
     Struct(HashMap<String, IonValue>),
     Annotation((Vec<String>, Box<IonValue>)),
 }
 
-impl Eq for IonValue { }
+impl Eq for IonValue {}
 
 #[derive(PartialEq, Debug)]
 pub enum NullIonValue {

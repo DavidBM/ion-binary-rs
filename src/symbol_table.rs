@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use crate::binary_parser_types::SYSTEM_SYMBOL_TABLE;
 use log::trace;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Symbol {
@@ -64,12 +64,13 @@ pub struct SharedSymbolTable {
 }
 
 impl SharedSymbolTable {
-
     pub fn is_superset(&self, table: &SharedSymbolTable) -> bool {
         for (index, symbol) in table.symbols.iter().enumerate() {
             match self.symbols.get(index) {
-                Some(ref value) if *value == symbol => {},
-                _ => { return false; }
+                Some(ref value) if *value == symbol => {}
+                _ => {
+                    return false;
+                }
             }
         }
 
@@ -101,13 +102,13 @@ pub enum SymbolContextError {
     MaxIdNeededWhenImportingASharedTableWhereVersionIsNotAvailable,
     MaxIdNeededWhenImportingANotFoundSharedTable,
     InternalParserErrorThisIsABug,
-    NewTableIsNotSuperSetOfPrevious
+    NewTableIsNotSuperSetOfPrevious,
 }
 
 #[derive(Debug)]
 pub struct SymbolContext {
     current_table: LocalSymbolTable,
-    shared_tables: HashMap<String, (u32, HashMap<u32, SharedSymbolTable>)>
+    shared_tables: HashMap<String, (u32, HashMap<u32, SharedSymbolTable>)>,
 }
 
 impl SymbolContext {
@@ -124,7 +125,12 @@ impl SymbolContext {
         }
     }
 
-    pub fn add_shared_table(&mut self, name: String, version: u32, symbols: &[Symbol]) -> Result<(), SymbolContextError>  {
+    pub fn add_shared_table(
+        &mut self,
+        name: String,
+        version: u32,
+        symbols: &[Symbol],
+    ) -> Result<(), SymbolContextError> {
         let new_table = SharedSymbolTable {
             name: name.clone(),
             version,
@@ -135,8 +141,11 @@ impl SymbolContext {
             Some(table_collection) => match table_collection.1.get_mut(&version) {
                 Some(_) => Err(SymbolContextError::TableVersionAlreadyThere),
                 None => {
-
-                    SymbolContext::assert_new_table_is_superset(&new_table, &version, &table_collection.1)?;
+                    SymbolContext::assert_new_table_is_superset(
+                        &new_table,
+                        &version,
+                        &table_collection.1,
+                    )?;
 
                     if table_collection.0 < version {
                         table_collection.0 = version;
@@ -155,8 +164,11 @@ impl SymbolContext {
         }
     }
 
-    pub fn assert_new_table_is_superset(table: &SharedSymbolTable, version: &u32, tables: &HashMap<u32, SharedSymbolTable>) -> Result<(), SymbolContextError> {
-
+    pub fn assert_new_table_is_superset(
+        table: &SharedSymbolTable,
+        version: &u32,
+        tables: &HashMap<u32, SharedSymbolTable>,
+    ) -> Result<(), SymbolContextError> {
         for index in (*version - 1)..=0 {
             if let Some(existing_table) = tables.get(&index) {
                 if !table.is_superset(existing_table) {
@@ -170,7 +182,11 @@ impl SymbolContext {
         Ok(())
     }
 
-    pub fn set_new_table(&mut self, imports: &[Import], symbols: &[Symbol]) -> Result<(), SymbolContextError> {
+    pub fn set_new_table(
+        &mut self,
+        imports: &[Import],
+        symbols: &[Symbol],
+    ) -> Result<(), SymbolContextError> {
         let mut new_table = LocalSymbolTable::new();
 
         let symbols: Vec<Symbol> = symbols.to_vec();
@@ -187,44 +203,38 @@ impl SymbolContext {
             };
 
             match self.shared_tables.get(&import.name) {
-                Some(table_collection) => {
-                    match table_collection.1.get(&version) {
-                        Some(table) => {
-                            let symbols = match import.max_len {
-                                Some(len) => {
-                                    table.get_symbols_max_len(len)
-                                },
+                Some(table_collection) => match table_collection.1.get(&version) {
+                    Some(table) => {
+                        let symbols = match import.max_len {
+                            Some(len) => table.get_symbols_max_len(len),
+                            None => table.get_all_symbols(),
+                        };
+
+                        new_table.add_symbols(symbols);
+                    }
+                    None => {
+                        if let Some(max_len) = import.max_len {
+                            let table = match table_collection.1.get(&table_collection.0) {
+                                Some(table) => table,
                                 None => {
-                                    table.get_all_symbols()
+                                    return Err(SymbolContextError::InternalParserErrorThisIsABug)
                                 }
                             };
 
+                            let symbols = table.get_symbols_max_len(max_len);
                             new_table.add_symbols(symbols);
-                        },
-                        None => {
-                            if let Some(max_len) = import.max_len {
-                                let table = match table_collection.1.get(&table_collection.0) {
-                                    Some(table) => {
-                                        table
-                                    },
-                                    None => {
-                                        return Err(SymbolContextError::InternalParserErrorThisIsABug)
-                                    }
-                                };
-
-                                let symbols = table.get_symbols_max_len(max_len);
-                                new_table.add_symbols(symbols);
-                            } else {
-                                return Err(SymbolContextError::MaxIdNeededWhenImportingASharedTableWhereVersionIsNotAvailable)
-                            }
+                        } else {
+                            return Err(SymbolContextError::MaxIdNeededWhenImportingASharedTableWhereVersionIsNotAvailable);
                         }
                     }
-                }, 
+                },
                 None => {
                     if let Some(len) = import.max_len {
                         new_table.insert_dummy_symbols(len);
                     } else {
-                        return Err(SymbolContextError::MaxIdNeededWhenImportingANotFoundSharedTable);
+                        return Err(
+                            SymbolContextError::MaxIdNeededWhenImportingANotFoundSharedTable,
+                        );
                     }
                 }
             }
@@ -239,7 +249,7 @@ impl SymbolContext {
         Ok(())
     }
 
-    pub fn  get_symbol_by_id(&self, id: usize) -> Option<&Symbol> {
+    pub fn get_symbol_by_id(&self, id: usize) -> Option<&Symbol> {
         self.current_table.get_symbol_by_id(id)
     }
 

@@ -1,16 +1,19 @@
 use crate::binary_parser_types::*;
+use num_bigint::{BigInt, BigUint, Sign};
 use std::fmt::Debug;
 use std::io::Read;
-use num_bigint::{BigInt, Sign, BigUint};
 
 pub struct IonBinaryParser<T: Read> {
     reader: T,
-    current_ion_version: Option<(u8, u8)>
+    current_ion_version: Option<(u8, u8)>,
 }
 
-impl <T: Read>IonBinaryParser<T> {
+impl<T: Read> IonBinaryParser<T> {
     pub fn new(reader: T) -> IonBinaryParser<T> {
-        IonBinaryParser { reader, current_ion_version: None }
+        IonBinaryParser {
+            reader,
+            current_ion_version: None,
+        }
     }
 
     fn read(&mut self, buffer: &mut [u8]) -> Result<usize, std::io::Error> {
@@ -30,9 +33,9 @@ impl <T: Read>IonBinaryParser<T> {
     //             n+7                     n
     pub fn consume_uint(&mut self, octets: usize) -> Result<BigUint, ParsingError> {
         if octets == 0 {
-            return Err(ParsingError::CannotReadZeroBytes)
+            return Err(ParsingError::CannotReadZeroBytes);
         }
-        
+
         let mut buffer = vec![0u8; octets];
 
         self.read_bytes(&mut buffer)?;
@@ -74,23 +77,22 @@ impl <T: Read>IonBinaryParser<T> {
     //            +=========================+
     //             n+7                     n
     pub fn consume_int(&mut self, octets: usize) -> Result<BigInt, ParsingError> {
-        
         if octets == 0 {
-            return Err(ParsingError::CannotReadZeroBytes)
+            return Err(ParsingError::CannotReadZeroBytes);
         }
-        
+
         let mut buffer = vec![0u8; octets];
-        
+
         self.read_bytes(&mut buffer)?;
 
         let is_negative = (buffer[0] & 0b1000_0000) > 0;
 
-        buffer[0] = buffer[0] & 0b0111_1111;
+        buffer[0] &= 0b0111_1111;
 
         let mut number = BigInt::from_bytes_be(Sign::Plus, &buffer);
 
         if is_negative {
-            number =  -number;
+            number = -number;
         }
 
         Ok(number)
@@ -103,7 +105,10 @@ impl <T: Read>IonBinaryParser<T> {
     pub fn consume_varuint(&mut self) -> Result<(BigUint, usize), ParsingError> {
         let found_bytes = self.consume_var_number()?;
 
-        let bytes: Vec<u8> = found_bytes.into_iter().map(|byte| byte & 0b0111_1111).collect();
+        let bytes: Vec<u8> = found_bytes
+            .into_iter()
+            .map(|byte| byte & 0b0111_1111)
+            .collect();
 
         let number = match BigUint::from_radix_be(&bytes, 128) {
             Some(number) => number,
@@ -135,7 +140,10 @@ impl <T: Read>IonBinaryParser<T> {
     pub fn consume_varint(&mut self) -> Result<(BigInt, usize), ParsingError> {
         let found_bytes = self.consume_var_number()?;
 
-        let mut bytes: Vec<u8> = found_bytes.into_iter().map(|byte| byte & 0b0111_1111).collect();
+        let mut bytes: Vec<u8> = found_bytes
+            .into_iter()
+            .map(|byte| byte & 0b0111_1111)
+            .collect();
 
         let is_negative = bytes[0] & 0b0100_0000 > 0;
 
@@ -192,12 +200,11 @@ impl <T: Read>IonBinaryParser<T> {
             Ok(0) => Err(ParsingError::NoDataToRead),
             Err(e) => Err(ParsingError::ErrorReadingData(e.to_string())),
             Ok(_) => {
-
                 let byte = byte[0];
 
-                // If the byte has T as E (annotation) with a L of 0 (invalid) 
+                // If the byte has T as E (annotation) with a L of 0 (invalid)
                 // it means that this is a ion version header, so we read it
-                // and set the decoder to the new version. 
+                // and set the decoder to the new version.
                 if byte == 0xE0 {
                     let version = self.consume_ion_version_once_identified()?;
                     self.set_current_ion_version(version);
@@ -218,7 +225,7 @@ impl <T: Read>IonBinaryParser<T> {
                         self.if_nop_fill_nop_padding(&mut r#type, &length);
 
                         Ok(ValueHeader { r#type, length })
-                    },
+                    }
                     (Err(e), _) => Err(e),
                     (_, Err(e)) => Err(e),
                 }
@@ -228,16 +235,17 @@ impl <T: Read>IonBinaryParser<T> {
 
     fn if_nop_fill_nop_padding(&self, r#type: &mut ValueType, length: &ValueLength) {
         match (&r#type, &length) {
-             (ValueType::Null, ValueLength::ShortLength(_)) | (ValueType::Null, ValueLength::LongLength) => {
+            (ValueType::Null, ValueLength::ShortLength(_))
+            | (ValueType::Null, ValueLength::LongLength) => {
                 *r#type = ValueType::Nop;
-            },
+            }
             _ => {}
         }
     }
 
     fn verify_header(&self, valtype: &ValueType, length: &ValueLength) -> Result<(), ParsingError> {
-        use ValueType::*;
         use ValueLength::*;
+        use ValueType::*;
 
         match valtype {
             Annotation => {
@@ -251,7 +259,7 @@ impl <T: Read>IonBinaryParser<T> {
                     Ok(())
                 }
             }
-            _ => Ok(())
+            _ => Ok(()),
         }
     }
 
@@ -259,9 +267,9 @@ impl <T: Read>IonBinaryParser<T> {
     //                       +------+-------+-------+------+
     // binary version marker | 0xE0 | major | minor | 0xEA |
     //                       +------+-------+-------+------+
-    // When calling this function we have already consumed the first byte 
+    // When calling this function we have already consumed the first byte
     // (that is how we identify we need to call this function)
-    fn consume_ion_version_once_identified(&mut self) -> Result<(u8, u8), ParsingError>{
+    fn consume_ion_version_once_identified(&mut self) -> Result<(u8, u8), ParsingError> {
         let mut byte = [0u8; 3];
 
         let read_bytes = self.read(&mut byte);
@@ -274,7 +282,7 @@ impl <T: Read>IonBinaryParser<T> {
                     return Err(ParsingError::BadFormedVersionHeader);
                 }
 
-                Ok( (byte[0], byte[1]) )
+                Ok((byte[0], byte[1]))
             }
         }
     }
@@ -315,8 +323,8 @@ impl <T: Read>IonBinaryParser<T> {
     }
 }
 
-impl <T: Read> Debug for IonBinaryParser<T> {
-    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> { 
+impl<T: Read> Debug for IonBinaryParser<T> {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         fmt.debug_struct("IonBinaryParser").finish()
     }
 }

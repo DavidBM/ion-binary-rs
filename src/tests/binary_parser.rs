@@ -1,6 +1,6 @@
-use bytes::buf::ext::BufExt;
 use crate::binary_parser::IonBinaryParser;
 use crate::binary_parser_types::*;
+use bytes::buf::ext::BufExt;
 use num_bigint::{BigInt, BigUint};
 
 #[test]
@@ -174,7 +174,7 @@ fn decode_varint_len_10_positive() {
 }
 
 #[test]
-// Technically correct, but we don't handle this case (yet?) 
+// Technically correct, but we don't handle this case (yet?)
 fn decode_varint_len_10_max_positive() {
     let ion_test = [
         0b_0011_1111,
@@ -198,7 +198,7 @@ fn decode_varint_len_10_max_positive() {
 }
 
 #[test]
-// Technically correct, but we don't handle this case (yet?) 
+// Technically correct, but we don't handle this case (yet?)
 fn decode_varint_len_10_max_negative() {
     let ion_test = [
         0b_0111_1111,
@@ -237,49 +237,30 @@ fn decode_uint_valid_len_8() {
 
     let mut lexer = IonBinaryParser::new(Box::new(ion_test));
 
-    assert_eq!(
-        lexer.consume_uint(8),
-        Ok(BigUint::from(8u64))
-    );
+    assert_eq!(lexer.consume_uint(8), Ok(BigUint::from(8u64)));
 }
 
 #[test]
 fn decode_uint_valid() {
-    let ion_test = [
-        0b_0000_1000,
-    ]
-    .reader();
+    let ion_test = [0b_0000_1000].reader();
 
     let mut lexer = IonBinaryParser::new(Box::new(ion_test));
 
-    assert_eq!(
-        lexer.consume_uint(1),
-        Ok(BigUint::from(8u64))
-    );
+    assert_eq!(lexer.consume_uint(1), Ok(BigUint::from(8u64)));
 }
 
 #[test]
 fn decode_uint_valid_2() {
-    let ion_test = [
-        0b_0000_1000,
-        0b_1000_1000,
-    ]
-    .reader();
+    let ion_test = [0b_0000_1000, 0b_1000_1000].reader();
 
     let mut lexer = IonBinaryParser::new(Box::new(ion_test));
 
-    assert_eq!(
-        lexer.consume_uint(2),
-        Ok(BigUint::from(2184u64))
-    );
+    assert_eq!(lexer.consume_uint(2), Ok(BigUint::from(2184u64)));
 }
 
 #[test]
 fn decode_uint_invalid_zero_len() {
-    let ion_test = [
-        0b_1000_1000,
-    ]
-    .reader();
+    let ion_test = [0b_1000_1000].reader();
 
     let mut lexer = IonBinaryParser::new(Box::new(ion_test));
 
@@ -305,10 +286,7 @@ fn decode_int_valid_len_8_positive() {
 
     let mut lexer = IonBinaryParser::new(Box::new(ion_test));
 
-    assert_eq!(
-        lexer.consume_int(8),
-        Ok(BigInt::from(8))
-    );
+    assert_eq!(lexer.consume_int(8), Ok(BigInt::from(8)));
 }
 
 #[test]
@@ -327,87 +305,52 @@ fn decode_int_valid_len_8_negative() {
 
     let mut lexer = IonBinaryParser::new(Box::new(ion_test));
 
-    assert_eq!(
-        lexer.consume_int(8),
-        Ok(BigInt::from(-8))
-    );
+    assert_eq!(lexer.consume_int(8), Ok(BigInt::from(-8)));
 }
 
 #[test]
 fn decode_int_valid_positive() {
-    let ion_test = [
-        0b_0000_1000,
-    ]
-    .reader();
+    let ion_test = [0b_0000_1000].reader();
 
     let mut lexer = IonBinaryParser::new(Box::new(ion_test));
 
-    assert_eq!(
-        lexer.consume_int(1),
-        Ok(BigInt::from(8))
-    );
+    assert_eq!(lexer.consume_int(1), Ok(BigInt::from(8)));
 }
 
 #[test]
 fn decode_int_valid_negative() {
-    let ion_test = [
-        0b_1000_1000,
-    ]
-    .reader();
+    let ion_test = [0b_1000_1000].reader();
 
     let mut lexer = IonBinaryParser::new(Box::new(ion_test));
 
-    assert_eq!(
-        lexer.consume_int(1),
-        Ok(BigInt::from(-8))
-    );
+    assert_eq!(lexer.consume_int(1), Ok(BigInt::from(-8)));
 }
 
 #[test]
 fn decode_int_valid_2_positive() {
-    let ion_test = [
-        0b_0000_1000,
-        0b_1000_1000,
-    ]
-    .reader();
+    let ion_test = [0b_0000_1000, 0b_1000_1000].reader();
 
     let mut lexer = IonBinaryParser::new(Box::new(ion_test));
 
-    assert_eq!(
-        lexer.consume_int(2),
-        Ok(BigInt::from(2184))
-    );
+    assert_eq!(lexer.consume_int(2), Ok(BigInt::from(2184)));
 }
 
 #[test]
 fn decode_int_valid_2_negative() {
-    let ion_test = [
-        0b_1000_1000,
-        0b_1000_1000,
-    ]
-    .reader();
+    let ion_test = [0b_1000_1000, 0b_1000_1000].reader();
 
     let mut lexer = IonBinaryParser::new(Box::new(ion_test));
 
-    assert_eq!(
-        lexer.consume_int(2),
-        Ok(BigInt::from(-2184))
-    );
+    assert_eq!(lexer.consume_int(2), Ok(BigInt::from(-2184)));
 }
 
 #[test]
 fn decode_int_invalid_zero_len() {
-    let ion_test = [
-        0b_1000_1000,
-    ]
-    .reader();
+    let ion_test = [0b_1000_1000].reader();
 
     let mut lexer = IonBinaryParser::new(Box::new(ion_test));
 
-    assert_eq!(
-        lexer.consume_int(0),
-        Err(ParsingError::CannotReadZeroBytes)
-    );
+    assert_eq!(lexer.consume_int(0), Err(ParsingError::CannotReadZeroBytes));
 }
 
 #[test]
@@ -418,7 +361,7 @@ fn decode_value_with_version_header() {
 
     assert_eq!(
         lexer.consume_value_header(),
-        Ok(ValueHeader { 
+        Ok(ValueHeader {
             r#type: ValueType::Annotation,
             length: ValueLength::LongLength,
         })
