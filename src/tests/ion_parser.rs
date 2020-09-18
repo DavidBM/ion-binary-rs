@@ -1,29 +1,7 @@
-use std::io::Read;
-use std::io::BufReader;
-use std::fs::File;
-use std::path::Path;
 use crate::{ion_parser::IonParser, ion_parser_types::IonValue};
 use bytes::buf::BufExt;
 use env_logger::Env;
 use std::collections::HashMap;
-
-fn read_file(path: &Path) -> impl Read {
-    let file = File::open(path).unwrap_or_else(|error| panic!("Failed to open file: {:?}", error));
-
-    BufReader::new(file)
-}
-
-#[test]
-fn test_a() {
-    let ion_blob = read_file(Path::new("src/tests/test-suite/iontestdata/good/clobWithDel.10n"));
-
-    let mut parser = IonParser::new(ion_blob);
-
-    assert_eq!(
-        parser.consume_value().unwrap().0,
-        IonValue::Clob(Vec::from([127]))
-    );
-}
 
 #[test]
 fn decode_full_ion() {
