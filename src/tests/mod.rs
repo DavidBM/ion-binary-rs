@@ -21,12 +21,12 @@ NOTE: All current Ion Binnary tests.
 ✓	good/decimalZeroDot
 ✓	good/emptyThreeByteNopPad
 ✓	good/float32
-	good/intBigSize1201
-	good/intBigSize13
-	good/intBigSize16
-	good/intLongMaxValuePlusOne
-	good/intLongMinValue
-	good/item1
+✓	good/intBigSize1201
+✓	good/intBigSize13
+✓	good/intBigSize16
+✓	good/intLongMaxValuePlusOne
+✓	good/intLongMinValue
+✓	good/item1
 	good/nopPad16Bytes
 	good/nopPadInsideEmptyStructNonZeroSymbolId
 	good/nopPadInsideEmptyStructZeroSymbolId
