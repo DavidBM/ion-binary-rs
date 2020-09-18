@@ -5,6 +5,8 @@ use crate::symbol_table::*;
 use bigdecimal::BigDecimal;
 use chrono::{naive::NaiveDate, DateTime, FixedOffset};
 use log::trace;
+use num_bigint::{BigInt, BigUint};
+use num_traits::ops::checked::CheckedSub;
 use std::convert::{TryFrom, TryInto};
 use std::{collections::HashMap, io::Read};
 
@@ -14,6 +16,8 @@ pub struct IonParser<T: Read> {
     context: SymbolContext,
 }
 
+pub type ConsumerResult = Result<(IonValue, usize), IonParserError>;
+
 impl<T: Read> IonParser<T> {
     pub fn new(reader: T) -> IonParser<T> {
         IonParser {
@@ -22,50 +26,77 @@ impl<T: Read> IonParser<T> {
         }
     }
 
-    pub fn consume_value(&mut self) -> Result<(IonValue, usize), IonParserError> {
+    pub fn consume_value(&mut self) -> ConsumerResult {
         let value_header = self.parser.consume_value_header()?;
 
+        self.consume_value_body(&value_header)
+    }
+
+    fn consume_value_body(&mut self, value_header: &ValueHeader) -> ConsumerResult {
         let mut value = match value_header.r#type {
-            ValueType::Bool(value) => (IonValue::Bool(value), 1),
-            ValueType::Annotation => match self.consume_annotation(&value_header)? {
+            ValueType::Bool => self.consume_bool(&value_header)?,
+            ValueType::Annotation => match self.consume_annotation(value_header)? {
                 (Some(annotation), consumed_bytes) => (annotation, consumed_bytes),
                 (None, consumed_bytes) => {
                     let value = self.consume_value()?;
                     (value.0, value.1 + consumed_bytes)
                 }
             },
-            ValueType::Struct => self.consume_struct(&value_header)?,
-            ValueType::List => self.consume_list(&value_header)?,
-            ValueType::Symbol => self.consume_symbol(&value_header)?,
-            ValueType::PositiveInt => self.consume_int(&value_header, false)?,
-            ValueType::NegativeInt => self.consume_int(&value_header, true)?,
-            ValueType::String => self.consume_string(&value_header)?,
-            ValueType::Timestamp => self.consume_timestamp(&value_header)?,
-            ValueType::Null => (IonValue::Null, 1),
-            ValueType::Float => self.consume_float(&value_header)?,
-            ValueType::Decimal => self.consume_decimal(&value_header)?,
-            ValueType::Clob => self.consume_clob(&value_header)?,
-            ValueType::Blob => self.consume_blob(&value_header)?,
-            ValueType::SExpr => self.consume_sexpr(&value_header)?,
+            ValueType::Struct => self.consume_struct(value_header)?,
+            ValueType::List => self.consume_list(value_header)?,
+            ValueType::Symbol => self.consume_symbol(value_header)?,
+            ValueType::PositiveInt => self.consume_int(value_header, false)?,
+            ValueType::NegativeInt => self.consume_int(value_header, true)?,
+            ValueType::String => self.consume_string(value_header)?,
+            ValueType::Timestamp => self.consume_timestamp(value_header)?,
+            ValueType::Null => (IonValue::Null(NullIonValue::Null), 1),
+            ValueType::Nop => {
+                let consumed_bytes = self.consume_nop(value_header)?;
+                let value = self.consume_value()?;
+                (value.0, value.1 + consumed_bytes)
+            }
+            ValueType::Float => self.consume_float(value_header)?,
+            ValueType::Decimal => self.consume_decimal(value_header)?,
+            ValueType::Clob => self.consume_clob(value_header)?,
+            ValueType::Blob => self.consume_blob(value_header)?,
+            ValueType::SExpr => self.consume_sexpr(value_header)?,
             ValueType::Reserved => return Err(IonParserError::Unimplemented),
         };
 
-        // We increase the consumed bytes count as we must count for the already consumed ValueHeader
-        value.1 += 1;
+        let already_consumed_value_header = 1;
+        value.1 += already_consumed_value_header;
 
         Ok(value)
     }
 
-    fn consume_string(
-        &mut self,
-        header: &ValueHeader,
-    ) -> Result<(IonValue, usize), IonParserError> {
+    fn consume_nop(&mut self, header: &ValueHeader) -> Result<usize, IonParserError> {
         trace!("Consuming String");
 
         let (length, _, total) = self.consume_value_len(header)?;
-
         let mut buffer = vec![0; length as usize];
+        self.parser.read_bytes(&mut buffer)?;
 
+        Ok(total)
+    }
+
+    fn consume_bool(&mut self, header: &ValueHeader) -> ConsumerResult {
+        Ok(match &header.length {
+            ValueLength::NullValue => (IonValue::Null(NullIonValue::Bool), 0),
+            ValueLength::ShortLength(1) => (IonValue::Bool(true), 0),
+            ValueLength::ShortLength(0) => (IonValue::Bool(false), 0),
+            _ => return Err(IonParserError::InvalidBoolLength(header.length.clone())),
+        })
+    }
+
+    fn consume_string(&mut self, header: &ValueHeader) -> ConsumerResult {
+        trace!("Consuming String");
+
+        if self.is_value_null(header) {
+            return Ok((IonValue::Null(NullIonValue::String), 0));
+        }
+
+        let (length, _, total) = self.consume_value_len(header)?;
+        let mut buffer = vec![0; length as usize];
         self.parser.read_bytes(&mut buffer)?;
 
         let text = match String::from_utf8(buffer) {
@@ -76,52 +107,70 @@ impl<T: Read> IonParser<T> {
         Ok((IonValue::String(text), total))
     }
 
-    fn consume_int(
-        &mut self,
-        header: &ValueHeader,
-        negative: bool,
-    ) -> Result<(IonValue, usize), IonParserError> {
+    fn consume_int(&mut self, header: &ValueHeader, negative: bool) -> ConsumerResult {
         trace!("Consuming Integer");
 
-        let (length, _, total) = self.consume_value_len(header)?;
-
-        let value = self.parser.consume_uint(length)?;
-
-        let mut value: i64 = value
-            .try_into()
-            .map_err(|_| IonParserError::IntegerTooBig)?;
-
-        if negative {
-            value = -value;
+        if self.is_value_null(header) {
+            return Ok((IonValue::Null(NullIonValue::Integer), 0));
         }
 
-        Ok((IonValue::Integer(value), total))
+        let (length, _, total) = self.consume_value_len(header)?;
+        let value = self.parser.consume_uint(length)?;
+
+        let value = match i64::try_from(&value) {
+            Ok(mut value) => {
+                if negative {
+                    value = -value;
+                }
+
+                IonValue::Integer(value)
+            }
+            Err(_) => {
+                let mut value = BigInt::from(value);
+
+                if negative {
+                    value = -value;
+                }
+
+                IonValue::BigInteger(value)
+            }
+        };
+
+        Ok((value, total))
     }
 
-    fn consume_struct(
-        &mut self,
-        header: &ValueHeader,
-    ) -> Result<(IonValue, usize), IonParserError> {
+    fn consume_struct(&mut self, header: &ValueHeader) -> ConsumerResult {
         trace!("Consuming Struct");
 
-        let (length, _, total) = self.consume_value_len(header)?;
+        if self.is_value_null(header) {
+            return Ok((IonValue::Null(NullIonValue::Struct), 0));
+        }
 
+        let (length, _, total) = self.consume_value_len(header)?;
         let mut consumed_bytes = 0;
         let mut values: HashMap<String, IonValue> = HashMap::new();
 
         while length - consumed_bytes > 0 {
             let key = self.parser.consume_varuint()?;
-            let value = self.consume_value()?;
+
+            let value_header = self.parser.consume_value_header()?;
+
+            if let ValueType::Nop = value_header.r#type {
+                self.consume_nop(&value_header)?;
+                continue;
+            }
+
+            let value = self.consume_value_body(&value_header)?;
 
             consumed_bytes += value.1;
             consumed_bytes += key.1;
 
-            println!("Struct field -> Key: {:?}, Values: {:?}", key, values);
+            trace!("Struct field -> Key: {:?}, Values: {:?}", key, values);
 
             let key = match self.context.get_symbol_by_id(
                 key.0
                     .try_into()
-                    .map_err(|_| IonParserError::SymbolIdTooBigForUsize)?,
+                    .map_err(|_| IonParserError::SymbolIdTooBig)?,
             ) {
                 Some(Symbol::Symbol(text)) => text.clone(),
                 _ => return Err(IonParserError::SymbolNotFoundInTable),
@@ -137,11 +186,14 @@ impl<T: Read> IonParser<T> {
         Ok((IonValue::Struct(values), total))
     }
 
-    fn consume_list(&mut self, header: &ValueHeader) -> Result<(IonValue, usize), IonParserError> {
+    fn consume_list(&mut self, header: &ValueHeader) -> ConsumerResult {
         trace!("Consuming List");
 
-        let (length, _, total) = self.consume_value_len(header)?;
+        if self.is_value_null(header) {
+            return Ok((IonValue::Null(NullIonValue::List), 0));
+        }
 
+        let (length, _, total) = self.consume_value_len(header)?;
         let mut consumed_bytes = 0;
         let mut values = vec![];
 
@@ -159,8 +211,12 @@ impl<T: Read> IonParser<T> {
         Ok((IonValue::List(values), total))
     }
 
-    fn consume_sexpr(&mut self, header: &ValueHeader) -> Result<(IonValue, usize), IonParserError> {
+    fn consume_sexpr(&mut self, header: &ValueHeader) -> ConsumerResult {
         trace!("Consuming SExpr");
+
+        if self.is_value_null(header) {
+            return Ok((IonValue::Null(NullIonValue::SExpr), 0));
+        }
 
         let list_value = self.consume_list(header)?;
 
@@ -171,20 +227,20 @@ impl<T: Read> IonParser<T> {
         }
     }
 
-    fn consume_symbol(
-        &mut self,
-        header: &ValueHeader,
-    ) -> Result<(IonValue, usize), IonParserError> {
+    fn consume_symbol(&mut self, header: &ValueHeader) -> ConsumerResult {
         trace!("Consuming Symbol");
 
-        let (length, _, total_consumed_bytes) = self.consume_value_len(header)?;
+        if self.is_value_null(header) {
+            return Ok((IonValue::Null(NullIonValue::Symbol), 0));
+        }
 
+        let (length, _, total_consumed_bytes) = self.consume_value_len(header)?;
         let symbol_id = self.parser.consume_uint(length)?;
 
         let symbol = self.context.get_symbol_by_id(
             symbol_id
                 .try_into()
-                .map_err(|_| IonParserError::SymbolIdTooBigForUsize)?,
+                .map_err(|_| IonParserError::SymbolIdTooBig)?,
         );
 
         let text = match symbol {
@@ -195,11 +251,12 @@ impl<T: Read> IonParser<T> {
         Ok((IonValue::Symbol(text), total_consumed_bytes))
     }
 
-    fn consume_timestamp(
-        &mut self,
-        header: &ValueHeader,
-    ) -> Result<(IonValue, usize), IonParserError> {
+    fn consume_timestamp(&mut self, header: &ValueHeader) -> ConsumerResult {
         trace!("Consuming Timestamp");
+
+        if self.is_value_null(header) {
+            return Ok((IonValue::Null(NullIonValue::DateTime), 0));
+        }
 
         let (length, mut consumed_bytes, _) = self.consume_value_len(header)?;
 
@@ -240,9 +297,6 @@ impl<T: Read> IonParser<T> {
         };
 
         let fraction_coefficient: i32 = if (consumed_bytes) < length {
-            let length: usize = length
-                .try_into()
-                .map_err(|_| IonParserError::DateValueTooBig)?;
             let remaining_bytes = length - consumed_bytes;
             let value = self.parser.consume_int(remaining_bytes)?;
             consumed_bytes += remaining_bytes;
@@ -275,39 +329,42 @@ impl<T: Read> IonParser<T> {
         Ok((IonValue::DateTime(datetime), consumed_bytes))
     }
 
-    fn consume_float(&mut self, header: &ValueHeader) -> Result<(IonValue, usize), IonParserError> {
+    fn consume_float(&mut self, header: &ValueHeader) -> ConsumerResult {
         trace!("Consuming float");
+
+        if self.is_value_null(header) {
+            return Ok((IonValue::Null(NullIonValue::Float), 0));
+        }
 
         const FOUR_BYTES: usize = 4;
         const EIGHT_BYTES: usize = 8;
 
         Ok(match header.length {
-            ValueLength::ShortLength(len) => {
-                match len {
-                    0 => (IonValue::Float32(0f32), 0),
-                    4 => {
-                        let mut buffer = [0u8; FOUR_BYTES];
-                        self.parser.read_bytes(&mut buffer)?;
-                        (IonValue::Float32(f32::from_be_bytes(buffer)), FOUR_BYTES)
-                    }
-                    8 => {
-                        let mut buffer = [0u8; EIGHT_BYTES];
-                        self.parser.read_bytes(&mut buffer)?;
-                        (IonValue::Float64(f64::from_be_bytes(buffer)), EIGHT_BYTES)
-                    },
-                    _ => return Err(IonParserError::NotValidLengthFloat),
+            ValueLength::ShortLength(len) => match len {
+                0 => (IonValue::Float32(0f32), 0),
+                4 => {
+                    let mut buffer = [0u8; FOUR_BYTES];
+                    self.parser.read_bytes(&mut buffer)?;
+                    (IonValue::Float32(f32::from_be_bytes(buffer)), FOUR_BYTES)
                 }
-            }, 
-            ValueLength::NullValue =>  return Err(IonParserError::Unimplemented),
+                8 => {
+                    let mut buffer = [0u8; EIGHT_BYTES];
+                    self.parser.read_bytes(&mut buffer)?;
+                    (IonValue::Float64(f64::from_be_bytes(buffer)), EIGHT_BYTES)
+                }
+                _ => return Err(IonParserError::NotValidLengthFloat),
+            },
+            ValueLength::NullValue => return Ok((IonValue::Null(NullIonValue::Float), 1)),
             ValueLength::LongLength => return Err(IonParserError::NotValidLengthFloat),
         })
     }
 
-    fn consume_decimal(
-        &mut self,
-        header: &ValueHeader,
-    ) -> Result<(IonValue, usize), IonParserError> {
+    fn consume_decimal(&mut self, header: &ValueHeader) -> ConsumerResult {
         trace!("Consuming decimal");
+
+        if self.is_value_null(header) {
+            return Ok((IonValue::Null(NullIonValue::Decimal), 0));
+        }
 
         let (length, _, total) = self.consume_value_len(header)?;
 
@@ -318,20 +375,31 @@ impl<T: Read> IonParser<T> {
             let coefficient = if coefficient_size > 0 {
                 self.parser.consume_int(coefficient_size)?
             } else {
-                0
+                BigInt::from(0)
             };
 
+            let exponent: i64 = exponent
+                .try_into()
+                .map_err(|_| IonParserError::DecimalExponentTooBig)?;
+
             Ok((
-                IonValue::Decimal(BigDecimal::new(coefficient.into(), -exponent)),
+                IonValue::Decimal(BigDecimal::new(coefficient, -exponent)),
                 total,
             ))
         } else {
-            Ok((IonValue::Decimal(BigDecimal::new(0.into(), 0)), total))
+            Ok((
+                IonValue::Decimal(BigDecimal::new(BigInt::from(0), 0)),
+                total,
+            ))
         }
     }
 
-    fn consume_clob(&mut self, header: &ValueHeader) -> Result<(IonValue, usize), IonParserError> {
+    fn consume_clob(&mut self, header: &ValueHeader) -> ConsumerResult {
         trace!("Consuming clob");
+
+        if self.is_value_null(header) {
+            return Ok((IonValue::Null(NullIonValue::Clob), 0));
+        }
 
         let (length, _, total) = self.consume_value_len(header)?;
         let mut buffer = vec![0; length as usize];
@@ -340,8 +408,12 @@ impl<T: Read> IonParser<T> {
         Ok((IonValue::Clob(buffer), total))
     }
 
-    fn consume_blob(&mut self, header: &ValueHeader) -> Result<(IonValue, usize), IonParserError> {
+    fn consume_blob(&mut self, header: &ValueHeader) -> ConsumerResult {
         trace!("Consuming blob");
+
+        if self.is_value_null(header) {
+            return Ok((IonValue::Null(NullIonValue::Blob), 0));
+        }
 
         let (length, _, total) = self.consume_value_len(header)?;
         let mut buffer = vec![0; length as usize];
@@ -356,21 +428,28 @@ impl<T: Read> IonParser<T> {
     ) -> Result<(Option<IonValue>, usize), IonParserError> {
         trace!("Consuming Annotation");
 
+        if self.is_value_null(header) {
+            return Err(IonParserError::NullAnnotationFound);
+        }
+
         let (_, _, total_consumed_bytes) = self.consume_value_len(header)?;
-
         let mut remaining_annot_bytes = self.parser.consume_varuint()?.0;
+        let mut symbols: Vec<usize> = Vec::new();
 
-        let mut symbols = Vec::new();
-
-        while remaining_annot_bytes > 0 {
+        while remaining_annot_bytes > BigUint::from(0u8) {
             let (annot, consumed_bytes) = self.parser.consume_varuint()?;
 
-            symbols.push(annot);
+            let id_u64 = annot
+                .try_into()
+                .map_err(|_| IonParserError::SymbolIdTooBig)?;
 
-            remaining_annot_bytes = match remaining_annot_bytes.checked_sub(consumed_bytes as u64) {
-                Some(result) => result,
-                None => return Err(IonParserError::BadFormatLengthFound),
-            }
+            symbols.push(id_u64);
+
+            remaining_annot_bytes =
+                match BigUint::checked_sub(&remaining_annot_bytes, &BigUint::from(consumed_bytes)) {
+                    Some(result) => result,
+                    None => return Err(IonParserError::BadFormatLengthFound),
+                }
         }
 
         let is_shared_table_declaration =
@@ -400,11 +479,16 @@ impl<T: Read> IonParser<T> {
         }
     }
 
+    fn is_value_null(&self, header: &ValueHeader) -> bool {
+        header.length == ValueLength::NullValue
+    }
+
     fn consume_value_len(
         &mut self,
         header: &ValueHeader,
     ) -> Result<(usize, usize, usize), IonParserError> {
         let mut consumed_bytes: usize = 0;
+        let null_length = 15;
 
         let length: usize = match header.length {
             ValueLength::LongLength => {
@@ -413,7 +497,7 @@ impl<T: Read> IonParser<T> {
                 usize::try_from(len.0).map_err(|_| IonParserError::ValueLenTooBig)?
             }
             ValueLength::ShortLength(len) => len.into(),
-            ValueLength::NullValue => return Err(IonParserError::NullAnnotationFound),
+            ValueLength::NullValue => null_length,
         };
 
         let total = consumed_bytes + length;
@@ -562,7 +646,7 @@ impl<T: Read> IonParser<T> {
 
     fn construct_raw_annotation(
         &self,
-        symbols: &[u64],
+        symbols: &[usize],
         value: IonValue,
     ) -> Result<IonValue, IonParserError> {
         let mut symbols_names = Vec::new();
@@ -575,12 +659,12 @@ impl<T: Read> IonParser<T> {
         Ok(IonValue::Annotation((symbols_names, Box::new(value))))
     }
 
-    fn contains_system_symbol(&self, symbols: &[u64], symbol: SystemSymbolIds) -> bool {
-        symbols.iter().any(|&s| s == symbol as u64)
+    fn contains_system_symbol(&self, symbols: &[usize], symbol: SystemSymbolIds) -> bool {
+        symbols.iter().any(|&s| s == symbol as usize)
     }
 
-    fn get_symbol_name(&self, symbol_id: u64) -> Result<String, IonParserError> {
-        match self.context.get_symbol_by_id(symbol_id.try_into().map_err(|_| IonParserError::SymbolIdTooBigForUsize)?) {
+    fn get_symbol_name(&self, symbol_id: usize) -> Result<String, IonParserError> {
+        match self.context.get_symbol_by_id(symbol_id) {
             Some(Symbol::Symbol(name)) => Ok(name.clone()),
             Some(Symbol::Dummy) | None => Err(IonParserError::SymbolIdNotDefined),
         }
