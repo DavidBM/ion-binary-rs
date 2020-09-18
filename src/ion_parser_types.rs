@@ -5,7 +5,7 @@ use chrono::{DateTime, FixedOffset};
 use num_bigint::BigInt;
 use std::collections::HashMap;
 
-#[derive(Debug)]
+#[derive(Eq, PartialEq, Debug)]
 pub enum IonParserError {
     Unimplemented,
     BadFormatLengthFound,

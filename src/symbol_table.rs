@@ -2,13 +2,13 @@ use crate::binary_parser_types::SYSTEM_SYMBOL_TABLE;
 use log::trace;
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Symbol {
     Symbol(String),
     Dummy,
 }
 
-#[derive(Debug)]
+#[derive(Eq, PartialEq, Debug)]
 pub struct LocalSymbolTable(Vec<Symbol>);
 
 impl LocalSymbolTable {
@@ -96,7 +96,7 @@ pub struct Import {
     pub(crate) max_len: Option<usize>,
 }
 
-#[derive(Debug)]
+#[derive(Eq, PartialEq, Debug)]
 pub enum SymbolContextError {
     TableVersionAlreadyThere,
     MaxIdNeededWhenImportingASharedTableWhereVersionIsNotAvailable,
