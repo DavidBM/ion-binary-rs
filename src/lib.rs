@@ -8,7 +8,7 @@ pub(crate) mod symbol_table;
 mod tests;
 
 pub use ion_parser::IonParser;
-pub use ion_parser_types::{IonParserError, IonValue};
+pub use ion_parser_types::{IonParserError, IonValue, NullIonValue};
 pub use binary_parser_types::ParsingError;
 
 // TODO: Add tests for Big numbers for varuing, varint, int and uint. In positive and negative.
