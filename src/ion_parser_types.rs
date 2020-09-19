@@ -29,6 +29,7 @@ pub enum IonParserError {
     BinaryError(ParsingError),
     DecimalExponentTooBig,
     InvalidBoolLength(ValueLength),
+    InvalidDate(i32, u32, u32, u32, u32, u32, u32),
 }
 
 impl From<ParsingError> for IonParserError {

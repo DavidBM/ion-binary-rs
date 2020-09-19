@@ -1,6 +1,6 @@
 use crate::{hashmap, read_file_testsuite};
 use crate::{
-    ion_parser::IonParser, ion_parser_types::IonValue, IonParserError, ParsingError,
+    ion_parser::IonParser, ion_parser_types::IonValue, IonParserError, ParsingError, NullIonValue
 };
 use std::collections::HashMap;
 use std::fs::File;
@@ -88,5 +88,41 @@ fn nop_pad_one_byte() {
     assert_eq!(
         parser.consume_value().unwrap_err(),
         IonParserError::BinaryError(ParsingError::NoDataToRead)
+    );
+}
+
+#[test]
+fn value_between_nop_pads() {
+    let ion_blob = read_file_testsuite!("good/valueBetweenNopPads");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(
+        parser.consume_value().unwrap().0, 
+        IonValue::Null(NullIonValue::Null)
+    );
+}
+
+#[test]
+fn value_followed_by_nop_pad() {
+    let ion_blob = read_file_testsuite!("good/valueFollowedByNopPad");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(
+        parser.consume_value().unwrap().0, 
+        IonValue::Null(NullIonValue::Null)
+    );
+}
+
+#[test]
+fn value_preceded_by_nop_pad() {
+    let ion_blob = read_file_testsuite!("good/valuePrecededByNopPad");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(
+        parser.consume_value().unwrap().0, 
+        IonValue::Null(NullIonValue::Null)
     );
 }

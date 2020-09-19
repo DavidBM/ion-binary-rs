@@ -6,6 +6,7 @@ mod ion_parser_good_nop_padding;
 mod ion_parser_good_int;
 mod ion_parser_good_null;
 mod ion_parser_good_struct;
+mod ion_parser_good_equivs;
 mod ion_parser_good_equivs_int;
 
 #[macro_use]
@@ -42,6 +43,9 @@ The ones with the "✓" are the ones we already have implemented
 ✓	good/nopPadInsideStructWithNopPadThenValueZeroSymbolId
 ✓	good/nopPadInsideStructWithValueThenNopPad
 ✓	good/nopPadOneByte
+✓	good/valueBetweenNopPads
+✓	good/valueFollowedByNopPad
+✓	good/valuePrecededByNopPad
 ✓	good/null
 ✓	good/nullBlob
 ✓	good/nullBool
@@ -72,11 +76,11 @@ The ones with the "✓" are the ones we already have implemented
 ✓	good/equivs/intsLargePositive1
 ✓	good/equivs/intsLargePositive2
 ✓	good/equivs/intsLargePositive3
-	good/equivs/nopPadEmptyStruct
-	good/equivs/nopPadNonEmptyStruct
-	good/equivs/paddedInts
-	good/equivs/timestampFractions
-	good/equivs/timestampSuperfluousOffset
+✓	good/equivs/nopPadEmptyStruct
+✓	good/equivs/nopPadNonEmptyStruct
+✓	good/equivs/paddedInts
+✓	good/equivs/timestampFractions
+✓	good/equivs/timestampSuperfluousOffset
 	good/timestamp/timestamp2011
 	good/timestamp/timestamp2011-02
 	good/timestamp/timestamp2011-02-20
@@ -99,9 +103,6 @@ The ones with the "✓" are the ones we already have implemented
 	good/typecodes/T7-small
 	good/typecodes/T8
 	good/typecodes/T9
-	good/valueBetweenNopPads
-	good/valueFollowedByNopPad
-	good/valuePrecededByNopPad
 	---
 	bad/annotationLengthTooLongContainer
 	bad/annotationLengthTooLongScalar

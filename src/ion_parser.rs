@@ -33,7 +33,7 @@ impl<T: Read> IonParser<T> {
         symbols: &[String],
     ) -> Result<(), SymbolContextError> {
         let symbols: Vec<Symbol> = symbols
-            .into_iter()
+            .iter()
             .map(|s| Symbol::Symbol(s.to_string()))
             .collect();
 
@@ -301,7 +301,7 @@ impl<T: Read> IonParser<T> {
             .try_into()
             .map_err(|_| IonParserError::DateValueTooBig)?;
 
-        let mut components = [0u32, 0, 0, 0, 0];
+        let mut components = [1u32, 1, 0, 0, 0];
 
         for component in &mut components {
             if consumed_bytes >= length {
@@ -345,12 +345,14 @@ impl<T: Read> IonParser<T> {
         let second_fraction =
             u32::try_from(second_fraction as u64).map_err(|_| IonParserError::DateValueTooBig)?;
 
-        let datetime = NaiveDate::from_ymd(year, month, day).and_hms_nano(
+        let datetime = NaiveDate::from_ymd_opt(year, month, day)
+        .ok_or(IonParserError::InvalidDate(year, month, day, hour, minute, second, second_fraction))?
+        .and_hms_nano_opt(
             hour,
             minute,
             second,
             second_fraction,
-        );
+        ).ok_or(IonParserError::InvalidDate(year, month, day, hour, minute, second, second_fraction))?;
 
         let offset: i32 = offset
             .try_into()
