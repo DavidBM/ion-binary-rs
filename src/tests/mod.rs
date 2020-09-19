@@ -6,6 +6,7 @@ mod ion_parser_good_nop_padding;
 mod ion_parser_good_int;
 mod ion_parser_good_null;
 mod ion_parser_good_struct;
+mod ion_parser_good_equivs_int;
 
 #[macro_use]
 mod test_utils;
@@ -65,12 +66,12 @@ The ones with the "✓" are the ones we already have implemented
 ✓	good/symbolExplicitZero
 ✓	good/symbolImplicitZero
 ✓	good/testfile28
-	good/equivs/intsLargeNegative1
-	good/equivs/intsLargeNegative2
-	good/equivs/intsLargeNegative3
-	good/equivs/intsLargePositive1
-	good/equivs/intsLargePositive2
-	good/equivs/intsLargePositive3
+✓	good/equivs/intsLargeNegative1
+✓	good/equivs/intsLargeNegative2
+✓	good/equivs/intsLargeNegative3
+✓	good/equivs/intsLargePositive1
+✓	good/equivs/intsLargePositive2
+✓	good/equivs/intsLargePositive3
 	good/equivs/nopPadEmptyStruct
 	good/equivs/nopPadNonEmptyStruct
 	good/equivs/paddedInts
