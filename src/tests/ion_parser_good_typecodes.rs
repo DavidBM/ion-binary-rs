@@ -1,7 +1,9 @@
+use crate::hashmap;
 use crate::read_file_testsuite;
-use crate::{ion_parser::IonParser, ion_parser_types::IonValue, NullIonValue};
+use crate::{ion_parser::IonParser, ion_parser_types::IonValue, NullIonValue, IonParserError, ParsingError};
 use bigdecimal::BigDecimal;
 use num_bigint::BigInt;
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
 use std::str::FromStr;
@@ -529,8 +531,8 @@ fn typecodes_t7_small() {
 
 #[test]
 fn typecodes_t7_large() {
-	// Another strange tests. This is a bunch of zero symbols with NOP Padding
-	// in between.
+    // Another strange tests. This is a bunch of zero symbols with NOP Padding
+    // in between.
     let ion_blob = read_file_testsuite!("good/typecodes/T7-large");
 
     let mut parser = IonParser::new(ion_blob);
@@ -679,15 +681,9 @@ fn typecodes_t9() {
 
     let mut parser = IonParser::new(ion_blob);
 
-    assert_eq!(
-        parser.consume_value().unwrap().0,
-        IonValue::Clob(vec![]),
-    );
+    assert_eq!(parser.consume_value().unwrap().0, IonValue::Clob(vec![]),);
 
-    assert_eq!(
-        parser.consume_value().unwrap().0,
-        IonValue::Clob(vec![255]),
-    );
+    assert_eq!(parser.consume_value().unwrap().0, IonValue::Clob(vec![255]),);
 
     assert_eq!(
         parser.consume_value().unwrap().0,
@@ -741,17 +737,23 @@ fn typecodes_t9() {
 
     assert_eq!(
         parser.consume_value().unwrap().0,
-        IonValue::Clob(vec![255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255]),
+        IonValue::Clob(vec![
+            255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255
+        ]),
     );
 
     assert_eq!(
         parser.consume_value().unwrap().0,
-        IonValue::Clob(vec![255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255]),
+        IonValue::Clob(vec![
+            255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255
+        ]),
     );
 
     assert_eq!(
         parser.consume_value().unwrap().0,
-        IonValue::Clob(vec![255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255]),
+        IonValue::Clob(vec![
+            255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255
+        ]),
     );
 
     assert_eq!(
@@ -766,15 +768,9 @@ fn typecodes_t10() {
 
     let mut parser = IonParser::new(ion_blob);
 
-    assert_eq!(
-        parser.consume_value().unwrap().0,
-        IonValue::Blob(vec![]),
-    );
+    assert_eq!(parser.consume_value().unwrap().0, IonValue::Blob(vec![]),);
 
-    assert_eq!(
-        parser.consume_value().unwrap().0,
-        IonValue::Blob(vec![255]),
-    );
+    assert_eq!(parser.consume_value().unwrap().0, IonValue::Blob(vec![255]),);
 
     assert_eq!(
         parser.consume_value().unwrap().0,
@@ -828,17 +824,23 @@ fn typecodes_t10() {
 
     assert_eq!(
         parser.consume_value().unwrap().0,
-        IonValue::Blob(vec![255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255]),
+        IonValue::Blob(vec![
+            255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255
+        ]),
     );
 
     assert_eq!(
         parser.consume_value().unwrap().0,
-        IonValue::Blob(vec![255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255]),
+        IonValue::Blob(vec![
+            255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255
+        ]),
     );
 
     assert_eq!(
         parser.consume_value().unwrap().0,
-        IonValue::Blob(vec![255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255]),
+        IonValue::Blob(vec![
+            255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255
+        ]),
     );
 
     assert_eq!(
@@ -849,17 +851,287 @@ fn typecodes_t10() {
 
 #[test]
 fn typecodes_t11() {
+    // A lit with many length-increasing NOP Padding values. The list themselves are empty.
     let ion_blob = read_file_testsuite!("good/typecodes/T11");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(parser.consume_value().unwrap().0, IonValue::List(vec![]),);
+
+    assert_eq!(parser.consume_value().unwrap().0, IonValue::List(vec![]),);
+
+    assert_eq!(parser.consume_value().unwrap().0, IonValue::List(vec![]),);
+
+    assert_eq!(parser.consume_value().unwrap().0, IonValue::List(vec![]),);
+
+    assert_eq!(parser.consume_value().unwrap().0, IonValue::List(vec![]),);
+
+    assert_eq!(parser.consume_value().unwrap().0, IonValue::List(vec![]),);
+
+    assert_eq!(parser.consume_value().unwrap().0, IonValue::List(vec![]),);
+
+    assert_eq!(parser.consume_value().unwrap().0, IonValue::List(vec![]),);
+
+    assert_eq!(parser.consume_value().unwrap().0, IonValue::List(vec![]),);
+
+    assert_eq!(parser.consume_value().unwrap().0, IonValue::List(vec![]),);
+
+    assert_eq!(parser.consume_value().unwrap().0, IonValue::List(vec![]),);
+
+    assert_eq!(parser.consume_value().unwrap().0, IonValue::List(vec![]),);
+
+    assert_eq!(parser.consume_value().unwrap().0, IonValue::List(vec![]),);
+
+    assert_eq!(parser.consume_value().unwrap().0, IonValue::List(vec![]),);
+
+    assert_eq!(parser.consume_value().unwrap().0, IonValue::List(vec![]),);
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Null(NullIonValue::List),
+    );
+}
+
+#[test]
+fn typecodes_t12() {
+    let ion_blob = read_file_testsuite!("good/typecodes/T12");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(parser.consume_value().unwrap().0, IonValue::SExpr(vec![]),);
+
+    assert_eq!(parser.consume_value().unwrap().0, IonValue::SExpr(vec![]),);
+
+    assert_eq!(parser.consume_value().unwrap().0, IonValue::SExpr(vec![]),);
+
+    assert_eq!(parser.consume_value().unwrap().0, IonValue::SExpr(vec![]),);
+
+    assert_eq!(parser.consume_value().unwrap().0, IonValue::SExpr(vec![]),);
+
+    assert_eq!(parser.consume_value().unwrap().0, IonValue::SExpr(vec![]),);
+
+    assert_eq!(parser.consume_value().unwrap().0, IonValue::SExpr(vec![]),);
+
+    assert_eq!(parser.consume_value().unwrap().0, IonValue::SExpr(vec![]),);
+
+    assert_eq!(parser.consume_value().unwrap().0, IonValue::SExpr(vec![]),);
+
+    assert_eq!(parser.consume_value().unwrap().0, IonValue::SExpr(vec![]),);
+
+    assert_eq!(parser.consume_value().unwrap().0, IonValue::SExpr(vec![]),);
+
+    assert_eq!(parser.consume_value().unwrap().0, IonValue::SExpr(vec![]),);
+
+    assert_eq!(parser.consume_value().unwrap().0, IonValue::SExpr(vec![]),);
+
+    assert_eq!(parser.consume_value().unwrap().0, IonValue::SExpr(vec![]),);
+
+    assert_eq!(parser.consume_value().unwrap().0, IonValue::SExpr(vec![]),);
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Null(NullIonValue::SExpr),
+    );
+}
+
+#[test]
+fn typecodes_t13() {
+    let ion_blob = read_file_testsuite!("good/typecodes/T13");
 
     let mut parser = IonParser::new(ion_blob);
 
     assert_eq!(
         parser.consume_value().unwrap().0,
-        IonValue::List(vec![]),
+        IonValue::Struct(HashMap::new()),
     );
 
     assert_eq!(
         parser.consume_value().unwrap().0,
-        IonValue::List(vec![]),
+        IonValue::Struct(hashmap!("$ion".into() => IonValue::Null(NullIonValue::Null))),
+    );
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Struct(hashmap!("$ion".into() => IonValue::Null(NullIonValue::Null))),
+    );
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Struct(hashmap!("$ion".into() => IonValue::String("0".into()))),
+    );
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Struct(hashmap!("$ion".into() => IonValue::String("00".into()))),
+    );
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Struct(hashmap!("$ion".into() => IonValue::String("000".into()))),
+    );
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Struct(hashmap!("$ion".into() => IonValue::String("0000".into()))),
+    );
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Struct(hashmap!("$ion".into() => IonValue::String("00000".into()))),
+    );
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Struct(hashmap!("$ion".into() => IonValue::String("000000".into()))),
+    );
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Struct(hashmap!("$ion".into() => IonValue::String("0000000".into()))),
+    );
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Struct(hashmap!("$ion".into() => IonValue::String("00000000".into()))),
+    );
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Struct(hashmap!("$ion".into() => IonValue::String("000000000".into()))),
+    );
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Struct(hashmap!("$ion".into() => IonValue::String("0000000000".into()))),
+    );
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Struct(hashmap!("$ion".into() => IonValue::String("00000000000".into()))),
+    );
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Struct(hashmap!("$ion".into() => IonValue::String("000000000000".into()))),
+    );
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Null(NullIonValue::Struct),
+    );
+}
+
+#[test]
+fn typecodes_t14() {
+    let ion_blob = read_file_testsuite!("good/typecodes/T14");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Annotation(
+            ["$ion".into()].to_vec(),
+            Box::new(IonValue::String("".into()))
+        ),
+    );
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Annotation(
+            ["$ion".into()].to_vec(),
+            Box::new(IonValue::String("0".into()))
+        ),
+    );
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Annotation(
+            ["$ion".into()].to_vec(),
+            Box::new(IonValue::String("00".into()))
+        ),
+    );
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Annotation(
+            ["$ion".into()].to_vec(),
+            Box::new(IonValue::String("000".into()))
+        ),
+    );
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Annotation(
+            ["$ion".into()].to_vec(),
+            Box::new(IonValue::String("0000".into()))
+        ),
+    );
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Annotation(
+            ["$ion".into()].to_vec(),
+            Box::new(IonValue::String("00000".into()))
+        ),
+    );
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Annotation(
+            ["$ion".into()].to_vec(),
+            Box::new(IonValue::String("000000".into()))
+        ),
+    );
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Annotation(
+            ["$ion".into()].to_vec(),
+            Box::new(IonValue::String("0000000".into()))
+        ),
+    );
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Annotation(
+            ["$ion".into()].to_vec(),
+            Box::new(IonValue::String("00000000".into()))
+        ),
+    );
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Annotation(
+            ["$ion".into()].to_vec(),
+            Box::new(IonValue::String("000000000".into()))
+        ),
+    );
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Annotation(
+            ["$ion".into()].to_vec(),
+            Box::new(IonValue::String("0000000000".into()))
+        ),
+    );
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Annotation(
+            ["$ion".into()].to_vec(),
+            Box::new(IonValue::String("00000000000".into()))
+        ),
+    );
+}
+
+#[test]
+fn typecodes_t15() {
+    let ion_blob = read_file_testsuite!("good/typecodes/T15");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(
+        parser.consume_value().unwrap_err(),
+        IonParserError::BinaryError(ParsingError::NoDataToRead),
     );
 }

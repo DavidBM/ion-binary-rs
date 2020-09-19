@@ -98,13 +98,13 @@ The ones with the "✓" are the ones we already have implemented
 ✓   good/typecodes/T7-large
 ✓   good/typecodes/T7-small
 ✓   good/typecodes/T8
-    good/typecodes/T9
-    good/typecodes/T10
-    good/typecodes/T11
-    good/typecodes/T12
-    good/typecodes/T13
-    good/typecodes/T14
-    good/typecodes/T15
+✓   good/typecodes/T9
+✓   good/typecodes/T10
+✓   good/typecodes/T11
+✓   good/typecodes/T12
+✓   good/typecodes/T13
+✓   good/typecodes/T14
+✓   good/typecodes/T15
     ---
     bad/annotationLengthTooLongContainer
     bad/annotationLengthTooLongScalar
