@@ -1,12 +1,19 @@
 mod binary_parser;
 mod ion_parser;
 mod ion_parser_good;
+mod ion_parser_good_decimal;
+mod ion_parser_good_nop_padding;
+mod ion_parser_good_int;
+mod ion_parser_good_null;
+mod ion_parser_good_struct;
 
 #[macro_use]
 mod test_utils;
 
 /*
 NOTE: All current Ion Binnary tests.
+
+The ones with the "✓" are the ones we already have implemented
 
 ✓	good/clobWithDel 
 ✓	good/intBigSize256
