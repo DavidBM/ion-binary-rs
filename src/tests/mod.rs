@@ -9,6 +9,7 @@ mod ion_parser_good_nop_padding;
 mod ion_parser_good_null;
 mod ion_parser_good_struct;
 mod ion_parser_good_timestamp;
+mod ion_parser_good_typecodes;
 
 #[macro_use]
 mod test_utils;
@@ -86,24 +87,24 @@ The ones with the "✓" are the ones we already have implemented
 ✓	good/timestamp/timestamp2011-02
 ✓   good/timestamp/timestamp2011-02-20
 ✓   good/timestamp/timestamp2011-02-20T19_30_59_100-08_00
-    good/typecodes/T0
-    good/typecodes/T1
+✓   good/typecodes/T0
+✓   good/typecodes/T1
+✓   good/typecodes/T2
+✓   good/typecodes/T3
+✓   good/typecodes/T4
+✓   good/typecodes/T5
+✓   good/typecodes/T6-large
+✓   good/typecodes/T6-small
+✓   good/typecodes/T7-large
+✓   good/typecodes/T7-small
+✓   good/typecodes/T8
+    good/typecodes/T9
     good/typecodes/T10
     good/typecodes/T11
     good/typecodes/T12
     good/typecodes/T13
     good/typecodes/T14
     good/typecodes/T15
-    good/typecodes/T2
-    good/typecodes/T3
-    good/typecodes/T4
-    good/typecodes/T5
-    good/typecodes/T6-large
-    good/typecodes/T6-small
-    good/typecodes/T7-large
-    good/typecodes/T7-small
-    good/typecodes/T8
-    good/typecodes/T9
     ---
     bad/annotationLengthTooLongContainer
     bad/annotationLengthTooLongScalar

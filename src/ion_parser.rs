@@ -86,6 +86,8 @@ impl<T: Read> IonParser<T> {
     fn consume_nop(&mut self, header: &ValueHeader) -> Result<usize, IonParserError> {
         trace!("Consuming Nop Padding");
         let (length, _, total) = self.consume_value_len(header)?;
+        
+        trace!("Nop Padding with length {}", length);
 
         if length > 0 {
             let mut buffer = vec![0; length as usize];
@@ -111,6 +113,10 @@ impl<T: Read> IonParser<T> {
             return Ok((IonValue::Null(NullIonValue::String), 0));
         }
 
+        if let ValueLength::ShortLength(0) = header.length {
+            return Ok((IonValue::String("".into()), 0));
+        }
+
         let (length, _, total) = self.consume_value_len(header)?;
         let mut buffer = vec![0; length as usize];
         self.parser.read_bytes(&mut buffer)?;
@@ -128,6 +134,10 @@ impl<T: Read> IonParser<T> {
 
         if self.is_value_null(header) {
             return Ok((IonValue::Null(NullIonValue::Integer), 0));
+        }
+
+        if let ValueLength::ShortLength(0) = header.length {
+            return Ok((IonValue::Integer(0), 0))
         }
 
         let (length, _, total) = self.consume_value_len(header)?;
@@ -187,7 +197,7 @@ impl<T: Read> IonParser<T> {
 
             if let ValueType::Nop = value_header.r#type {
                 let consumed = self.consume_nop(&value_header)?;
-                trace!("Found NOP Padding of {:} bytes", consumed + 1);
+                trace!("Found NOP Padding in Struct of {:} bytes", consumed + 1);
                 consumed_bytes += consumed;
                 continue;
             }
@@ -222,7 +232,18 @@ impl<T: Read> IonParser<T> {
         let mut values = vec![];
 
         while length - consumed_bytes > 0 {
-            let value = self.consume_value()?;
+            let value_header = self.parser.consume_value_header()?;
+
+            consumed_bytes += 1;
+
+            if let ValueType::Nop = value_header.r#type {
+                let consumed = self.consume_nop(&value_header)?;
+                trace!("Found NOP Padding in List of {:} bytes", consumed + 1);
+                consumed_bytes += consumed;
+                continue;
+            }
+
+            let value = self.consume_value_body(&value_header)?;
 
             consumed_bytes += value.1;
             values.push(value.0);
@@ -327,7 +348,7 @@ impl<T: Read> IonParser<T> {
             0
         };
 
-        let fraction_coefficient: i32 = if (consumed_bytes) < length {
+        let fraction_coefficient: i64 = if (consumed_bytes) < length {
             let remaining_bytes = length - consumed_bytes;
             let value = self.parser.consume_int(remaining_bytes)?;
             consumed_bytes += remaining_bytes;
@@ -417,32 +438,29 @@ impl<T: Read> IonParser<T> {
             return Ok((IonValue::Null(NullIonValue::Decimal), 0));
         }
 
+        if let ValueLength::ShortLength(0) = header.length {
+            return Ok((IonValue::Decimal(BigDecimal::from(0)), 0));
+        }
+
         let (length, _, total) = self.consume_value_len(header)?;
 
-        if length > 0 {
-            let (exponent, consumed_bytes) = self.parser.consume_varint()?;
-            let coefficient_size = length - consumed_bytes;
+        let (exponent, consumed_bytes) = self.parser.consume_varint()?;
+        let coefficient_size = length - consumed_bytes;
 
-            let coefficient = if coefficient_size > 0 {
-                self.parser.consume_int(coefficient_size)?
-            } else {
-                BigInt::from(0)
-            };
-
-            let exponent: i64 = exponent
-                .try_into()
-                .map_err(|_| IonParserError::DecimalExponentTooBig)?;
-
-            Ok((
-                IonValue::Decimal(BigDecimal::new(coefficient, -exponent)),
-                total,
-            ))
+        let coefficient = if coefficient_size > 0 {
+            self.parser.consume_int(coefficient_size)?
         } else {
-            Ok((
-                IonValue::Decimal(BigDecimal::new(BigInt::from(0), 0)),
-                total,
-            ))
-        }
+            BigInt::from(0)
+        };
+
+        let exponent: i64 = exponent
+            .try_into()
+            .map_err(|_| IonParserError::DecimalExponentTooBig)?;
+
+        Ok((
+            IonValue::Decimal(BigDecimal::new(coefficient, -exponent)),
+            total,
+        ))
     }
 
     fn consume_clob(&mut self, header: &ValueHeader) -> ConsumerResult {
@@ -450,6 +468,10 @@ impl<T: Read> IonParser<T> {
 
         if self.is_value_null(header) {
             return Ok((IonValue::Null(NullIonValue::Clob), 0));
+        }
+
+        if let ValueLength::ShortLength(0) = header.length {
+            return Ok((IonValue::Clob(Vec::new()), 0));
         }
 
         let (length, _, total) = self.consume_value_len(header)?;
@@ -464,6 +486,10 @@ impl<T: Read> IonParser<T> {
 
         if self.is_value_null(header) {
             return Ok((IonValue::Null(NullIonValue::Blob), 0));
+        }
+
+        if let ValueLength::ShortLength(0) = header.length {
+            return Ok((IonValue::Blob(Vec::new()), 0));
         }
 
         let (length, _, total) = self.consume_value_len(header)?;
