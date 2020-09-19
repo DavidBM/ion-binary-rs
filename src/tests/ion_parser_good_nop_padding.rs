@@ -1,6 +1,6 @@
 use crate::{hashmap, read_file_testsuite};
 use crate::{
-    ion_parser::IonParser, ion_parser_types::IonValue, IonParserError, ParsingError, NullIonValue
+    ion_parser::IonParser, ion_parser_types::IonValue, IonParserError, NullIonValue, ParsingError,
 };
 use std::collections::HashMap;
 use std::fs::File;
@@ -98,7 +98,7 @@ fn value_between_nop_pads() {
     let mut parser = IonParser::new(ion_blob);
 
     assert_eq!(
-        parser.consume_value().unwrap().0, 
+        parser.consume_value().unwrap().0,
         IonValue::Null(NullIonValue::Null)
     );
 }
@@ -110,7 +110,7 @@ fn value_followed_by_nop_pad() {
     let mut parser = IonParser::new(ion_blob);
 
     assert_eq!(
-        parser.consume_value().unwrap().0, 
+        parser.consume_value().unwrap().0,
         IonValue::Null(NullIonValue::Null)
     );
 }
@@ -122,7 +122,7 @@ fn value_preceded_by_nop_pad() {
     let mut parser = IonParser::new(ion_blob);
 
     assert_eq!(
-        parser.consume_value().unwrap().0, 
+        parser.consume_value().unwrap().0,
         IonValue::Null(NullIonValue::Null)
     );
 }

@@ -1,7 +1,5 @@
 use crate::{hashmap, read_file_testsuite};
-use crate::{
-    ion_parser::IonParser, ion_parser_types::IonValue, IonParserError, ParsingError,
-};
+use crate::{ion_parser::IonParser, ion_parser_types::IonValue, IonParserError, ParsingError};
 use std::fs::File;
 use std::io::BufReader;
 
@@ -196,7 +194,6 @@ fn item1() {
     assert_eq!(parser.consume_value().unwrap().0, expected);
 }
 
-
 #[test]
 fn symbol_explicit_zero() {
     let ion_blob = read_file_testsuite!("good/symbolExplicitZero");
@@ -229,13 +226,14 @@ fn testfile28() {
 
     assert_eq!(
         parser.consume_value().unwrap().0,
-        IonValue::SExpr([
-            IonValue::Annotation(
+        IonValue::SExpr(
+            [IonValue::Annotation(
                 ["sjis".into()].to_vec(), //https://en.wikipedia.org/wiki/Shift_JIS
                 Box::new(IonValue::Clob(
                     [50, 48, 48, 55, 45, 0, 115, 100, 102, 45, 49, 49, 45, 50, 48].to_vec()
                 ))
-            )
-        ].to_vec())
+            )]
+            .to_vec()
+        )
     );
 }

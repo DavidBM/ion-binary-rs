@@ -47,7 +47,7 @@ impl<T: Read> IonParser<T> {
 
         let already_consumed_value_header = 1;
         value.1 += already_consumed_value_header;
-    
+
         Ok(value)
     }
 
@@ -268,7 +268,6 @@ impl<T: Read> IonParser<T> {
             self.parser.consume_uint(length)?
         };
 
-
         let symbol = self.context.get_symbol_by_id(
             symbol_id
                 .try_into()
@@ -346,13 +345,25 @@ impl<T: Read> IonParser<T> {
             u32::try_from(second_fraction as u64).map_err(|_| IonParserError::DateValueTooBig)?;
 
         let datetime = NaiveDate::from_ymd_opt(year, month, day)
-        .ok_or(IonParserError::InvalidDate(year, month, day, hour, minute, second, second_fraction))?
-        .and_hms_nano_opt(
-            hour,
-            minute,
-            second,
-            second_fraction,
-        ).ok_or(IonParserError::InvalidDate(year, month, day, hour, minute, second, second_fraction))?;
+            .ok_or(IonParserError::InvalidDate(
+                year,
+                month,
+                day,
+                hour,
+                minute,
+                second,
+                second_fraction,
+            ))?
+            .and_hms_nano_opt(hour, minute, second, second_fraction)
+            .ok_or(IonParserError::InvalidDate(
+                year,
+                month,
+                day,
+                hour,
+                minute,
+                second,
+                second_fraction,
+            ))?;
 
         let offset: i32 = offset
             .try_into()

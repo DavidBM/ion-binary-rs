@@ -1,7 +1,5 @@
 use crate::read_file_testsuite;
-use crate::{
-    ion_parser::IonParser, ion_parser_types::IonValue,
-};
+use crate::{ion_parser::IonParser, ion_parser_types::IonValue};
 use bigdecimal::BigDecimal;
 use std::fs::File;
 use std::io::BufReader;

@@ -1,8 +1,8 @@
-use crate::read_file_testsuite;
 use crate::ion_parser::IonParser;
+use crate::read_file_testsuite;
+use crate::IonValue;
 use std::fs::File;
 use std::io::BufReader;
-use crate::IonValue;
 
 #[test]
 fn equivs_ints_large_negative1() {
@@ -13,9 +13,9 @@ fn equivs_ints_large_negative1() {
     let value = parser.consume_value().unwrap().0;
 
     if let IonValue::SExpr(ref list) = value {
-    	assert_eq!(list[0], list[1]);
+        assert_eq!(list[0], list[1]);
     } else {
-    	panic!()
+        panic!()
     }
 }
 
@@ -28,9 +28,9 @@ fn equivs_ints_large_negative2() {
     let value = parser.consume_value().unwrap().0;
 
     if let IonValue::SExpr(ref list) = value {
-    	assert_eq!(list[0], list[1]);
+        assert_eq!(list[0], list[1]);
     } else {
-    	panic!()
+        panic!()
     }
 }
 
@@ -43,9 +43,9 @@ fn equivs_ints_large_negative3() {
     let value = parser.consume_value().unwrap().0;
 
     if let IonValue::SExpr(ref list) = value {
-    	assert_eq!(list[0], list[1]);
+        assert_eq!(list[0], list[1]);
     } else {
-    	panic!()
+        panic!()
     }
 }
 
@@ -58,9 +58,9 @@ fn equivs_ints_large_positive1() {
     let value = parser.consume_value().unwrap().0;
 
     if let IonValue::SExpr(ref list) = value {
-    	assert_eq!(list[0], list[1]);
+        assert_eq!(list[0], list[1]);
     } else {
-    	panic!()
+        panic!()
     }
 }
 
@@ -73,9 +73,9 @@ fn equivs_ints_large_positive2() {
     let value = parser.consume_value().unwrap().0;
 
     if let IonValue::SExpr(ref list) = value {
-    	assert_eq!(list[0], list[1]);
+        assert_eq!(list[0], list[1]);
     } else {
-    	panic!()
+        panic!()
     }
 }
 
@@ -88,8 +88,8 @@ fn equivs_ints_large_positive3() {
     let value = parser.consume_value().unwrap().0;
 
     if let IonValue::SExpr(ref list) = value {
-    	assert_eq!(list[0], list[1]);
+        assert_eq!(list[0], list[1]);
     } else {
-    	panic!()
+        panic!()
     }
 }

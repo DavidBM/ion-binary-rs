@@ -1,7 +1,5 @@
 use crate::{hashmap, read_file_testsuite};
-use crate::{
-    ion_parser::IonParser, ion_parser_types::IonValue, NullIonValue,
-};
+use crate::{ion_parser::IonParser, ion_parser_types::IonValue, NullIonValue};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
@@ -61,7 +59,7 @@ fn struct_len14() {
     assert_eq!(
         parser.consume_value().unwrap().0,
         IonValue::Struct(hashmap!(
-            "name".into() => IonValue::String("123456789ABC".into()) 
+            "name".into() => IonValue::String("123456789ABC".into())
         ))
     );
 }
@@ -75,7 +73,7 @@ fn struct_len15() {
     assert_eq!(
         parser.consume_value().unwrap().0,
         IonValue::Struct(hashmap!(
-            "name".into() => IonValue::String("123456789ABCD".into()) 
+            "name".into() => IonValue::String("123456789ABCD".into())
         ))
     );
 }

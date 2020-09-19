@@ -1,7 +1,5 @@
 use crate::read_file_testsuite;
-use crate::{
-    ion_parser::IonParser, ion_parser_types::IonValue, NullIonValue,
-};
+use crate::{ion_parser::IonParser, ion_parser_types::IonValue, NullIonValue};
 use std::fs::File;
 use std::io::BufReader;
 
