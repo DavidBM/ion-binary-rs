@@ -3,7 +3,7 @@ use crate::binary_parser_types::*;
 use crate::ion_parser_types::*;
 use crate::symbol_table::*;
 use bigdecimal::BigDecimal;
-use chrono::{naive::NaiveDate, DateTime, FixedOffset};
+use chrono::{naive::NaiveDate, DateTime, FixedOffset, Utc};
 use log::trace;
 use num_bigint::{BigInt, BigUint};
 use num_traits::ops::checked::CheckedSub;
@@ -369,7 +369,13 @@ impl<T: Read> IonParser<T> {
             .try_into()
             .map_err(|_| IonParserError::DateValueTooBig)?;
 
-        let datetime = DateTime::<FixedOffset>::from_utc(datetime, FixedOffset::east(offset * 60));
+        let offset = FixedOffset::east_opt(offset * 60).ok_or_else(|| {
+            IonParserError::InvalidDate(year, month, day, hour, minute, second, second_fraction)
+        })?;
+
+        let datetime = DateTime::<Utc>::from_utc(datetime, Utc);
+
+        let datetime = datetime.with_timezone(&offset);
 
         Ok((IonValue::DateTime(datetime), consumed_bytes))
     }
