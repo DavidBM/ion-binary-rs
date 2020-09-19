@@ -83,9 +83,9 @@ The ones with the "✓" are the ones we already have implemented
 ✓	good/equivs/timestampFractions
 ✓	good/equivs/timestampSuperfluousOffset
 ✓	good/timestamp/timestamp2011
-    good/timestamp/timestamp2011-02
-    good/timestamp/timestamp2011-02-20
-    good/timestamp/timestamp2011-02-20T19_30_59_100-08_00
+✓	good/timestamp/timestamp2011-02
+✓   good/timestamp/timestamp2011-02-20
+✓   good/timestamp/timestamp2011-02-20T19_30_59_100-08_00
     good/typecodes/T0
     good/typecodes/T1
     good/typecodes/T10
