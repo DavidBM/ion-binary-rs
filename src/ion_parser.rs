@@ -261,7 +261,13 @@ impl<T: Read> IonParser<T> {
         }
 
         let (length, _, total_consumed_bytes) = self.consume_value_len(header)?;
-        let symbol_id = self.parser.consume_uint(length)?;
+
+        let symbol_id = if length == 0 {
+            BigUint::from(SystemSymbolIds::Zero as u8)
+        } else {
+            self.parser.consume_uint(length)?
+        };
+
 
         let symbol = self.context.get_symbol_by_id(
             symbol_id

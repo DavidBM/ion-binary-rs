@@ -50,13 +50,13 @@ NOTE: All current Ion Binnary tests.
 ✓	good/nullTimestamp
 ✓	good/structAnnotatedEmpty
 ✓	good/structAnnotatedOrdered
-	good/structEmpty
-	good/structLen14
-	good/structLen15
-	good/structOrdered
-	good/structUnordered
-	good/symbolExplicitZero
-	good/symbolImplicitZero
+✓	good/structEmpty
+✓	good/structLen14
+✓	good/structLen15
+✓	good/structOrdered
+✓	good/structUnordered
+✓	good/symbolExplicitZero
+✓	good/symbolImplicitZero
 	good/testfile28
 	good/equivs/intsLargeNegative1
 	good/equivs/intsLargeNegative2

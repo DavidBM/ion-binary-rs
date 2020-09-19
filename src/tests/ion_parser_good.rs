@@ -644,3 +644,99 @@ fn struct_annotated_ordered() {
         ))
     );
 }
+
+#[test]
+fn struct_empty() {
+    let ion_blob = read_file_testsuite!("good/structEmpty");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Struct(HashMap::new())
+    );
+}
+
+#[test]
+fn struct_len14() {
+    let ion_blob = read_file_testsuite!("good/structLen14");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Struct(hashmap!(
+            "name".into() => IonValue::String("123456789ABC".into()) 
+        ))
+    );
+}
+
+#[test]
+fn struct_len15() {
+    let ion_blob = read_file_testsuite!("good/structLen15");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Struct(hashmap!(
+            "name".into() => IonValue::String("123456789ABCD".into()) 
+        ))
+    );
+}
+
+#[test]
+fn struct_ordered() {
+    let ion_blob = read_file_testsuite!("good/structOrdered");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Struct(hashmap!(
+            "version".to_string() => IonValue::Bool(false),
+            "imports".to_string() => IonValue::Bool(true),
+            "name".to_string() => IonValue::Null(NullIonValue::Null)
+        ))
+    );
+}
+
+#[test]
+fn struct_unordered() {
+    let ion_blob = read_file_testsuite!("good/structUnordered");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Struct(hashmap!(
+            "version".to_string() => IonValue::Bool(false),
+            "imports".to_string() => IonValue::Bool(true),
+            "name".to_string() => IonValue::Null(NullIonValue::Null)
+        ))
+    );
+}
+
+#[test]
+fn symbol_explicit_zero() {
+    let ion_blob = read_file_testsuite!("good/symbolExplicitZero");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Symbol("$0".into())
+    );
+}
+
+#[test]
+fn symbol_implicit_zero() {
+    let ion_blob = read_file_testsuite!("good/symbolImplicitZero");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Symbol("$0".into())
+    );
+}
