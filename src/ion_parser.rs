@@ -712,7 +712,7 @@ impl<T: Read> IonParser<T> {
             symbols_names.push(name);
         }
 
-        Ok(IonValue::Annotation((symbols_names, Box::new(value))))
+        Ok(IonValue::Annotation(symbols_names, Box::new(value)))
     }
 
     fn contains_system_symbol(&self, symbols: &[usize], symbol: SystemSymbolIds) -> bool {

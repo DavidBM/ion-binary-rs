@@ -57,7 +57,7 @@ NOTE: All current Ion Binnary tests.
 ✓	good/structUnordered
 ✓	good/symbolExplicitZero
 ✓	good/symbolImplicitZero
-	good/testfile28
+✓	good/testfile28
 	good/equivs/intsLargeNegative1
 	good/equivs/intsLargeNegative2
 	good/equivs/intsLargeNegative3

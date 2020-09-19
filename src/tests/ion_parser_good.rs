@@ -305,7 +305,7 @@ fn item1() {
     use chrono::DateTime as ChronoDateTime;
     use IonValue::*;
 
-    let expected = IonValue::Annotation((
+    let expected = IonValue::Annotation(
         vec!["iopg18".to_string()],
         Box::new(IonValue::Struct(hashmap!(
             "iopg14".to_string() => String("BT00DCN9OK".to_string()),
@@ -350,7 +350,7 @@ fn item1() {
             )),
             "version".to_string() => Integer(2)
         ))),
-    ));
+    );
 
     // TODO: Double check that the binary ion really decodes to that structure
     // in another language like python or js.
@@ -619,10 +619,10 @@ fn struct_annotated_empty() {
 
     assert_eq!(
         parser.consume_value().unwrap().0,
-        IonValue::Annotation((
+        IonValue::Annotation(
             ["max_id".to_string()].to_vec(),
             Box::new(IonValue::Struct(HashMap::new()))
-        ))
+        )
     );
 }
 
@@ -634,14 +634,14 @@ fn struct_annotated_ordered() {
 
     assert_eq!(
         parser.consume_value().unwrap().0,
-        IonValue::Annotation((
+        IonValue::Annotation(
             ["symbols".to_string(), "max_id".to_string()].to_vec(),
             Box::new(IonValue::Struct(hashmap!(
                 "version".to_string() => IonValue::Bool(false),
                 "imports".to_string() => IonValue::Bool(true),
                 "name".to_string() => IonValue::Null(NullIonValue::Null)
             )))
-        ))
+        )
     );
 }
 
@@ -738,5 +738,24 @@ fn symbol_implicit_zero() {
     assert_eq!(
         parser.consume_value().unwrap().0,
         IonValue::Symbol("$0".into())
+    );
+}
+
+#[test]
+fn testfile28() {
+    let ion_blob = read_file_testsuite!("good/testfile28");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::SExpr([
+            IonValue::Annotation(
+                ["sjis".into()].to_vec(), 
+                Box::new(IonValue::Clob(
+                    [50, 48, 48, 55, 45, 0, 115, 100, 102, 45, 49, 49, 45, 50, 48].to_vec()
+                ))
+            )
+        ].to_vec())
     );
 }
