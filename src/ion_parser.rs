@@ -26,6 +26,20 @@ impl<T: Read> IonParser<T> {
         }
     }
 
+    pub fn with_shared_table(
+        &mut self,
+        name: String,
+        version: u32,
+        symbols: &[String],
+    ) -> Result<(), SymbolContextError> {
+        let symbols: Vec<Symbol> = symbols
+            .into_iter()
+            .map(|s| Symbol::Symbol(s.to_string()))
+            .collect();
+
+        self.context.add_shared_table(name, version, &symbols)
+    }
+
     pub fn consume_value(&mut self) -> ConsumerResult {
         let value_header = self.parser.consume_value_header()?;
 
@@ -152,6 +166,18 @@ impl<T: Read> IonParser<T> {
 
         while length - consumed_bytes > 0 {
             let key = self.parser.consume_varuint()?;
+            consumed_bytes += key.1;
+
+            let key = match self.context.get_symbol_by_id(
+                key.0
+                    .try_into()
+                    .map_err(|_| IonParserError::SymbolIdTooBig)?,
+            ) {
+                Some(Symbol::Symbol(text)) => text.clone(),
+                _ => return Err(IonParserError::SymbolNotFoundInTable),
+            };
+
+            trace!("Struct key field: {:?}", key);
 
             let value_header = self.parser.consume_value_header()?;
 
@@ -163,18 +189,8 @@ impl<T: Read> IonParser<T> {
             let value = self.consume_value_body(&value_header)?;
 
             consumed_bytes += value.1;
-            consumed_bytes += key.1;
 
-            trace!("Struct field -> Key: {:?}, Values: {:?}", key, values);
-
-            let key = match self.context.get_symbol_by_id(
-                key.0
-                    .try_into()
-                    .map_err(|_| IonParserError::SymbolIdTooBig)?,
-            ) {
-                Some(Symbol::Symbol(text)) => text.clone(),
-                _ => return Err(IonParserError::SymbolNotFoundInTable),
-            };
+            trace!("Struct field -> Key: {:?}, Value: {:?}", key, value.0);
 
             values.insert(key, value.0);
         }
@@ -182,6 +198,8 @@ impl<T: Read> IonParser<T> {
         if length.checked_sub(consumed_bytes).is_none() {
             return Err(IonParserError::ListLengthWasTooShort);
         }
+
+        trace!("End consuming struct");
 
         Ok((IonValue::Struct(values), total))
     }
@@ -207,6 +225,8 @@ impl<T: Read> IonParser<T> {
         if length.checked_sub(consumed_bytes).is_none() {
             return Err(IonParserError::ListLengthWasTooShort);
         }
+
+        trace!("End consuming list with {:}", values.len());
 
         Ok((IonValue::List(values), total))
     }
