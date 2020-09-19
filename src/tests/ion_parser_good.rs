@@ -1,7 +1,10 @@
-use crate::{read_file_testsuite, hashmap};
+use crate::{hashmap, read_file_testsuite};
+use crate::{
+    ion_parser::IonParser, ion_parser_types::IonValue, IonParserError, NullIonValue, ParsingError,
+};
 use bigdecimal::BigDecimal;
-use crate::{ion_parser::IonParser, ion_parser_types::IonValue, IonParserError, ParsingError, NullIonValue};
 use num_bigint::BigInt;
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
 use std::str::FromStr;
@@ -28,8 +31,7 @@ fn int_big_size256() {
 
     assert_eq!(
         parser.consume_value().unwrap().0,
-        IonValue::BigInteger(
-        	BigInt::parse_bytes(expected_number_str, 10).unwrap())
+        IonValue::BigInteger(BigInt::parse_bytes(expected_number_str, 10).unwrap())
     );
 }
 
@@ -43,8 +45,7 @@ fn int_big_size14() {
 
     assert_eq!(
         parser.consume_value().unwrap().0,
-        IonValue::BigInteger(
-        	BigInt::parse_bytes(expected_number_str, 10).unwrap())
+        IonValue::BigInteger(BigInt::parse_bytes(expected_number_str, 10).unwrap())
     );
 }
 
@@ -139,28 +140,16 @@ fn float32() {
     let mut parser = IonParser::new(ion_blob);
 
     // 0000 0000
-    assert_eq!(
-        parser.consume_value().unwrap().0,
-        IonValue::Float32(0.0)
-    );
+    assert_eq!(parser.consume_value().unwrap().0, IonValue::Float32(0.0));
 
     // 8000 0000
-    assert_eq!(
-        parser.consume_value().unwrap().0,
-        IonValue::Float32(-0.0)
-    );
+    assert_eq!(parser.consume_value().unwrap().0, IonValue::Float32(-0.0));
 
     // 4086 6666
-    assert_eq!(
-        parser.consume_value().unwrap().0,
-        IonValue::Float32(4.2)
-    );
+    assert_eq!(parser.consume_value().unwrap().0, IonValue::Float32(4.2));
 
     // c086 6666
-    assert_eq!(
-        parser.consume_value().unwrap().0,
-        IonValue::Float32(-4.2)
-    );
+    assert_eq!(parser.consume_value().unwrap().0, IonValue::Float32(-4.2));
 
     // ff80 0000
     assert_eq!(
@@ -209,8 +198,7 @@ fn int_big_size1201() {
 
     assert_eq!(
         parser.consume_value().unwrap().0,
-        IonValue::BigInteger(
-            BigInt::parse_bytes(expected_number_str, 16).unwrap())
+        IonValue::BigInteger(BigInt::parse_bytes(expected_number_str, 16).unwrap())
     );
 }
 
@@ -224,8 +212,7 @@ fn int_big_size13() {
 
     assert_eq!(
         parser.consume_value().unwrap().0,
-        IonValue::BigInteger(
-            BigInt::parse_bytes(expected_number_str, 16).unwrap())
+        IonValue::BigInteger(BigInt::parse_bytes(expected_number_str, 16).unwrap())
     );
 }
 
@@ -239,8 +226,7 @@ fn int_big_size16() {
 
     assert_eq!(
         parser.consume_value().unwrap().0,
-        IonValue::BigInteger(
-            BigInt::parse_bytes(expected_number_str, 16).unwrap())
+        IonValue::BigInteger(BigInt::parse_bytes(expected_number_str, 16).unwrap())
     );
 }
 
@@ -254,8 +240,7 @@ fn int_long_max_value_plus_one() {
 
     assert_eq!(
         parser.consume_value().unwrap().0,
-        IonValue::BigInteger(
-            BigInt::parse_bytes(expected_number_str, 16).unwrap())
+        IonValue::BigInteger(BigInt::parse_bytes(expected_number_str, 16).unwrap())
     );
 }
 
@@ -269,8 +254,7 @@ fn int_long_min_value() {
 
     assert_eq!(
         parser.consume_value().unwrap().0,
-        IonValue::BigInteger(
-            BigInt::parse_bytes(expected_number_str, 16).unwrap())
+        IonValue::BigInteger(BigInt::parse_bytes(expected_number_str, 16).unwrap())
     );
 }
 
@@ -280,90 +264,383 @@ fn item1() {
 
     let mut parser = IonParser::new(ion_blob);
 
-    // Ok, seems that the Ion specification says that the decoder logic should 
-    // behave differently depending of it it renders symbols as text or just 
-    // leave them as symbols. 
-    // 
+    // Ok, seems that the Ion specification says that the decoder logic should
+    // behave differently depending of it it renders symbols as text or just
+    // leave them as symbols.
+    //
     // Several things to note here:
-    // 
-    // When the API decodes Symbols to text automatically (meaning, we don't 
-    // return to the user the symbols, but only the string representation) which 
-    // is our case we need to raise an error when a symbol is not found. Only if 
-    // the API returns the Original Symbol the API can not fail. That is defined
-    // here: https://amzn.github.io/ion-docs/guides/symbols-guide.html#reading-symboltokens
-    // 
-    // Additionally, the specification says that the implementation must provide 
-    // a way for the user to define their own symbols so that unknown symbols can 
-    // be decoded as strings as per the user indications. 
-    // 
-    // Technically speaking this test shouldn't pass as we return directly the 
+    //
+    // When the API decodes Symbols to text automatically (meaning, we don't
+    // return to the user the symbols, but only the string representation) which
+    // is our case we need to raise an error when a symbol is not found. Only if
+    // the API returns the Original Symbol the API is allowed to not fail. That
+    // is defined here:
+    // https://amzn.github.io/ion-docs/guides/symbols-guide.html#reading-symboltokens
+    //
+    // Additionally, the specification says that the implementation must provide
+    // a way for the user to define their own symbols so that unknown symbols can
+    // be decoded as strings as per the user indications.
+    //
+    // Technically speaking this test should fail as we return directly the
     // text for the symbol and not the symbol itself, but we can make it pass
     // (in order to have comprehensive testing) with a user-defined symbol table.
-    // 
-    // So, after accounting for all that we just add some predefined symbols for 
+    //
+    // So, after accounting for all that we just add some predefined symbols for
     // the imported tables in order to make the test pass.
 
-    let ids: Vec<std::string::String> = (1..=10).map(|v| "iopc".to_owned() + &v.to_string()).collect();
-    parser.with_shared_table("iopc".to_string(), 1, &ids).unwrap();
+    let ids: Vec<std::string::String> = (1..=10)
+        .map(|v| "iopc".to_owned() + &v.to_string())
+        .collect();
+    parser
+        .with_shared_table("iopc".to_string(), 1, &ids)
+        .unwrap();
 
-    let ids: Vec<std::string::String> = (11..=14277).map(|v| "iopg".to_owned() + &v.to_string()).collect();
-    parser.with_shared_table("iopg".to_string(), 1, &ids).unwrap();
+    let ids: Vec<std::string::String> = (11..=14277)
+        .map(|v| "iopg".to_owned() + &v.to_string())
+        .collect();
+    parser
+        .with_shared_table("iopg".to_string(), 1, &ids)
+        .unwrap();
 
     use chrono::DateTime as ChronoDateTime;
     use IonValue::*;
 
     let expected = IonValue::Annotation((
-        vec!["iopg18".to_string()], 
+        vec!["iopg18".to_string()],
         Box::new(IonValue::Struct(hashmap!(
-            "iopg14".to_string() => String("BT00DCN9OK".to_string()), 
-            "iopg15".to_string() => Integer(1), 
+            "iopg14".to_string() => String("BT00DCN9OK".to_string()),
+            "iopg15".to_string() => Integer(1),
             "iopg17".to_string() => Struct(hashmap!(
-                "iopg20".to_string() => List(vec![Struct(hashmap!("iopc9".to_string() => Symbol("iopg108".to_string())))]), 
+                "iopg20".to_string() => List(vec![Struct(hashmap!("iopc9".to_string() => Symbol("iopg108".to_string())))]),
                 "iopg26".to_string() => List(vec![Struct(hashmap!(
-                    "iopc10".to_string() => Symbol("iopc1".to_string()), 
+                    "iopc10".to_string() => Symbol("iopc1".to_string()),
                     "iopc9".to_string() => String("unhappiest discordant droppers".to_string())
-                ))]), 
+                ))]),
                 "iopg51".to_string() => List(vec![Struct(hashmap!(
-                    "iopc10".to_string() => Symbol("iopc1".to_string()), 
+                    "iopc10".to_string() => Symbol("iopc1".to_string()),
                     "iopc9".to_string() => String("Edna disgusts mascara".to_string())
-                ))]), 
-                "iopg22".to_string() => List(vec![Struct(hashmap!("iopc9".to_string() => Symbol("iopg108".to_string())))]), 
-                "iopg28".to_string() => List(vec![Struct(hashmap!("iopc9".to_string() => Integer(2)))]), 
+                ))]),
+                "iopg22".to_string() => List(vec![Struct(hashmap!("iopc9".to_string() => Symbol("iopg108".to_string())))]),
+                "iopg28".to_string() => List(vec![Struct(hashmap!("iopc9".to_string() => Integer(2)))]),
                 "iopg60".to_string() => List(vec![Struct(hashmap!(
-                    "iopc10".to_string() => Symbol("iopc1".to_string()), 
+                    "iopc10".to_string() => Symbol("iopc1".to_string()),
                     "iopc9".to_string() => String("his deployment microsystems".to_string())
-                ))]), 
+                ))]),
                 "iopg1123".to_string() => List(vec![Struct(hashmap!(
-                    "iopc10".to_string() => Symbol("iopc1".to_string()), 
+                    "iopc10".to_string() => Symbol("iopc1".to_string()),
                     "iopc9".to_string() => String("unhappiest discordant droppers".to_string())
-                ))]), 
-                "iopg5350".to_string() => List(vec![Struct(hashmap!("iopc9".to_string() => Bool(true)))]), 
-                "iopg23".to_string() => List(vec![Struct(hashmap!("iopc9".to_string() => Symbol("iopg150".to_string())))]), 
-                "iopg1244".to_string() => List(vec![Struct(hashmap!("iopc9".to_string() => String("641251497029891251497028".to_string())))]), 
-                "iopg95".to_string() => List(vec![Struct(hashmap!("iopc9".to_string() => String("skydiving-altimeters".to_string())))]), 
-                "iopg25".to_string() => List(vec![Struct(hashmap!("iopc9".to_string() => Symbol("iopg27".to_string())))]), 
-                "iopg7178".to_string() => List(vec![Struct(hashmap!("iopc9".to_string() => Symbol("iopg9880".to_string())))]), 
-                "iopg7233".to_string() => List(vec![Struct(hashmap!("iopc9".to_string() => Symbol("iopg9886".to_string())))]), 
-                "iopg39".to_string() => List(vec![Struct(hashmap!("iopc9".to_string() => String("9712514907027".to_string())))]), 
-                "iopg103".to_string() => List(vec![Struct(hashmap!("iopc9".to_string() => String("641251497029891251497028".to_string())))]), 
+                ))]),
+                "iopg5350".to_string() => List(vec![Struct(hashmap!("iopc9".to_string() => Bool(true)))]),
+                "iopg23".to_string() => List(vec![Struct(hashmap!("iopc9".to_string() => Symbol("iopg150".to_string())))]),
+                "iopg1244".to_string() => List(vec![Struct(hashmap!("iopc9".to_string() => String("641251497029891251497028".to_string())))]),
+                "iopg95".to_string() => List(vec![Struct(hashmap!("iopc9".to_string() => String("skydiving-altimeters".to_string())))]),
+                "iopg25".to_string() => List(vec![Struct(hashmap!("iopc9".to_string() => Symbol("iopg27".to_string())))]),
+                "iopg7178".to_string() => List(vec![Struct(hashmap!("iopc9".to_string() => Symbol("iopg9880".to_string())))]),
+                "iopg7233".to_string() => List(vec![Struct(hashmap!("iopc9".to_string() => Symbol("iopg9886".to_string())))]),
+                "iopg39".to_string() => List(vec![Struct(hashmap!("iopc9".to_string() => String("9712514907027".to_string())))]),
+                "iopg103".to_string() => List(vec![Struct(hashmap!("iopc9".to_string() => String("641251497029891251497028".to_string())))]),
                 "iopg33".to_string() => List(vec![Struct(hashmap!(
-                    "iopc9".to_string() => String("metaphysics Urquhart Cyclops".to_string()), 
+                    "iopc9".to_string() => String("metaphysics Urquhart Cyclops".to_string()),
                     "iopc10".to_string() => Symbol("iopc1".to_string())
-                ))]), 
-                "iopg30".to_string() => List(vec![Struct(hashmap!("iopc9".to_string() => DateTime(ChronoDateTime::parse_from_rfc3339("2010-09-10T19:59:51+00:00").unwrap())))]), 
-                "iopg31".to_string() => List(vec![Struct(hashmap!("iopc9".to_string() => Symbol("iopg132".to_string())))]), 
-                "iopg19".to_string() => List(vec![Struct(hashmap!("iopc9".to_string() => Symbol("iopg135".to_string())))]), 
+                ))]),
+                "iopg30".to_string() => List(vec![Struct(hashmap!("iopc9".to_string() => DateTime(ChronoDateTime::parse_from_rfc3339("2010-09-10T19:59:51+00:00").unwrap())))]),
+                "iopg31".to_string() => List(vec![Struct(hashmap!("iopc9".to_string() => Symbol("iopg132".to_string())))]),
+                "iopg19".to_string() => List(vec![Struct(hashmap!("iopc9".to_string() => Symbol("iopg135".to_string())))]),
                 "iopg21".to_string() => List(vec![Struct(hashmap!("iopc9".to_string() => Symbol("iopg38".to_string())))])
-            )), 
+            )),
             "version".to_string() => Integer(2)
-        )))
+        ))),
     ));
 
-    //TODO: Double check that the binary ion really decodes to that structure in another language.
+    // TODO: Double check that the binary ion really decodes to that structure
+    // in another language like python or js.
 
+    assert_eq!(parser.consume_value().unwrap().0, expected);
+}
+
+#[test]
+fn nop_pad16_bytes() {
+    let ion_blob = read_file_testsuite!("good/nopPad16Bytes");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(
+        parser.consume_value().unwrap_err(),
+        IonParserError::BinaryError(ParsingError::NoDataToRead)
+    );
+}
+
+#[test]
+fn nop_pad_inside_empty_struct_non_zero_symbol_id() {
+    let ion_blob = read_file_testsuite!("good/nopPadInsideEmptyStructNonZeroSymbolId");
+
+    let mut parser = IonParser::new(ion_blob);
 
     assert_eq!(
         parser.consume_value().unwrap().0,
-        expected
+        IonValue::Struct(HashMap::new())
+    );
+}
+
+#[test]
+fn nop_pad_inside_empty_struct_zero_symbol_id() {
+    let ion_blob = read_file_testsuite!("good/nopPadInsideEmptyStructZeroSymbolId");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Struct(HashMap::new())
+    );
+}
+
+#[test]
+fn nop_pad_inside_struct_with_nop_pad_then_value_non_zero_symbol_id() {
+    let ion_blob =
+        read_file_testsuite!("good/nopPadInsideStructWithNopPadThenValueNonZeroSymbolId");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Struct(hashmap!("name".to_string() => IonValue::Bool(true)))
+    );
+}
+
+#[test]
+fn nop_pad_inside_struct_with_nop_pad_then_value_zero_symbol_id() {
+    let ion_blob = read_file_testsuite!("good/nopPadInsideStructWithNopPadThenValueZeroSymbolId");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Struct(hashmap!("name".to_string() => IonValue::Bool(true)))
+    );
+}
+
+#[test]
+fn nop_pad_inside_struct_with_value_then_nop_pad() {
+    let ion_blob = read_file_testsuite!("good/nopPadInsideStructWithValueThenNopPad");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Struct(hashmap!("name".to_string() => IonValue::Bool(true)))
+    );
+}
+
+#[test]
+fn nop_pad_one_byte() {
+    let ion_blob = read_file_testsuite!("good/nopPadOneByte");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(
+        parser.consume_value().unwrap_err(),
+        IonParserError::BinaryError(ParsingError::NoDataToRead)
+    );
+}
+
+#[test]
+fn null() {
+    let ion_blob = read_file_testsuite!("good/null");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Null(NullIonValue::Null)
+    );
+}
+
+#[test]
+fn null_blob() {
+    let ion_blob = read_file_testsuite!("good/nullBlob");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Null(NullIonValue::Blob)
+    );
+}
+
+#[test]
+fn null_bool() {
+    let ion_blob = read_file_testsuite!("good/nullBool");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Null(NullIonValue::Bool)
+    );
+}
+
+#[test]
+fn null_clob() {
+    let ion_blob = read_file_testsuite!("good/nullClob");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Null(NullIonValue::Clob)
+    );
+}
+
+#[test]
+fn null_decimal() {
+    let ion_blob = read_file_testsuite!("good/nullDecimal");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Null(NullIonValue::Decimal)
+    );
+}
+
+#[test]
+fn null_float() {
+    let ion_blob = read_file_testsuite!("good/nullFloat");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Null(NullIonValue::Float)
+    );
+}
+
+#[test]
+fn null_int2() {
+    let ion_blob = read_file_testsuite!("good/nullInt2");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Null(NullIonValue::Integer)
+    );
+}
+
+#[test]
+fn null_int3() {
+    let ion_blob = read_file_testsuite!("good/nullInt3");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Null(NullIonValue::Integer)
+    );
+}
+
+#[test]
+fn null_list() {
+    let ion_blob = read_file_testsuite!("good/nullList");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Null(NullIonValue::List)
+    );
+}
+
+#[test]
+fn null_sexp() {
+    let ion_blob = read_file_testsuite!("good/nullSexp");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Null(NullIonValue::SExpr)
+    );
+}
+
+#[test]
+fn null_string() {
+    let ion_blob = read_file_testsuite!("good/nullString");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Null(NullIonValue::String)
+    );
+}
+
+#[test]
+fn null_struct() {
+    let ion_blob = read_file_testsuite!("good/nullStruct");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Null(NullIonValue::Struct)
+    );
+}
+
+#[test]
+fn null_symbol() {
+    let ion_blob = read_file_testsuite!("good/nullSymbol");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Null(NullIonValue::Symbol)
+    );
+}
+
+#[test]
+fn null_timestamp() {
+    let ion_blob = read_file_testsuite!("good/nullTimestamp");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Null(NullIonValue::DateTime)
+    );
+}
+
+#[test]
+fn struct_annotated_empty() {
+    let ion_blob = read_file_testsuite!("good/structAnnotatedEmpty");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Annotation((
+            ["max_id".to_string()].to_vec(),
+            Box::new(IonValue::Struct(HashMap::new()))
+        ))
+    );
+}
+
+#[test]
+fn struct_annotated_ordered() {
+    let ion_blob = read_file_testsuite!("good/structAnnotatedOrdered");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Annotation((
+            ["symbols".to_string(), "max_id".to_string()].to_vec(),
+            Box::new(IonValue::Struct(hashmap!(
+                "version".to_string() => IonValue::Bool(false),
+                "imports".to_string() => IonValue::Bool(true),
+                "name".to_string() => IonValue::Null(NullIonValue::Null)
+            )))
+        ))
     );
 }

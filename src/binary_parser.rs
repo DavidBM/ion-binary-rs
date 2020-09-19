@@ -217,7 +217,6 @@ impl<T: Read> IonBinaryParser<T> {
 
                 let value_type = self.get_field_type(value_type);
                 let value_length = self.get_field_length(value_length);
-
                 match (value_type, value_length) {
                     (Ok(mut r#type), Ok(length)) => {
                         self.verify_header(&r#type, &length)?;

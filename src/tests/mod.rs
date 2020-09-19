@@ -27,29 +27,29 @@ NOTE: All current Ion Binnary tests.
 ✓	good/intLongMaxValuePlusOne
 ✓	good/intLongMinValue
 ✓	good/item1
-	good/nopPad16Bytes
-	good/nopPadInsideEmptyStructNonZeroSymbolId
-	good/nopPadInsideEmptyStructZeroSymbolId
-	good/nopPadInsideStructWithNopPadThenValueNonZeroSymbolId
-	good/nopPadInsideStructWithNopPadThenValueZeroSymbolId
-	good/nopPadInsideStructWithValueThenNopPad
-	good/nopPadOneByte
-	good/null
-	good/nullBlob
-	good/nullBool
-	good/nullClob
-	good/nullDecimal
-	good/nullFloat
-	good/nullInt2
-	good/nullInt3
-	good/nullList
-	good/nullSexp
-	good/nullString
-	good/nullStruct
-	good/nullSymbol
-	good/nullTimestamp
-	good/structAnnotatedEmpty
-	good/structAnnotatedOrdered
+✓	good/nopPad16Bytes
+✓	good/nopPadInsideEmptyStructNonZeroSymbolId
+✓	good/nopPadInsideEmptyStructZeroSymbolId
+✓	good/nopPadInsideStructWithNopPadThenValueNonZeroSymbolId
+✓	good/nopPadInsideStructWithNopPadThenValueZeroSymbolId
+✓	good/nopPadInsideStructWithValueThenNopPad
+✓	good/nopPadOneByte
+✓	good/null
+✓	good/nullBlob
+✓	good/nullBool
+✓	good/nullClob
+✓	good/nullDecimal
+✓	good/nullFloat
+✓	good/nullInt2
+✓	good/nullInt3
+✓	good/nullList
+✓	good/nullSexp
+✓	good/nullString
+✓	good/nullStruct
+✓	good/nullSymbol
+✓	good/nullTimestamp
+✓	good/structAnnotatedEmpty
+✓	good/structAnnotatedOrdered
 	good/structEmpty
 	good/structLen14
 	good/structLen15
@@ -94,6 +94,7 @@ NOTE: All current Ion Binnary tests.
 	good/valueBetweenNopPads
 	good/valueFollowedByNopPad
 	good/valuePrecededByNopPad
+	---
 	bad/annotationLengthTooLongContainer
 	bad/annotationLengthTooLongScalar
 	bad/annotationLengthTooShortContainer
