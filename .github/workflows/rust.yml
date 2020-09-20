@@ -16,18 +16,18 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Install codecov tool
-      run: cargo install cargo-tarpaulin --force
     - name: Build
       run: cargo build --verbose
     - name: Checkout submodules
       uses: textbook/git-checkout-submodule-action@2.1.1
     - name: Run tests
       run: cargo test --verbose
-    - name: Code coverage
-      run: cargo tarpaulin -o Lcov
+    - name: rust-tarpaulin
+      uses: actions-rs/tarpaulin@v0.1.0
+      with:
+        # Extra command line arguments passed to cargo-tarpaulin
+        args: "-o Xml"  
     - name: Code coverage upload
       uses: codecov/codecov-action@v1.0.13
       with:
-        token: "95e6c141-6a48-45b7-a368-83da730c8ad1"
         file: "target/tarpaulin/coverage.json"
