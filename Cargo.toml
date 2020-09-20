@@ -1,6 +1,6 @@
 [package]
 name = "ion-binary-rs"
-version = "0.2.2"
+version = "0.2.3"
 authors = ["David Bonet <webbonet@gmail.com>"]
 edition = "2018"
 description="Pure Rust binary parser for Amazon's Ion. It helps to communicate with products like QLDB."
