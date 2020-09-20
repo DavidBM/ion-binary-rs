@@ -1,0 +1,31 @@
+name: Rust
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install codecov tool
+      run: cargo install cargo-tarpaulin --force
+    - name: Build
+      run: cargo build --verbose
+    - name: Run tests
+      run: cargo test --verbose
+    - name: Code coverage
+      run: cargo tarpaulin -o Lcov
+    - name: Code coverage upload
+      uses: codecov/codecov-action@v1.0.13
+      with:
+        token: "95e6c141-6a48-45b7-a368-83da730c8ad1"
+        file: "target/tarpaulin/coverage.json"
