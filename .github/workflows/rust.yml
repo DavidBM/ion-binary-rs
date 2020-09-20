@@ -25,9 +25,7 @@ jobs:
     - name: rust-tarpaulin
       uses: actions-rs/tarpaulin@v0.1.0
       with:
-        # Extra command line arguments passed to cargo-tarpaulin
-        out-type: Lcov
-        args: "--ignore-tests"
+        args: "--ignore-tests --out Lcov"
     - name: upload to Coveralls
       uses: coverallsapp/github-action@master
       with:
