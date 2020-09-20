@@ -20,6 +20,8 @@ jobs:
       run: cargo build --verbose
     - name: Checkout submodules
       uses: textbook/git-checkout-submodule-action@2.1.1
+      with:
+        remote: true
     - name: Run tests
       run: cargo test --verbose
     - name: rust-tarpaulin
