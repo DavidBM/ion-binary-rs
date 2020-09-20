@@ -29,6 +29,7 @@ pub enum IonParserError {
     BinaryError(ParsingError),
     DecimalExponentTooBig,
     InvalidBoolLength(ValueLength),
+    InvalidDate(i32, u32, u32, u32, u32, u32, u32),
 }
 
 impl From<ParsingError> for IonParserError {
@@ -37,7 +38,7 @@ impl From<ParsingError> for IonParserError {
     }
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum IonValue {
     Null(NullIonValue),
     Bool(bool),
@@ -54,12 +55,12 @@ pub enum IonValue {
     List(Vec<IonValue>),
     SExpr(Vec<IonValue>),
     Struct(HashMap<String, IonValue>),
-    Annotation((Vec<String>, Box<IonValue>)),
+    Annotation(Vec<String>, Box<IonValue>),
 }
 
 impl Eq for IonValue {}
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum NullIonValue {
     Null,
     Bool,

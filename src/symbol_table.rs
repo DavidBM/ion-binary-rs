@@ -151,21 +151,21 @@ impl SymbolContext {
                     if table_collection.0 < version {
                         table_collection.0 = version;
                     }
-                    
+
                     trace!("New shared table imported {:?}", new_table);
-                    
+
                     table_collection.1.insert(version, new_table);
                     Ok(())
                 }
             },
             None => {
                 trace!("New shared table imported {:?}", new_table);
-                
+
                 let mut new_hashmap = HashMap::new();
                 new_hashmap.insert(version, new_table);
                 let new_tuple = (version, new_hashmap);
                 self.shared_tables.insert(name, new_tuple);
-                
+
                 Ok(())
             }
         }
@@ -249,7 +249,11 @@ impl SymbolContext {
 
         new_table.add_symbols(&symbols);
 
-        trace!("New local table importing {:?} resulting in: {:?}", imports, new_table);
+        trace!(
+            "New local table importing {:?} resulting in: {:?}",
+            imports,
+            new_table
+        );
 
         self.current_table = new_table;
 
