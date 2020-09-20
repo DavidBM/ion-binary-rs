@@ -3,7 +3,7 @@ Parser for Amazon Ion binary format in Rust
 
 Not ready for production yet... But soon.
 
-[![codecov](https://codecov.io/gh/Couragium/ion-binary-rs/branch/master/graph/badge.svg)](https://codecov.io/gh/Couragium/ion-binary-rs) 
+[![Coverage Status](https://coveralls.io/repos/github/Couragium/ion-binary-rs/badge.svg?branch=master)](https://coveralls.io/github/Couragium/ion-binary-rs?branch=master) ![Buils Status](https://github.com/Couragium/ion-binary-rs/workflows/Rust/badge.svg) ![[docs.rs docs](https://docs.rs/ion-binary-rs/badge.svg)](https://docs.rs/ion-binary-rs) ![Crates.io](https://img.shields.io/crates/v/ion-binary-rs)
 
 ## Project status
 
