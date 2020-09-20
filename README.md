@@ -9,8 +9,7 @@ Parser for Amazon Ion binary format in pure safe Rust.
 
 ## Project status
 
-We have almost implemented the whole Amazon test suite. We will continue implementing it. This library will be used in production by us, so it will be battle tested.
-
+We have almost implemented the whole Amazon test suite. We will continue implementing it. This library will be used in production by us, so it will be battle tested. No API stability guarantees at the moment, but soon.
 
 ## Example
 
