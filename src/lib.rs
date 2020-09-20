@@ -2,9 +2,9 @@
 //!
 //! Ion binary is a library written in safe rust for parsing Amazon's Ion binary format.
 //!
-//! [![Coverage Status](https://coveralls.io/repos/github/Couragium/ion-binary-rs/badge.svg?branch=master)](https://coveralls.io/github/Couragium/ion-binary-rs?branch=master) 
-//! ![Buils Status](https://github.com/Couragium/ion-binary-rs/workflows/Rust/badge.svg) 
-//! [![Documentation](https://docs.rs/ion-binary-rs/badge.svg)](https://docs.rs/ion-binary-rs) 
+//! [![Coverage Status](https://coveralls.io/repos/github/Couragium/ion-binary-rs/badge.svg?branch=master)](https://coveralls.io/github/Couragium/ion-binary-rs?branch=master)
+//! ![Buils Status](https://github.com/Couragium/ion-binary-rs/workflows/Rust/badge.svg)
+//! [![Documentation](https://docs.rs/ion-binary-rs/badge.svg)](https://docs.rs/ion-binary-rs)
 //! ![Crates.io](https://img.shields.io/crates/v/ion-binary-rs)
 //!
 //! It doesn't handle the text format and it cannot encode complex structures, just the
