@@ -1,5 +1,5 @@
 [package]
-name = "ion_bin_parser"
+name = "ion-binary-rs"
 version = "0.1.0"
 authors = ["David Bonet <webbonet@gmail.com>"]
 edition = "2018"
