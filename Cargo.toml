@@ -13,11 +13,12 @@ categories = ["network-programming"]
 maintenance = { status = "actively-developed" }
 
 [dependencies]
-bytes = "0.5.6"
 chrono = "0.4.15"
 log = "0.4.11"
 env_logger = "0.7.1"
 bigdecimal = "0.2.0"
 num-bigint = "0.3.0"
-use = "0.0.0"
 num-traits = "0.2.12"
+
+[dev-dependencies]
+bytes = "0.5.6"
