@@ -1,4 +1,5 @@
-# Rust Ion Binary
+# Rust Ion Binary Parser
+
 Parser for Amazon Ion binary format in pure safe Rust.
 
 [![Coverage Status](https://coveralls.io/repos/github/Couragium/ion-binary-rs/badge.svg?branch=master)](https://coveralls.io/github/Couragium/ion-binary-rs?branch=master) 
