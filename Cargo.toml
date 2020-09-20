@@ -7,7 +7,7 @@ description="Pure Rust binary parser for Amazon's Ion. It helps to communicate w
 license = "Apache-2.0/MIT"
 readme = "README.md"
 keywords = ["ion", "binary", "network", "protocol", "amazon"]
-categories = ["protocol", "network", "ion", "amazon"]
+categories = ["network-programming", "network", "ion", "amazon"]
 
 [badges]
 maintenance = { status = "actively-developed" }
