@@ -1,7 +1,5 @@
-# ion-bin-parser-rs
-Parser for Amazon Ion binary format in Rust
-
-Not ready for production yet... But soon.
+# Rust Ion Binary
+Parser for Amazon Ion binary format in pure Rust
 
 [![Coverage Status](https://coveralls.io/repos/github/Couragium/ion-binary-rs/badge.svg?branch=master)](https://coveralls.io/github/Couragium/ion-binary-rs?branch=master) ![Buils Status](https://github.com/Couragium/ion-binary-rs/workflows/Rust/badge.svg) ![[docs.rs docs](https://img.shields.io/badge/docs-latest-blue.svg?style=flat-square)](https://docs.rs/ion-binary-rs) ![Crates.io](https://img.shields.io/crates/v/ion-binary-rs)
 
