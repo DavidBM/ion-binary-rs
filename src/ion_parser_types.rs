@@ -5,6 +5,8 @@ use chrono::{DateTime, FixedOffset};
 use num_bigint::BigInt;
 use std::collections::HashMap;
 
+/// Indicated a problem in the binary blob internal structure. When all data is read
+/// the library will return IonParserError::BinaryError(ParsingError::NoDataToRead).
 #[derive(Eq, PartialEq, Debug)]
 pub enum IonParserError {
     Unimplemented,
@@ -38,6 +40,12 @@ impl From<ParsingError> for IonParserError {
     }
 }
 
+/// The structure wrapping all possible return ion values by the IonParser.
+///
+/// Please, pay attention to the Float32, Float 64 (as Ion just defined "float")
+/// and the Integer and BigInteger. The parser will return the most adequate
+/// Integer type. If you expect small numbers you can get by with Integer alone,
+/// but if you don't know, you will need to match both types.
 #[derive(PartialEq, Debug, Clone)]
 pub enum IonValue {
     Null(NullIonValue),
@@ -60,6 +68,10 @@ pub enum IonValue {
 
 impl Eq for IonValue {}
 
+/// Instead of wrapping each IonValue in an Option in order to represent the
+/// null value, we opted to join all Null values in the IonValue::Null(_) which
+/// contains this struct. Here you can check what kind of null you got. We do this
+/// because we believe is more ergonomic and simplifies the API handling.
 #[derive(PartialEq, Debug, Clone)]
 pub enum NullIonValue {
     Null,

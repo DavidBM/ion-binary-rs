@@ -2,6 +2,8 @@ use crate::binary_parser_types::SYSTEM_SYMBOL_TABLE;
 use log::trace;
 use std::collections::HashMap;
 
+/// A table symbol. It can b used together with the "with_shared_table" method
+/// in order to define new shared tables.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Symbol {
     Symbol(String),
@@ -97,6 +99,7 @@ pub struct Import {
     pub(crate) max_len: Option<usize>,
 }
 
+/// Errors that can happen related with the Symbol Table.
 #[derive(Eq, PartialEq, Debug)]
 pub enum SymbolContextError {
     TableVersionAlreadyThere,

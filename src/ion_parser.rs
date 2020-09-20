@@ -10,6 +10,12 @@ use num_traits::ops::checked::CheckedSub;
 use std::convert::{TryFrom, TryInto};
 use std::{collections::HashMap, io::Read};
 
+/// The library entry point.
+///
+/// In order to use it, call the new method and then the "consume_all" method.
+///
+/// ### Example
+///
 #[derive(Debug)]
 pub struct IonParser<T: Read> {
     parser: IonBinaryParser<T>,
@@ -19,6 +25,8 @@ pub struct IonParser<T: Read> {
 pub type ConsumerResult = Result<(IonValue, usize), IonParserError>;
 
 impl<T: Read> IonParser<T> {
+    /// Creates a new parser. It accepts anything that implements the trait
+    /// [Read Trait](https://doc.rust-lang.org/stable/std/io/trait.Read.html)
     pub fn new(reader: T) -> IonParser<T> {
         IonParser {
             parser: IonBinaryParser::new(reader),
@@ -26,6 +34,9 @@ impl<T: Read> IonParser<T> {
         }
     }
 
+    /// Allows to set up shared tables in order to define symbols that are not in the
+    /// binary blob. This is useful when decoding binaries that depend of huge tables
+    /// that are expected to exist in the client and not to be sent in the ion binary.
     pub fn with_shared_table(
         &mut self,
         name: String,
@@ -40,6 +51,24 @@ impl<T: Read> IonParser<T> {
         self.context.add_shared_table(name, version, &symbols)
     }
 
+    /// Consumes all the IonValues in the binary blob and returns an array with them.
+    pub fn consume_all(&mut self) -> Result<Vec<IonValue>, IonParserError> {
+        let mut values = vec![];
+
+        loop {
+            match self.consume_value() {
+                Err(IonParserError::BinaryError(ParsingError::NoDataToRead)) => break,
+                Ok((value, _)) => values.push(value),
+                Err(e) => return Err(e),
+            }
+        }
+
+        Ok(values)
+    }
+
+    /// Consumes **one** IonValue and stops. This function will automatically process
+    /// NOP Padding, Shared Tables and Local Tables, automatically continuing in case
+    /// that any of them are found.
     pub fn consume_value(&mut self) -> ConsumerResult {
         let value_header = self.parser.consume_value_header()?;
 
@@ -86,7 +115,7 @@ impl<T: Read> IonParser<T> {
     fn consume_nop(&mut self, header: &ValueHeader) -> Result<usize, IonParserError> {
         trace!("Consuming Nop Padding");
         let (length, _, total) = self.consume_value_len(header)?;
-        
+
         trace!("Nop Padding with length {}", length);
 
         if length > 0 {
@@ -137,7 +166,7 @@ impl<T: Read> IonParser<T> {
         }
 
         if let ValueLength::ShortLength(0) = header.length {
-            return Ok((IonValue::Integer(0), 0))
+            return Ok((IonValue::Integer(0), 0));
         }
 
         let (length, _, total) = self.consume_value_len(header)?;

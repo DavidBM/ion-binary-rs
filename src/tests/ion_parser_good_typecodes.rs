@@ -1,6 +1,8 @@
 use crate::hashmap;
 use crate::read_file_testsuite;
-use crate::{ion_parser::IonParser, ion_parser_types::IonValue, NullIonValue, IonParserError, ParsingError};
+use crate::{
+    ion_parser::IonParser, ion_parser_types::IonValue, IonParserError, NullIonValue, ParsingError,
+};
 use bigdecimal::BigDecimal;
 use num_bigint::BigInt;
 use std::collections::HashMap;

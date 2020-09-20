@@ -54,6 +54,8 @@ pub enum ValueType {
     Reserved,    // T = 15  : 1111
 }
 
+/// This errors indicate a problem in a primitive parsing. It comes always
+/// wrapped by the "BinaryError" of the error type "IonParserError".
 #[derive(Eq, PartialEq, Debug)]
 pub enum ParsingError {
     InvalidHeaderType,
