@@ -20,6 +20,8 @@ jobs:
       run: cargo install cargo-tarpaulin --force
     - name: Build
       run: cargo build --verbose
+    - name: Checkout submodules
+      uses: textbook/git-checkout-submodule-action@2.1.1
     - name: Run tests
       run: cargo test --verbose
     - name: Code coverage
