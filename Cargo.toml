@@ -1,10 +1,16 @@
 [package]
 name = "ion-binary-rs"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["David Bonet <webbonet@gmail.com>"]
 edition = "2018"
+description="Pure Rust binary parser for Amazon's Ion. It helps to communicate with products lik QLDB."
+license = "Apache-2.0/MIT"
+readme = "README.md"
+keywords = ["ion", "binary", "network", "protocol", "amazon"]
+categories = ["protocol", "network", "ion", "amazon"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[badges]
+maintenance = { status = "actively-developed" }
 
 [dependencies]
 bytes = "0.5.6"
