@@ -1,0 +1,1 @@
+mod ion_parser_bad_annotation;
