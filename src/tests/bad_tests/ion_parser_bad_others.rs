@@ -8,11 +8,7 @@ use std::io::BufReader;
 
 #[test]
 fn bad_magic_1015() {
-    let ion_element = read_file_testsuite!("bad/badMagic1015");
-    let mut parser = IonParser::new(ion_element);
-    let value = parser.consume_value().unwrap_err();
-    let expected = IonParserError::BinaryError(ParsingError::BadFormedVersionHeader);
-    assert_eq!(expected, value);
+    // Not implemented due to we don't want to fail if there's a file with no header.
 }
 
 #[test]
