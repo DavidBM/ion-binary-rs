@@ -124,7 +124,7 @@ fn local_symbol_table_with_multiple_imports_fields() {
     let ion_element = read_file_testsuite!("bad/localSymbolTableWithMultipleImportsFields");
     let mut parser = IonParser::new(ion_element);
     let value = parser.consume_value().unwrap_err();
-    let expected = IonParserError::Unimplemented;
+    let expected = IonParserError::BinaryError(ParsingError::NoDataToRead);
     assert_eq!(expected, value);
 }
 
@@ -133,7 +133,7 @@ fn local_symbol_table_with_multiple_symbols_and_imports_fields() {
     let ion_element = read_file_testsuite!("bad/localSymbolTableWithMultipleSymbolsAndImportsFields");
     let mut parser = IonParser::new(ion_element);
     let value = parser.consume_value().unwrap_err();
-    let expected = IonParserError::Unimplemented;
+    let expected = IonParserError::BinaryError(ParsingError::NoDataToRead);
     assert_eq!(expected, value);
 }
 
@@ -142,7 +142,7 @@ fn local_symbol_table_with_multiple_symbols_fields() {
     let ion_element = read_file_testsuite!("bad/localSymbolTableWithMultipleSymbolsFields");
     let mut parser = IonParser::new(ion_element);
     let value = parser.consume_value().unwrap_err();
-    let expected = IonParserError::Unimplemented;
+    let expected = IonParserError::BinaryError(ParsingError::NoDataToRead);
     assert_eq!(expected, value);
 }
 
@@ -196,7 +196,7 @@ fn nop_pad_with_annotations() {
     let ion_element = read_file_testsuite!("bad/nopPadWithAnnotations");
     let mut parser = IonParser::new(ion_element);
     let value = parser.consume_value().unwrap_err();
-    let expected = IonParserError::Unimplemented;
+    let expected = IonParserError::BinaryError(ParsingError::NoDataToRead);
     assert_eq!(expected, value);
 }
 
