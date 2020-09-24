@@ -359,6 +359,7 @@ impl<T: Read> IonParser<T> {
             .map_err(|_| IonParserError::DateValueTooBig)?;
 
         let mut components = [1u32, 1, 0, 0, 0];
+        let mut component_counter = 0;
 
         for component in &mut components {
             if consumed_bytes >= length {
@@ -370,6 +371,11 @@ impl<T: Read> IonParser<T> {
             *component = value
                 .try_into()
                 .map_err(|_| IonParserError::DateValueTooBig)?;
+            component_counter += 1;
+        }
+
+        if component_counter == 3 {
+            return Err(IonParserError::DateWithHourButNoMinutes);
         }
 
         let [month, day, hour, minute, second] = components;

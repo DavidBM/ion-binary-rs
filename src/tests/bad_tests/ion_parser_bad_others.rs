@@ -173,7 +173,7 @@ fn negative_int_zero() {
     let ion_element = read_file_testsuite!("bad/negativeIntZero");
     let mut parser = IonParser::new(ion_element);
     let value = parser.consume_value().unwrap_err();
-    let expected = IonParserError::Unimplemented;
+    let expected = IonParserError::InvalidNegativeInt;
     assert_eq!(expected, value);
 }
 
@@ -182,7 +182,7 @@ fn negative_int_zero_ln() {
     let ion_element = read_file_testsuite!("bad/negativeIntZeroLn");
     let mut parser = IonParser::new(ion_element);
     let value = parser.consume_value().unwrap_err();
-    let expected = IonParserError::Unimplemented;
+    let expected = IonParserError::InvalidNegativeInt;
     assert_eq!(expected, value);
 }
 

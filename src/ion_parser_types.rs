@@ -27,6 +27,7 @@ pub enum IonParserError {
     SymbolIdTooBig,
     TableVersionTooBig,
     DateValueTooBig,
+    DateWithHourButNoMinutes,
     ValueLenTooBig,
     NotValidLengthFloat,
     BinaryError(ParsingError),

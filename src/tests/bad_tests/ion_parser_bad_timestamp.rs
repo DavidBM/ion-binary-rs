@@ -54,7 +54,7 @@ fn timestamp_hour_without_minute() {
     let ion_timestamp = read_file_testsuite!("bad/timestamp/timestampHourWithoutMinute");
     let mut parser = IonParser::new(ion_timestamp);
     let value = parser.consume_value().unwrap_err();
-    let expected = IonParserError::Unimplemented;
+    let expected = IonParserError::DateWithHourButNoMinutes;
     assert_eq!(expected, value);
 }
 
