@@ -166,7 +166,11 @@ impl<T: Read> IonParser<T> {
         }
 
         if let ValueLength::ShortLength(0) = header.length {
-            return Ok((IonValue::Integer(0), 0));
+            if negative {
+                return Err(IonParserError::InvalidNegativeInt);
+            } else {
+                return Ok((IonValue::Integer(0), 0));
+            }
         }
 
         let (length, _, total) = self.consume_value_len(header)?;
@@ -175,7 +179,11 @@ impl<T: Read> IonParser<T> {
         let value = match i64::try_from(&value) {
             Ok(mut value) => {
                 if negative {
-                    value = -value;
+                    if value == 0 {
+                        return Err(IonParserError::InvalidNegativeInt);
+                    } else {
+                        value = -value;
+                    }
                 }
 
                 IonValue::Integer(value)
@@ -528,10 +536,7 @@ impl<T: Read> IonParser<T> {
         Ok((IonValue::Blob(buffer), total))
     }
 
-    fn consume_annotation(
-        &mut self,
-        header: &ValueHeader,
-    ) -> Result<(Option<IonValue>, usize), IonParserError> {
+    fn consume_annotation(&mut self, header: &ValueHeader) -> Result<(Option<IonValue>, usize), IonParserError> {
         trace!("Consuming Annotation");
 
         if self.is_value_null(header) {

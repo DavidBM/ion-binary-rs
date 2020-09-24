@@ -300,7 +300,7 @@ fn typecodes_type_3_length_0() {
     let ion_typecode = read_file_testsuite!("bad/typecodes/type_3_length_0");
     let mut parser = IonParser::new(ion_typecode);
     let value = parser.consume_value().unwrap_err();
-    let expected = IonParserError::BinaryError(ParsingError::InvalidNegativeInt);
+    let expected = IonParserError::InvalidNegativeInt;
     assert_eq!(expected, value);
 }
 

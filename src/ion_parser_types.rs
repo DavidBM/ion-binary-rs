@@ -12,6 +12,7 @@ pub enum IonParserError {
     Unimplemented,
     BadFormatLengthFound,
     NullAnnotationFound,
+    BadAnnotationLength,
     SharedTableAndLocalTableDeclarationIntTheSameAnnotation,
     SymbolIdNotDefined,
     LocalTableWithoutInternalStruct,
@@ -33,6 +34,7 @@ pub enum IonParserError {
     InvalidBoolLength(ValueLength),
     InvalidDate(i32, u32, u32, u32, u32, u32, u32),
     InvalidReservedTypeDescriptor,
+    InvalidNegativeInt,
 }
 
 impl From<ParsingError> for IonParserError {

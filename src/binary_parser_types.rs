@@ -60,7 +60,6 @@ pub enum ValueType {
 pub enum ParsingError {
     InvalidHeaderType,
     InvalidHeaderLength,
-    InvalidNegativeInt,
     TooBigForU64,
     VarIntTooBigForI64,
     NoDataToRead,
