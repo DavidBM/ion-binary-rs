@@ -549,12 +549,13 @@ impl<T: Read> IonParser<T> {
             return Err(IonParserError::NullAnnotationFound);
         }
 
-        let (_, _, total_consumed_bytes) = self.consume_value_len(header)?;
-        let mut remaining_annot_bytes = self.parser.consume_varuint()?.0;
+        let (length, _, total_consumed_bytes) = self.consume_value_len(header)?;
+        let (mut remaining_annot_bytes, mut consumed_bytes) = self.parser.consume_varuint()?;
         let mut symbols: Vec<usize> = Vec::new();
 
         while remaining_annot_bytes > BigUint::from(0u8) {
-            let (annot, consumed_bytes) = self.parser.consume_varuint()?;
+            let (annot, last_consumed_bytes) = self.parser.consume_varuint()?;
+            consumed_bytes += last_consumed_bytes;
 
             let id_u64 = annot
                 .try_into()
@@ -563,9 +564,9 @@ impl<T: Read> IonParser<T> {
             symbols.push(id_u64);
 
             remaining_annot_bytes =
-                match BigUint::checked_sub(&remaining_annot_bytes, &BigUint::from(consumed_bytes)) {
+                match BigUint::checked_sub(&remaining_annot_bytes, &BigUint::from(last_consumed_bytes)) {
                     Some(result) => result,
-                    None => return Err(IonParserError::BadFormatLengthFound),
+                    None => return Err(IonParserError::BadAnnotationLength),
                 }
         }
 
@@ -578,6 +579,14 @@ impl<T: Read> IonParser<T> {
             self.contains_system_symbol(&symbols, SystemSymbolIds::IonSymbolTable);
 
         let value = self.consume_value()?;
+        if let IonValue::Annotation(_, _) = value.0 {
+            return Err(IonParserError::NestedAnnotations);
+        }
+
+        consumed_bytes += value.1;
+        if consumed_bytes != length {
+            return Err(IonParserError::BadAnnotationLength);
+        } 
 
         match (is_shared_table_declaration, is_local_table_declaration) {
             (true, true) => {

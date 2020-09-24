@@ -10,7 +10,7 @@ fn annotation_container_too_long() {
     let ion_annotation = read_file_testsuite!("bad/annotationLengthTooLongContainer");
     let mut parser = IonParser::new(ion_annotation);
     let value = parser.consume_value().unwrap_err();
-    let expected = IonParserError::BadFormatLengthFound;
+    let expected = IonParserError::BadAnnotationLength;
     assert_eq!(expected, value);
 }
 
@@ -19,7 +19,7 @@ fn annotation_scalar_too_long() {
     let ion_annotation = read_file_testsuite!("bad/annotationLengthTooLongScalar");
     let mut parser = IonParser::new(ion_annotation);
     let value = parser.consume_value().unwrap_err();
-    let expected = IonParserError::BadFormatLengthFound;
+    let expected = IonParserError::BadAnnotationLength;
     assert_eq!(expected, value);
 }
 
@@ -28,7 +28,7 @@ fn annotation_container_too_short() {
     let ion_annotation = read_file_testsuite!("bad/annotationLengthTooShortContainer");
     let mut parser = IonParser::new(ion_annotation);
     let value = parser.consume_value().unwrap_err();
-    let expected = IonParserError::BadFormatLengthFound;
+    let expected = IonParserError::BadAnnotationLength;
     assert_eq!(expected, value);
 }
 
@@ -37,7 +37,7 @@ fn annotation_scalar_too_short() {
     let ion_annotation = read_file_testsuite!("bad/annotationLengthTooShortScalar");
     let mut parser = IonParser::new(ion_annotation);
     let value = parser.consume_value().unwrap_err();
-    let expected = IonParserError::Unimplemented;
+    let expected = IonParserError::BadAnnotationLength;
     assert_eq!(expected, value);
 }
 
@@ -46,7 +46,7 @@ fn annotation_nested() {
     let ion_annotation = read_file_testsuite!("bad/annotationNested");
     let mut parser = IonParser::new(ion_annotation);
     let value = parser.consume_value().unwrap_err();
-    let expected = IonParserError::Unimplemented;
+    let expected = IonParserError::NestedAnnotations;
     assert_eq!(expected, value);
 }
 

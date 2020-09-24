@@ -12,6 +12,7 @@ pub enum IonParserError {
     Unimplemented,
     BadFormatLengthFound,
     NullAnnotationFound,
+    NestedAnnotations,
     BadAnnotationLength,
     SharedTableAndLocalTableDeclarationIntTheSameAnnotation,
     SymbolIdNotDefined,
