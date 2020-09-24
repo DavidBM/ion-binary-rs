@@ -73,7 +73,9 @@ fn decimal_exp_too_large() {
 fn decimal_len_causes_64_bit_overflow() {
     let ion_element = read_file_testsuite!("bad/decimalLenCauses64BitOverflow");
     let mut parser = IonParser::new(ion_element);
-    let value = parser.consume_value().unwrap().0;
+    let value = parser.consume_value().unwrap_err();
+    let expected = IonParserError::BinaryError(ParsingError::NotEnoughtDataToRead(22));
+    assert_eq!(expected, value);
 }
 
 #[test]
@@ -153,7 +155,7 @@ fn min_long_with_len_too_large() {
     let ion_element = read_file_testsuite!("bad/minLongWithLenTooLarge");
     let mut parser = IonParser::new(ion_element);
     let value = parser.consume_value().unwrap_err();
-    let expected = IonParserError::Unimplemented;
+    let expected = IonParserError::BinaryError(ParsingError::NotEnoughtDataToRead(8));
     assert_eq!(expected, value);
 }
 
@@ -189,7 +191,7 @@ fn nop_pad_too_short() {
     let ion_element = read_file_testsuite!("bad/nopPadTooShort");
     let mut parser = IonParser::new(ion_element);
     let value = parser.consume_value().unwrap_err();
-    let expected = IonParserError::Unimplemented;
+    let expected = IonParserError::BinaryError(ParsingError::NotEnoughtDataToRead(15));
     assert_eq!(expected, value);
 }
 
@@ -207,7 +209,7 @@ fn string_len_too_large() {
     let ion_element = read_file_testsuite!("bad/stringLenTooLarge");
     let mut parser = IonParser::new(ion_element);
     let value = parser.consume_value().unwrap_err();
-    let expected = IonParserError::Unimplemented;
+    let expected = IonParserError::BinaryError(ParsingError::NotEnoughtDataToRead(38));
     assert_eq!(expected, value);
 }
 
@@ -216,7 +218,7 @@ fn string_with_latin_encoding() {
     let ion_element = read_file_testsuite!("bad/stringWithLatinEncoding");
     let mut parser = IonParser::new(ion_element);
     let value = parser.consume_value().unwrap_err();
-    let expected = IonParserError::Unimplemented;
+    let expected = IonParserError::NonUtf8String;
     assert_eq!(expected, value);
 }
 
@@ -230,11 +232,11 @@ fn struct_ordered_empty() {
 }
 
 #[test]
-fn symbol_ID_unmapped() {
+fn symbol_id_unmapped() {
     let ion_element = read_file_testsuite!("bad/symbolIDUnmapped");
     let mut parser = IonParser::new(ion_element);
     let value = parser.consume_value().unwrap_err();
-    let expected = IonParserError::Unimplemented;
+    let expected = IonParserError::SymbolNotFoundInTable;
     assert_eq!(expected, value);
 }
 
@@ -243,6 +245,6 @@ fn symbol_len_too_large() {
     let ion_element = read_file_testsuite!("bad/symbolLenTooLarge");
     let mut parser = IonParser::new(ion_element);
     let value = parser.consume_value().unwrap_err();
-    let expected = IonParserError::Unimplemented;
+    let expected = IonParserError::BinaryError(ParsingError::NotEnoughtDataToRead(1));
     assert_eq!(expected, value);
 }

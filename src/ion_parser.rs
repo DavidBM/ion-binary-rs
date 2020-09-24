@@ -108,7 +108,7 @@ impl<T: Read> IonParser<T> {
             ValueType::Clob => Ok(self.consume_clob(value_header)?),
             ValueType::Blob => Ok(self.consume_blob(value_header)?),
             ValueType::SExpr => Ok(self.consume_sexpr(value_header)?),
-            ValueType::Reserved => Err(IonParserError::Unimplemented),
+            ValueType::Reserved => Err(IonParserError::InvalidReservedTypeDescriptor),
         }
     }
 
