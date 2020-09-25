@@ -108,7 +108,7 @@ impl<T: Read> IonParser<T> {
             ValueType::Clob => Ok(self.consume_clob(value_header)?),
             ValueType::Blob => Ok(self.consume_blob(value_header)?),
             ValueType::SExpr => Ok(self.consume_sexpr(value_header)?),
-            ValueType::Reserved => Err(IonParserError::Unimplemented),
+            ValueType::Reserved => Err(IonParserError::InvalidReservedTypeDescriptor),
         }
     }
 
@@ -166,7 +166,11 @@ impl<T: Read> IonParser<T> {
         }
 
         if let ValueLength::ShortLength(0) = header.length {
-            return Ok((IonValue::Integer(0), 0));
+            if negative {
+                return Err(IonParserError::InvalidNegativeInt);
+            } else {
+                return Ok((IonValue::Integer(0), 0));
+            }
         }
 
         let (length, _, total) = self.consume_value_len(header)?;
@@ -175,7 +179,11 @@ impl<T: Read> IonParser<T> {
         let value = match i64::try_from(&value) {
             Ok(mut value) => {
                 if negative {
-                    value = -value;
+                    if value == 0 {
+                        return Err(IonParserError::InvalidNegativeInt);
+                    } else {
+                        value = -value;
+                    }
                 }
 
                 IonValue::Integer(value)
@@ -276,10 +284,10 @@ impl<T: Read> IonParser<T> {
 
             consumed_bytes += value.1;
             values.push(value.0);
-        }
 
-        if length.checked_sub(consumed_bytes).is_none() {
-            return Err(IonParserError::ListLengthWasTooShort);
+            if consumed_bytes > length {
+                return Err(IonParserError::ListLengthWasTooShort);
+            }
         }
 
         trace!("End consuming list with {:}", values.len());
@@ -351,6 +359,7 @@ impl<T: Read> IonParser<T> {
             .map_err(|_| IonParserError::DateValueTooBig)?;
 
         let mut components = [1u32, 1, 0, 0, 0];
+        let mut component_counter = 0;
 
         for component in &mut components {
             if consumed_bytes >= length {
@@ -362,6 +371,11 @@ impl<T: Read> IonParser<T> {
             *component = value
                 .try_into()
                 .map_err(|_| IonParserError::DateValueTooBig)?;
+            component_counter += 1;
+        }
+
+        if component_counter == 3 {
+            return Err(IonParserError::DateWithHourButNoMinutes);
         }
 
         let [month, day, hour, minute, second] = components;
@@ -391,8 +405,17 @@ impl<T: Read> IonParser<T> {
         let second_fraction: f64 =
             ((10f64.powi(fraction_exponent)) * fraction_coefficient as f64) * 1e9;
 
+        if second_fraction < 0.0 {
+            return  Err(IonParserError::DateNegativeSecondFraction);
+        }
+
         let second_fraction =
-            u32::try_from(second_fraction as u64).map_err(|_| IonParserError::DateValueTooBig)?;
+            u32::try_from(second_fraction as i64).map_err(|_| IonParserError::DateValueTooBig)?;
+
+        let upper_fraction_limit = 1_000_000_000;
+        if second_fraction >= upper_fraction_limit {
+            return Err(IonParserError::DateSecondFractionOverflow)
+        }
 
         let datetime = NaiveDate::from_ymd_opt(year, month, day)
             .ok_or(IonParserError::InvalidDate(
@@ -474,7 +497,8 @@ impl<T: Read> IonParser<T> {
         let (length, _, total) = self.consume_value_len(header)?;
 
         let (exponent, consumed_bytes) = self.parser.consume_varint()?;
-        let coefficient_size = length - consumed_bytes;
+        let coefficient_size = length.checked_sub(consumed_bytes)
+            .ok_or_else(|| IonParserError::DecimalExponentTooBig)?;
 
         let coefficient = if coefficient_size > 0 {
             self.parser.consume_int(coefficient_size)?
@@ -528,22 +552,25 @@ impl<T: Read> IonParser<T> {
         Ok((IonValue::Blob(buffer), total))
     }
 
-    fn consume_annotation(
-        &mut self,
-        header: &ValueHeader,
-    ) -> Result<(Option<IonValue>, usize), IonParserError> {
+    fn consume_annotation(&mut self, header: &ValueHeader) -> Result<(Option<IonValue>, usize), IonParserError> {
         trace!("Consuming Annotation");
 
         if self.is_value_null(header) {
             return Err(IonParserError::NullAnnotationFound);
         }
 
-        let (_, _, total_consumed_bytes) = self.consume_value_len(header)?;
-        let mut remaining_annot_bytes = self.parser.consume_varuint()?.0;
+        let (length, _, total_consumed_bytes) = self.consume_value_len(header)?;
+        let (mut remaining_annot_bytes, mut consumed_bytes) = self.parser.consume_varuint()?;
+
+        if remaining_annot_bytes == BigUint::from(0u8) {
+            return Err(IonParserError::NullAnnotationFound);
+        }
+
         let mut symbols: Vec<usize> = Vec::new();
 
         while remaining_annot_bytes > BigUint::from(0u8) {
-            let (annot, consumed_bytes) = self.parser.consume_varuint()?;
+            let (annot, last_consumed_bytes) = self.parser.consume_varuint()?;
+            consumed_bytes += last_consumed_bytes;
 
             let id_u64 = annot
                 .try_into()
@@ -552,9 +579,9 @@ impl<T: Read> IonParser<T> {
             symbols.push(id_u64);
 
             remaining_annot_bytes =
-                match BigUint::checked_sub(&remaining_annot_bytes, &BigUint::from(consumed_bytes)) {
+                match BigUint::checked_sub(&remaining_annot_bytes, &BigUint::from(last_consumed_bytes)) {
                     Some(result) => result,
-                    None => return Err(IonParserError::BadFormatLengthFound),
+                    None => return Err(IonParserError::BadAnnotationLength),
                 }
         }
 
@@ -567,6 +594,14 @@ impl<T: Read> IonParser<T> {
             self.contains_system_symbol(&symbols, SystemSymbolIds::IonSymbolTable);
 
         let value = self.consume_value()?;
+        if let IonValue::Annotation(_, _) = value.0 {
+            return Err(IonParserError::NestedAnnotations);
+        }
+
+        consumed_bytes += value.1;
+        if consumed_bytes != length {
+            return Err(IonParserError::BadAnnotationLength);
+        } 
 
         match (is_shared_table_declaration, is_local_table_declaration) {
             (true, true) => {
@@ -591,10 +626,7 @@ impl<T: Read> IonParser<T> {
         header.length == ValueLength::NullValue
     }
 
-    fn consume_value_len(
-        &mut self,
-        header: &ValueHeader,
-    ) -> Result<(usize, usize, usize), IonParserError> {
+    fn consume_value_len(&mut self, header: &ValueHeader) -> Result<(usize, usize, usize), IonParserError> {
         let mut consumed_bytes: usize = 0;
         let null_length = 15;
 
@@ -613,16 +645,16 @@ impl<T: Read> IonParser<T> {
         Ok((length, consumed_bytes, total))
     }
 
-    fn consume_value_len_for_struct(
-        &mut self,
-        header: &ValueHeader,
-    ) -> Result<(usize, usize, usize), IonParserError> {
+    fn consume_value_len_for_struct(&mut self, header: &ValueHeader) -> Result<(usize, usize, usize), IonParserError> {
         let mut consumed_bytes: usize = 0;
         let null_length = 15;
 
         let length: usize = match header.length {
             ValueLength::LongLength | ValueLength::ShortLength(1) => {
                 let len = self.parser.consume_varuint()?;
+                if header.length == ValueLength::ShortLength(1) && len.0 == BigUint::from(0u8) {
+                    return Err(IonParserError::EmptyOrderedStruct);
+                }
                 consumed_bytes += len.1;
                 usize::try_from(len.0).map_err(|_| IonParserError::ValueLenTooBig)?
             }

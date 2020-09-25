@@ -12,6 +12,8 @@ pub enum IonParserError {
     Unimplemented,
     BadFormatLengthFound,
     NullAnnotationFound,
+    NestedAnnotations,
+    BadAnnotationLength,
     SharedTableAndLocalTableDeclarationIntTheSameAnnotation,
     SymbolIdNotDefined,
     LocalTableWithoutInternalStruct,
@@ -26,12 +28,18 @@ pub enum IonParserError {
     SymbolIdTooBig,
     TableVersionTooBig,
     DateValueTooBig,
+    DateSecondFractionOverflow,
+    DateNegativeSecondFraction,
+    DateWithHourButNoMinutes,
     ValueLenTooBig,
     NotValidLengthFloat,
     BinaryError(ParsingError),
     DecimalExponentTooBig,
     InvalidBoolLength(ValueLength),
     InvalidDate(i32, u32, u32, u32, u32, u32, u32),
+    InvalidReservedTypeDescriptor,
+    InvalidNegativeInt,
+    EmptyOrderedStruct,
 }
 
 impl From<ParsingError> for IonParserError {

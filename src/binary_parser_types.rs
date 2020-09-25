@@ -67,6 +67,7 @@ pub enum ParsingError {
     ErrorReadingData(String),
     CannotReadZeroBytes,
     BadFormedVersionHeader,
+    MalformedIonVersion,
     InvalidNullLength(ValueLength),
     InvalidAnnotationLength(ValueLength),
     ParsedIntTooBigThisIsABug,
