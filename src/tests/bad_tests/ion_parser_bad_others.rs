@@ -84,15 +84,6 @@ fn decimal_len_too_large() {
 }
 
 #[test]
-fn empty_annotated_int() {
-    let ion_element = read_file_testsuite!("bad/emptyAnnotatedInt");
-    let mut parser = IonParser::new(ion_element);
-    let value = parser.consume_value().unwrap_err();
-    let expected = IonParserError::NullAnnotationFound;
-    assert_eq!(expected, value);
-}
-
-#[test]
 fn field_name_symbol_id_unmapped() {
     let ion_element = read_file_testsuite!("bad/fieldNameSymbolIDUnmapped");
     let mut parser = IonParser::new(ion_element);
@@ -115,7 +106,7 @@ fn list_with_value_larger_than_size() {
     let ion_element = read_file_testsuite!("bad/listWithValueLargerThanSize");
     let mut parser = IonParser::new(ion_element);
     let value = parser.consume_value().unwrap_err();
-    let expected = IonParserError::Unimplemented;
+    let expected = IonParserError::ListLengthWasTooShort;
     assert_eq!(expected, value);
 }
 
@@ -159,8 +150,9 @@ fn min_long_with_len_too_large() {
 fn min_long_with_len_to_small() {
     let ion_element = read_file_testsuite!("bad/minLongWithLenTooSmall");
     let mut parser = IonParser::new(ion_element);
+    let _integer = parser.consume_value().unwrap();
     let value = parser.consume_value().unwrap_err();
-    let expected = IonParserError::Unimplemented;
+    let expected = IonParserError::BinaryError(ParsingError::NoDataToRead);
     assert_eq!(expected, value);
 }
 
@@ -223,7 +215,7 @@ fn struct_ordered_empty() {
     let ion_element = read_file_testsuite!("bad/structOrderedEmpty");
     let mut parser = IonParser::new(ion_element);
     let value = parser.consume_value().unwrap_err();
-    let expected = IonParserError::Unimplemented;
+    let expected = IonParserError::EmptyOrderedStruct;
     assert_eq!(expected, value);
 }
 

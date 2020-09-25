@@ -284,10 +284,10 @@ impl<T: Read> IonParser<T> {
 
             consumed_bytes += value.1;
             values.push(value.0);
-        }
 
-        if length.checked_sub(consumed_bytes).is_none() {
-            return Err(IonParserError::ListLengthWasTooShort);
+            if consumed_bytes > length {
+                return Err(IonParserError::ListLengthWasTooShort);
+            }
         }
 
         trace!("End consuming list with {:}", values.len());
@@ -405,8 +405,17 @@ impl<T: Read> IonParser<T> {
         let second_fraction: f64 =
             ((10f64.powi(fraction_exponent)) * fraction_coefficient as f64) * 1e9;
 
+        if second_fraction < 0.0 {
+            return  Err(IonParserError::DateNegativeSecondFraction);
+        }
+
         let second_fraction =
-            u32::try_from(second_fraction as u64).map_err(|_| IonParserError::DateValueTooBig)?;
+            u32::try_from(second_fraction as i64).map_err(|_| IonParserError::DateValueTooBig)?;
+
+        let upper_fraction_limit = 1_000_000_000;
+        if second_fraction >= upper_fraction_limit {
+            return Err(IonParserError::DateSecondFractionOverflow)
+        }
 
         let datetime = NaiveDate::from_ymd_opt(year, month, day)
             .ok_or(IonParserError::InvalidDate(
@@ -488,7 +497,8 @@ impl<T: Read> IonParser<T> {
         let (length, _, total) = self.consume_value_len(header)?;
 
         let (exponent, consumed_bytes) = self.parser.consume_varint()?;
-        let coefficient_size = length - consumed_bytes;
+        let coefficient_size = length.checked_sub(consumed_bytes)
+            .ok_or_else(|| IonParserError::DecimalExponentTooBig)?;
 
         let coefficient = if coefficient_size > 0 {
             self.parser.consume_int(coefficient_size)?
@@ -551,6 +561,11 @@ impl<T: Read> IonParser<T> {
 
         let (length, _, total_consumed_bytes) = self.consume_value_len(header)?;
         let (mut remaining_annot_bytes, mut consumed_bytes) = self.parser.consume_varuint()?;
+
+        if remaining_annot_bytes == BigUint::from(0u8) {
+            return Err(IonParserError::NullAnnotationFound);
+        }
+
         let mut symbols: Vec<usize> = Vec::new();
 
         while remaining_annot_bytes > BigUint::from(0u8) {
@@ -611,10 +626,7 @@ impl<T: Read> IonParser<T> {
         header.length == ValueLength::NullValue
     }
 
-    fn consume_value_len(
-        &mut self,
-        header: &ValueHeader,
-    ) -> Result<(usize, usize, usize), IonParserError> {
+    fn consume_value_len(&mut self, header: &ValueHeader) -> Result<(usize, usize, usize), IonParserError> {
         let mut consumed_bytes: usize = 0;
         let null_length = 15;
 
@@ -633,16 +645,16 @@ impl<T: Read> IonParser<T> {
         Ok((length, consumed_bytes, total))
     }
 
-    fn consume_value_len_for_struct(
-        &mut self,
-        header: &ValueHeader,
-    ) -> Result<(usize, usize, usize), IonParserError> {
+    fn consume_value_len_for_struct(&mut self, header: &ValueHeader) -> Result<(usize, usize, usize), IonParserError> {
         let mut consumed_bytes: usize = 0;
         let null_length = 15;
 
         let length: usize = match header.length {
             ValueLength::LongLength | ValueLength::ShortLength(1) => {
                 let len = self.parser.consume_varuint()?;
+                if header.length == ValueLength::ShortLength(1) && len.0 == BigUint::from(0u8) {
+                    return Err(IonParserError::EmptyOrderedStruct);
+                }
                 consumed_bytes += len.1;
                 usize::try_from(len.0).map_err(|_| IonParserError::ValueLenTooBig)?
             }

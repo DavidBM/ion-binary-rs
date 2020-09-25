@@ -27,7 +27,7 @@ fn timestamp_fraction_10d_1() {
     let ion_timestamp = read_file_testsuite!("bad/timestamp/timestampFraction10d-1");
     let mut parser = IonParser::new(ion_timestamp);
     let value = parser.consume_value().unwrap_err();
-    let expected = IonParserError::Unimplemented;
+    let expected = IonParserError::DateSecondFractionOverflow;
     assert_eq!(expected, value);
 }
 
@@ -36,7 +36,7 @@ fn timestamp_fraction_11d_1() {
     let ion_timestamp = read_file_testsuite!("bad/timestamp/timestampFraction11d-1");
     let mut parser = IonParser::new(ion_timestamp);
     let value = parser.consume_value().unwrap_err();
-    let expected = IonParserError::Unimplemented;
+    let expected = IonParserError::DateSecondFractionOverflow;
     assert_eq!(expected, value);
 }
 
@@ -45,7 +45,7 @@ fn timestamp_fraction_1d_0() {
     let ion_timestamp = read_file_testsuite!("bad/timestamp/timestampFraction1d0");
     let mut parser = IonParser::new(ion_timestamp);
     let value = parser.consume_value().unwrap_err();
-    let expected = IonParserError::Unimplemented;
+    let expected = IonParserError::DateSecondFractionOverflow;
     assert_eq!(expected, value);
 }
 
@@ -72,7 +72,7 @@ fn timestamp_negative_fraction() {
     let ion_timestamp = read_file_testsuite!("bad/timestamp/timestampNegativeFraction");
     let mut parser = IonParser::new(ion_timestamp);
     let value = parser.consume_value().unwrap_err();
-    let expected = IonParserError::Unimplemented;
+    let expected = IonParserError::DateNegativeSecondFraction;
     assert_eq!(expected, value);
 }
 

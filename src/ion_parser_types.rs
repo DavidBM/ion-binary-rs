@@ -28,6 +28,8 @@ pub enum IonParserError {
     SymbolIdTooBig,
     TableVersionTooBig,
     DateValueTooBig,
+    DateSecondFractionOverflow,
+    DateNegativeSecondFraction,
     DateWithHourButNoMinutes,
     ValueLenTooBig,
     NotValidLengthFloat,
@@ -37,6 +39,7 @@ pub enum IonParserError {
     InvalidDate(i32, u32, u32, u32, u32, u32, u32),
     InvalidReservedTypeDescriptor,
     InvalidNegativeInt,
+    EmptyOrderedStruct,
 }
 
 impl From<ParsingError> for IonParserError {

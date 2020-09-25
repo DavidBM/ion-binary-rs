@@ -67,3 +67,12 @@ fn annotation_with_no_value() {
     let expected = IonParserError::BinaryError(ParsingError::NoDataToRead);
     assert_eq!(expected, value);
 }
+
+#[test]
+fn empty_annotated_int() {
+    let ion_element = read_file_testsuite!("bad/emptyAnnotatedInt");
+    let mut parser = IonParser::new(ion_element);
+    let value = parser.consume_value().unwrap_err();
+    let expected = IonParserError::NullAnnotationFound;
+    assert_eq!(expected, value);
+}
