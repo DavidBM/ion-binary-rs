@@ -1,7 +1,7 @@
 use crate::ion_parser::IonParser;
 use crate::read_file_testsuite;
-use crate::ParsingError;
 use crate::IonParserError;
+use crate::ParsingError;
 use std::fs::File;
 use std::io::BufReader;
 
@@ -58,7 +58,7 @@ fn annotation_symbol_id_unmapped() {
     let expected = IonParserError::SymbolIdNotDefined;
     assert_eq!(expected, value);
 }
-    
+
 #[test]
 fn annotation_with_no_value() {
     let ion_annotation = read_file_testsuite!("bad/annotationWithNoValue");

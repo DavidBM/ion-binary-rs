@@ -1,8 +1,7 @@
-
-use crate::{binary_parser_types::ValueLength, ion_parser::IonParser};
 use crate::read_file_testsuite;
-use crate::ParsingError;
 use crate::IonParserError;
+use crate::ParsingError;
+use crate::{binary_parser_types::ValueLength, ion_parser::IonParser};
 use bigdecimal::BigDecimal;
 use std::fs::File;
 use std::io::BufReader;
@@ -63,7 +62,10 @@ fn decimal_exp_too_large() {
     let ion_element = read_file_testsuite!("bad/decimalExpTooLarge");
     let mut parser = IonParser::new(ion_element);
     let value = parser.consume_value().unwrap().0;
-    let expected = crate::IonValue::Decimal(BigDecimal::from_str(&"0.000000000000000000000000000000000000000000025149515645911129").unwrap());
+    let expected = crate::IonValue::Decimal(
+        BigDecimal::from_str(&"0.000000000000000000000000000000000000000000025149515645911129")
+            .unwrap(),
+    );
     assert_eq!(expected, value);
     let value = parser.consume_value().unwrap_err();
     let expected = IonParserError::DecimalExponentTooBig;
@@ -122,7 +124,8 @@ fn local_symbol_table_with_multiple_imports_fields() {
 
 #[test]
 fn local_symbol_table_with_multiple_symbols_and_imports_fields() {
-    let ion_element = read_file_testsuite!("bad/localSymbolTableWithMultipleSymbolsAndImportsFields");
+    let ion_element =
+        read_file_testsuite!("bad/localSymbolTableWithMultipleSymbolsAndImportsFields");
     let mut parser = IonParser::new(ion_element);
     let value = parser.consume_value().unwrap_err();
     let expected = IonParserError::BinaryError(ParsingError::NoDataToRead);

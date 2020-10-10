@@ -1,7 +1,7 @@
-use crate::{binary_parser_types::ValueLength, ion_parser::IonParser};
 use crate::read_file_testsuite;
 use crate::IonParserError;
 use crate::ParsingError;
+use crate::{binary_parser_types::ValueLength, ion_parser::IonParser};
 use std::fs::File;
 use std::io::BufReader;
 
@@ -10,8 +10,9 @@ fn typecodes_type_14_length_1() {
     let ion_typecode = read_file_testsuite!("bad/typecodes/type_14_length_1");
     let mut parser = IonParser::new(ion_typecode);
     let value = parser.consume_value().unwrap_err();
-    let expected = IonParserError::BinaryError(
-        ParsingError::InvalidAnnotationLength(ValueLength::ShortLength(1)));
+    let expected = IonParserError::BinaryError(ParsingError::InvalidAnnotationLength(
+        ValueLength::ShortLength(1),
+    ));
     assert_eq!(expected, value);
 }
 
@@ -29,8 +30,9 @@ fn typecodes_type_14_length_2() {
     let ion_typecode = read_file_testsuite!("bad/typecodes/type_14_length_2");
     let mut parser = IonParser::new(ion_typecode);
     let value = parser.consume_value().unwrap_err();
-    let expected = IonParserError::BinaryError(
-        ParsingError::InvalidAnnotationLength(ValueLength::ShortLength(2)));
+    let expected = IonParserError::BinaryError(ParsingError::InvalidAnnotationLength(
+        ValueLength::ShortLength(2),
+    ));
     assert_eq!(expected, value);
 }
 
