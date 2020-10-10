@@ -126,7 +126,12 @@ fn encode_varuint(value: &[u8]) -> Vec<u8> {
 fn encode_varint(value: &[u8], is_negative: bool) -> Vec<u8> {
     let mut buffer: Vec<u8> = Vec::new();
 
-    let bits = value[0] << 2 >> 2;
+    let mut bits = value[0] << 2 >> 2;
+
+    if is_negative {
+        bits += 0b_0100_0000;
+    }
+
     buffer.push(bits);
 
     consume_var(&value[1..], 2)
