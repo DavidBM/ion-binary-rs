@@ -94,10 +94,10 @@ fn int_long_min_value() {
 
     let mut parser = IonParser::new(ion_blob);
 
-    let expected_number_str = b"-8000000000000000";
+    let expected_number_str = i64::MIN;
 
     assert_eq!(
         parser.consume_value().unwrap().0,
-        IonValue::BigInteger(BigInt::parse_bytes(expected_number_str, 16).unwrap())
+        IonValue::Integer(expected_number_str)
     );
 }

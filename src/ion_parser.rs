@@ -176,6 +176,14 @@ impl<T: Read> IonParser<T> {
         let (length, _, total) = self.consume_value_len(header)?;
         let value = self.parser.consume_uint(length)?;
 
+        // i64::MIN as u64 is not a "correct" transformation. It just binary cast 
+        // the value to a u64, so the most negative number in i64 becomes a huge 
+        // positive one un u64. We do this here knowingly as it is exactly what we 
+        // want in order to avoid a .clone(). Clippy will yield at us here D:
+        if negative && value == BigUint::from(i64::MIN as u64) {
+            return Ok((IonValue::Integer(i64::MIN), total));
+        }
+
         let value = match i64::try_from(&value) {
             Ok(mut value) => {
                 if negative {

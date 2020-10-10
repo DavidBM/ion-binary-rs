@@ -72,6 +72,7 @@ pub(crate) mod binary_parser_types;
 pub(crate) mod ion_parser;
 pub(crate) mod ion_parser_types;
 pub(crate) mod symbol_table;
+pub(crate) mod binary_encoder;
 
 #[cfg(test)]
 mod tests;
