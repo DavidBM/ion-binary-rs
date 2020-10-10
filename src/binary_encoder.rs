@@ -1,6 +1,6 @@
-use bigdecimal::BigDecimal;
 use crate::IonValue;
 use crate::NullIonValue;
+use bigdecimal::BigDecimal;
 use num_bigint::{BigInt, Sign};
 use std::convert::TryFrom;
 
@@ -46,14 +46,13 @@ pub fn encode_ion_value(value: &IonValue) -> Vec<u8> {
 }
 
 fn encode_decimal(value: &BigDecimal) -> Vec<u8> {
-
-	unimplemented!()
+    unimplemented!()
 }
 
 fn encode_float32(value: &f32) -> Vec<u8> {
-	if *value == 0.0 && value.is_sign_positive() {
-		return vec![0x40];
-	}
+    if *value == 0.0 && value.is_sign_positive() {
+        return vec![0x40];
+    }
 
     let mut buffer: Vec<u8> = vec![0; 5];
 
@@ -70,9 +69,9 @@ fn encode_float32(value: &f32) -> Vec<u8> {
 }
 
 fn encode_float64(value: &f64) -> Vec<u8> {
-	if *value == 0.0 && value.is_sign_positive() {
-		return vec![0x40];
-	}
+    if *value == 0.0 && value.is_sign_positive() {
+        return vec![0x40];
+    }
 
     let mut buffer: Vec<u8> = vec![0; 9];
 

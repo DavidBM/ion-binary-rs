@@ -112,7 +112,8 @@ fn encode_integer_float64() {
         f64::MIN,
         f64::MAX,
         -0.0,
-        0.0,
+        // Omiting positive 0.0 as it is an special encoding
+        // case that will always get compiled to 0.0
         0.000000000121324,
         341234123412341234.123412534437,
     ];
