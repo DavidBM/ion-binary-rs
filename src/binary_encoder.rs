@@ -30,8 +30,8 @@ pub fn encode_ion_value(value: &IonValue) -> Vec<u8> {
                 [0x10].to_vec()
             }
         }
-        IonValue::Integer(value) => encode_integer(*value),
-        //IonValue::BigInteger(BigInt),
+        IonValue::Integer(value) => encode_integer(&BigInt::from(*value)),
+        IonValue::BigInteger(value) => encode_integer(value),
         //IonValue::Float32(f32),
         //IonValue::Float64(f64),
         //IonValue::Decimal(BigDecimal),
@@ -44,12 +44,10 @@ pub fn encode_ion_value(value: &IonValue) -> Vec<u8> {
     }
 }
 
-fn encode_integer(value: i64) -> Vec<u8> {
-    if value == 0 {
+fn encode_integer(value: &BigInt) -> Vec<u8> {
+    if *value == BigInt::from(0) {
         return [0x20].to_vec();
     }
-
-    let value = BigInt::from(value);
 
     let mut ion_type: u8 = 2;
 
