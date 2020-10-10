@@ -32,8 +32,8 @@ pub fn encode_ion_value(value: &IonValue) -> Vec<u8> {
         }
         IonValue::Integer(value) => encode_integer(&BigInt::from(*value)),
         IonValue::BigInteger(value) => encode_integer(value),
-        //IonValue::Float32(f32),
-        //IonValue::Float64(f64),
+        IonValue::Float32(value) => encode_float32(value),
+        IonValue::Float64(value) => encode_float64(value),
         //IonValue::Decimal(BigDecimal),
         //IonValue::DateTime(DateTime<FixedOffset>),
         //IonValue::String(String),
@@ -42,6 +42,40 @@ pub fn encode_ion_value(value: &IonValue) -> Vec<u8> {
         //IonValue::Blob(Vec<u8>),
         _ => vec![],
     }
+}
+
+fn encode_float32(value: &f32) -> Vec<u8> {
+	let mut buffer: Vec<u8> = vec![0;5];
+
+	buffer[0] = 0x44;
+
+	let bytes = value.to_be_bytes();
+
+	buffer[1] = bytes[0];
+	buffer[2] = bytes[1];
+	buffer[3] = bytes[2];
+	buffer[4] = bytes[3];
+
+	buffer
+}
+
+fn encode_float64(value: &f64) -> Vec<u8> {
+	let mut buffer: Vec<u8> = vec![0;9];
+
+	buffer[0] = 0x48;
+
+	let bytes = value.to_be_bytes();
+
+	buffer[1] = bytes[0];
+	buffer[2] = bytes[1];
+	buffer[3] = bytes[2];
+	buffer[4] = bytes[3];
+	buffer[5] = bytes[4];
+	buffer[6] = bytes[5];
+	buffer[7] = bytes[6];
+	buffer[8] = bytes[7];
+
+	buffer
 }
 
 fn encode_integer(value: &BigInt) -> Vec<u8> {
@@ -71,6 +105,7 @@ fn encode_integer(value: &BigInt) -> Vec<u8> {
         1 + bytes_len
     };
 
+
     let mut result_buffer = vec![0; ion_value_len];
 
     let mut header = ion_type << 4;
@@ -87,7 +122,7 @@ fn encode_integer(value: &BigInt) -> Vec<u8> {
         for (index, value) in bytes_len_bytes.into_iter().enumerate() {
             result_buffer[index + 1] = value;
         }
-        2
+        bytes_len_bytes_len + 1
     } else {
         1
     };
@@ -135,54 +170,61 @@ fn encode_varint(value: &[u8], is_negative: bool) -> Vec<u8> {
     consume_var(&value[1..], 2)
 }
 
+// TODO: This whole functions is wrong. it needs to start from thre end
+// as we need to make sure that the last bit ends in the lowest significat 
+// position, if not we will be doing powers of two of the result.
 fn consume_var(value: &[u8], remaining_bits: u8) -> Vec<u8> {
     const RESULTING_BYTE_WIDTH: u8 = 7;
 
     let mut buffer: Vec<u8> = Vec::new();
 
     let value_len = value.len();
-    let mut value_index = 0;
+    let mut value_index = value_len - 1;
     let mut remaining_bits = remaining_bits;
 
     loop {
         match remaining_bits {
             7 => {
-                let bits = value[value_index] << 1 >> 1;
-                buffer.push(bits);
-                remaining_bits = 1;
-            }
-            8 => {
                 let bits = value[value_index] >> 1;
-                buffer.push(bits);
+                buffer.insert(0, bits);
                 remaining_bits = 0;
             }
+            8 => {
+                let bits = value[value_index] << 1 >> 1;
+                buffer.insert(0, bits);
+                remaining_bits = 1;
+            }
             0 => {
-                value_index += 1;
+            	if value_index == 0 {
+            		break;
+            	}
+
+                value_index -= 1;
                 remaining_bits = BITS_IN_BYTE;
             }
             1..=6 => {
                 let shift = BITS_IN_BYTE - remaining_bits;
-                let bits = value[value_index] << shift >> shift;
+                let mut buffer_item = value[value_index] >> shift;
 
-                //We substract one ecause a byte has 8 bits and our resulting byte
-                //has only 7 significant bits
-                let mut buffer_item = bits << (shift - 1);
+                if value_index == 0 {
+                	buffer.insert(0, buffer_item);
+                	break;
+                }
 
-                let bites_to_take = RESULTING_BYTE_WIDTH - remaining_bits;
-                value_index += 1;
-                remaining_bits = BITS_IN_BYTE - bites_to_take;
+                value_index -= 1;
 
-                let bits = value[value_index] >> remaining_bits;
+                let bits_to_take = RESULTING_BYTE_WIDTH - remaining_bits;
+                let shift = BITS_IN_BYTE - bits_to_take;
+
+                let bits = value[value_index] << shift >> shift << remaining_bits;
 
                 buffer_item += bits;
 
-                buffer.push(buffer_item)
+                buffer.insert(0, buffer_item);
+
+                remaining_bits = BITS_IN_BYTE - bits_to_take;
             }
             _ => {}
-        }
-
-        if value_index >= value_len {
-            break;
         }
     }
 
