@@ -26,18 +26,10 @@ fn encode_integer_2019() {
     ];
 
     for ion_value in values {
-        println!(
-            "hex: {:X} - bin: {:b} - num: {:?}",
-            ion_value, ion_value, ion_value
-        );
 
         let ion_value = IonValue::Integer(ion_value);
 
-        println!("ion {:?}", ion_value);
-
         let bytes = encode_ion_value(&ion_value);
-
-        println!("{:#X?}", bytes);
 
         let resulting_ion_value = IonParser::new(&bytes[..]).consume_value().unwrap().0;
 
