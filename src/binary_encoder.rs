@@ -170,9 +170,6 @@ fn encode_varint(value: &[u8], is_negative: bool) -> Vec<u8> {
     consume_var(&value[1..], 2)
 }
 
-// TODO: This whole functions is wrong. it needs to start from thre end
-// as we need to make sure that the last bit ends in the lowest significat 
-// position, if not we will be doing powers of two of the result.
 fn consume_var(value: &[u8], remaining_bits: u8) -> Vec<u8> {
     const RESULTING_BYTE_WIDTH: u8 = 7;
 
