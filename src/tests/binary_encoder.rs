@@ -26,7 +26,6 @@ fn encode_integer_2019() {
     ];
 
     for ion_value in values {
-
         let ion_value = IonValue::Integer(ion_value);
 
         let bytes = encode_ion_value(&ion_value);
