@@ -1,6 +1,6 @@
-use num_bigint::BigInt;
 use crate::binary_encoder::encode_ion_value;
 use crate::{IonParser, IonValue};
+use num_bigint::BigInt;
 
 #[test]
 fn encode_integer_i64() {
@@ -75,7 +75,7 @@ fn encode_integer_float32() {
         -0.0,
         0.0,
         0.000000000121324,
-        341234123412341234.123412534437
+        341234123412341234.123412534437,
     ];
 
     for ion_value in values {
@@ -106,7 +106,6 @@ fn encode_integer_float32_nan() {
     }
 }
 
-
 #[test]
 fn encode_integer_float64() {
     let values: Vec<f64> = vec![
@@ -115,7 +114,7 @@ fn encode_integer_float64() {
         -0.0,
         0.0,
         0.000000000121324,
-        341234123412341234.123412534437
+        341234123412341234.123412534437,
     ];
 
     for ion_value in values {

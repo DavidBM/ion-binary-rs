@@ -45,37 +45,37 @@ pub fn encode_ion_value(value: &IonValue) -> Vec<u8> {
 }
 
 fn encode_float32(value: &f32) -> Vec<u8> {
-	let mut buffer: Vec<u8> = vec![0;5];
+    let mut buffer: Vec<u8> = vec![0; 5];
 
-	buffer[0] = 0x44;
+    buffer[0] = 0x44;
 
-	let bytes = value.to_be_bytes();
+    let bytes = value.to_be_bytes();
 
-	buffer[1] = bytes[0];
-	buffer[2] = bytes[1];
-	buffer[3] = bytes[2];
-	buffer[4] = bytes[3];
+    buffer[1] = bytes[0];
+    buffer[2] = bytes[1];
+    buffer[3] = bytes[2];
+    buffer[4] = bytes[3];
 
-	buffer
+    buffer
 }
 
 fn encode_float64(value: &f64) -> Vec<u8> {
-	let mut buffer: Vec<u8> = vec![0;9];
+    let mut buffer: Vec<u8> = vec![0; 9];
 
-	buffer[0] = 0x48;
+    buffer[0] = 0x48;
 
-	let bytes = value.to_be_bytes();
+    let bytes = value.to_be_bytes();
 
-	buffer[1] = bytes[0];
-	buffer[2] = bytes[1];
-	buffer[3] = bytes[2];
-	buffer[4] = bytes[3];
-	buffer[5] = bytes[4];
-	buffer[6] = bytes[5];
-	buffer[7] = bytes[6];
-	buffer[8] = bytes[7];
+    buffer[1] = bytes[0];
+    buffer[2] = bytes[1];
+    buffer[3] = bytes[2];
+    buffer[4] = bytes[3];
+    buffer[5] = bytes[4];
+    buffer[6] = bytes[5];
+    buffer[7] = bytes[6];
+    buffer[8] = bytes[7];
 
-	buffer
+    buffer
 }
 
 fn encode_integer(value: &BigInt) -> Vec<u8> {
@@ -104,7 +104,6 @@ fn encode_integer(value: &BigInt) -> Vec<u8> {
     } else {
         1 + bytes_len
     };
-
 
     let mut result_buffer = vec![0; ion_value_len];
 
@@ -192,9 +191,9 @@ fn consume_var(value: &[u8], remaining_bits: u8) -> Vec<u8> {
                 remaining_bits = 1;
             }
             0 => {
-            	if value_index == 0 {
-            		break;
-            	}
+                if value_index == 0 {
+                    break;
+                }
 
                 value_index -= 1;
                 remaining_bits = BITS_IN_BYTE;
@@ -204,8 +203,8 @@ fn consume_var(value: &[u8], remaining_bits: u8) -> Vec<u8> {
                 let mut buffer_item = value[value_index] >> shift;
 
                 if value_index == 0 {
-                	buffer.insert(0, buffer_item);
-                	break;
+                    buffer.insert(0, buffer_item);
+                    break;
                 }
 
                 value_index -= 1;
