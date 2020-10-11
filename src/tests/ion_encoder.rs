@@ -5,7 +5,7 @@ use std::str::FromStr;
 
 #[test]
 fn encode_list() {
-    let encoder = IonEncoder::new();
+    let mut encoder = IonEncoder::new();
 
     let list = vec![
         IonValue::Integer(2523623),
@@ -47,7 +47,7 @@ fn encode_list() {
 
 #[test]
 fn encode_empty_list() {
-    let encoder = IonEncoder::new();
+    let mut encoder = IonEncoder::new();
 
     let ion_value = IonValue::List(Vec::new());
 

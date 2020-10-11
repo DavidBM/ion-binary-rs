@@ -24,8 +24,10 @@ impl LocalSymbolTable {
         )
     }
 
-    pub fn add_symbol(&mut self, symbol: Symbol) {
+    pub fn add_symbol(&mut self, symbol: Symbol) -> usize {
+        let id = self.0.len();
         self.0.push(symbol);
+        id
     }
 
     pub fn add_symbols(&mut self, slice: &[Symbol]) {
@@ -38,7 +40,7 @@ impl LocalSymbolTable {
         self.0.get(id)
     }
 
-    /*pub fn get_id_by_symbol(&self, symbol: String) -> Option<usize> {
+    pub fn get_id_by_symbol(&self, symbol: &str) -> Option<usize> {
         match self.0.iter().enumerate().find(|(_, value)| {
             if let Symbol::Symbol(value) = value {
                 *value == symbol
@@ -49,7 +51,7 @@ impl LocalSymbolTable {
             Some(value) => Some(value.0),
             None => None,
         }
-    }*/
+    }
 
     pub fn insert_dummy_symbols(&mut self, max_len: usize) {
         for _ in 0..max_len {
@@ -265,6 +267,15 @@ impl SymbolContext {
 
     pub fn get_symbol_by_id(&self, id: usize) -> Option<&Symbol> {
         self.current_table.get_symbol_by_id(id)
+    }
+
+    pub fn insert_symbol(&mut self, symbol: &str) -> usize {
+        match self.current_table.get_id_by_symbol(symbol) {
+            Some(id) => id,
+            None => self
+                .current_table
+                .add_symbol(Symbol::Symbol(symbol.to_string())),
+        }
     }
 
     /*pub fn  get_id_by_symbol(&self, symbol: String) -> Option<usize> {

@@ -2,7 +2,7 @@ use crate::IonValue;
 use crate::NullIonValue;
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Datelike, FixedOffset, Timelike};
-use num_bigint::{BigInt, Sign};
+use num_bigint::{BigInt, BigUint, Sign};
 use std::convert::TryFrom;
 
 pub const ION_LEN_ON_HEADER_WHEN_EXTRA_LEN_FIELD_REQUIRED: u8 = 14;
@@ -205,6 +205,10 @@ pub fn encode_int(value: &BigInt) -> Vec<u8> {
     }
 
     value_bytes
+}
+
+pub fn encode_uint(value: &BigUint) -> Vec<u8> {
+    value.to_bytes_be()
 }
 
 pub fn encode_float32(value: &f32) -> Vec<u8> {
