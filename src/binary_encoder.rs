@@ -36,13 +36,48 @@ pub fn encode_ion_value(value: &IonValue) -> Vec<u8> {
         IonValue::Float32(value) => encode_float32(value),
         IonValue::Float64(value) => encode_float64(value),
         IonValue::Decimal(value) => encode_decimal(value),
-        //IonValue::DateTime(DateTime<FixedOffset>),
-        //IonValue::String(String),
-        //IonValue::Symbol(String),
+        IonValue::String(value) => encode_string(8, value.as_bytes()),
         //IonValue::Clob(Vec<u8>),
         //IonValue::Blob(Vec<u8>),
+        //IonValue::DateTime(DateTime<FixedOffset>),
         _ => vec![],
     }
+}
+
+fn encode_string(header: u8, value: &[u8]) -> Vec<u8> {
+	let len = value.len();
+
+	let header = header << 4;
+
+	let has_len_field = len >= ION_LEN_ON_HEADER_WHEN_EXTRA_LEN_FIELD_REQUIRED.into();
+
+	let len_bytes = encode_varuint(&len.to_be_bytes());
+	let len_bytes_len = len_bytes.len();
+
+	let mut buffer: Vec<u8> = if has_len_field {
+		let mut buffer = vec![0; 1 + len_bytes_len + len];
+		buffer[0] = header + ION_LEN_ON_HEADER_WHEN_EXTRA_LEN_FIELD_REQUIRED;
+		buffer
+	} else {
+		let mut buffer = vec![0; 1 + len];
+		buffer[0] = header + u8::try_from(len).expect("Impossible error");
+		buffer
+	};
+
+	let copy_offset = if has_len_field {
+        for (index, value) in len_bytes.into_iter().enumerate() {
+            buffer[index + 1] = value;
+        }
+		1 + len_bytes_len
+	} else {
+		1
+	};
+
+    for (index, value) in value.into_iter().enumerate() {
+        buffer[index + copy_offset] = *value;
+    }
+
+	buffer
 }
 
 fn encode_decimal(value: &BigDecimal) -> Vec<u8> {
@@ -60,11 +95,9 @@ fn encode_decimal(value: &BigDecimal) -> Vec<u8> {
     let exponent_bytes_len = exponent_bytes.len();
     let coefficient_bytes = encode_int(&coefficient);
     let content_len = exponent_bytes.len() + coefficient_bytes.len();
-    let content_len_bytes = filter_significant_bytes(&encode_varuint(&content_len.to_be_bytes()));
+    let content_len_bytes = encode_varuint(&content_len.to_be_bytes());
     let content_len_bytes_len = content_len_bytes.len();
     let has_len_field = content_len >= ION_LEN_ON_HEADER_WHEN_EXTRA_LEN_FIELD_REQUIRED.into();
-
-println!("{:?} - {:?}", exponent, exponent_bytes);
 
     let buffer_len = if has_len_field {
         1 + content_len_bytes_len + content_len
