@@ -1,11 +1,13 @@
-use crate::binary_encoder::ION_LEN_ON_HEADER_WHEN_EXTRA_LEN_FIELD_REQUIRED;
 use crate::binary_encoder::{
     encode_blob, encode_bool, encode_datetime, encode_decimal, encode_float32, encode_float64,
     encode_integer, encode_null, encode_uint, encode_varuint,
+    ION_LEN_ON_HEADER_WHEN_EXTRA_LEN_FIELD_REQUIRED,
 };
+use crate::binary_parser_types::{SystemSymbolIds, SYSTEM_SYMBOL_TABLE};
 use crate::symbol_table::SymbolContext;
 use crate::IonValue;
 use num_bigint::{BigInt, BigUint};
+use std::collections::HashMap;
 use std::convert::TryFrom;
 
 /// It allows to binary encode IonValues. Given the nature of the Ion binary format
@@ -52,8 +54,8 @@ impl IonEncoder {
             IonValue::List(value) => self.encode_list(value, false),
             IonValue::SExpr(value) => self.encode_list(value, true),
             IonValue::Symbol(symbol) => self.encode_symbol(symbol),
-            IonValue::Struct(_) => panic!(),
-            IonValue::Annotation(_, _) => panic!(),
+            IonValue::Struct(value) => self.encode_struct(value),
+            IonValue::Annotation(annotations, value) => self.encode_annotation(annotations, value),
         }
     }
 
@@ -114,5 +116,69 @@ impl IonEncoder {
         buffer.insert(0, header);
 
         buffer
+    }
+
+    pub(crate) fn encode_annotation(
+        &mut self,
+        _annotations: &[String],
+        _value: &IonValue,
+    ) -> Vec<u8> {
+        unimplemented!()
+    }
+
+    pub(crate) fn encode_struct(&mut self, value: &HashMap<String, IonValue>) -> Vec<u8> {
+        let mut content_buffer: Vec<u8> = vec![];
+
+        for (key, value) in value {
+            let symbol = self.symbol_table.insert_symbol(key);
+            let mut symbol_bytes = encode_varuint(&symbol.to_be_bytes());
+            let mut value_bytes = self.encode_value(value);
+            content_buffer.append(&mut symbol_bytes);
+            content_buffer.append(&mut value_bytes);
+        }
+
+        let content_len = content_buffer.len();
+        let has_len_field = content_len >= ION_LEN_ON_HEADER_WHEN_EXTRA_LEN_FIELD_REQUIRED.into();
+
+        let mut header = 0xD0;
+
+        let mut buffer: Vec<u8> = vec![];
+
+        if has_len_field {
+            header += ION_LEN_ON_HEADER_WHEN_EXTRA_LEN_FIELD_REQUIRED;
+            buffer.push(header);
+            let mut content_len_bytes = encode_varuint(&content_len.to_be_bytes());
+            buffer.append(&mut content_len_bytes);
+            buffer.append(&mut content_buffer);
+        } else {
+            header += u8::try_from(content_len).unwrap();
+            buffer.push(header);
+            buffer.append(&mut content_buffer);
+        };
+
+        buffer
+    }
+
+    pub(crate) fn encode_current_symbol_table(&mut self) -> Vec<u8> {
+        let symbols = self.symbol_table.dump_all_local_symbols();
+
+        let symbols = IonValue::List(symbols.into_iter().map(IonValue::String).collect());
+
+        let mut annotation_struct = HashMap::new();
+
+        let symbols_symbol = SYSTEM_SYMBOL_TABLE[SystemSymbolIds::Symbols as usize].to_string();
+        let local_table_annotation_symbol =
+            SYSTEM_SYMBOL_TABLE[SystemSymbolIds::IonSymbolTable as usize].to_string();
+
+        annotation_struct.insert(symbols_symbol, symbols);
+
+        let annotation_struct = IonValue::Struct(annotation_struct);
+
+        let annotation = IonValue::Annotation(
+            vec![local_table_annotation_symbol],
+            Box::new(annotation_struct),
+        );
+
+        self.encode_value(&annotation)
     }
 }

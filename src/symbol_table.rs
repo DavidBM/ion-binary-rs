@@ -58,6 +58,10 @@ impl LocalSymbolTable {
             self.add_symbol(Symbol::Dummy);
         }
     }
+
+    pub fn list_all_symbols(&self) -> &[Symbol] {
+        &self.0
+    }
 }
 
 #[derive(Debug)]
@@ -276,6 +280,16 @@ impl SymbolContext {
                 .current_table
                 .add_symbol(Symbol::Symbol(symbol.to_string())),
         }
+    }
+
+    pub fn dump_all_local_symbols(&self) -> Vec<String> {
+        self.current_table.list_all_symbols()[10..]
+            .iter()
+            .map(|s| match s {
+                Symbol::Symbol(name) => name.clone(),
+                _ => "".to_string(),
+            })
+            .collect()
     }
 
     /*pub fn  get_id_by_symbol(&self, symbol: String) -> Option<usize> {
