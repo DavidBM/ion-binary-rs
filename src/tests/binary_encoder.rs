@@ -3,6 +3,7 @@ use crate::{IonParser, IonValue};
 use bigdecimal::BigDecimal;
 use num_bigint::BigInt;
 use std::str::FromStr;
+use chrono::{DateTime, FixedOffset};
 
 #[test]
 fn encode_integer_i64() {
@@ -13,7 +14,7 @@ fn encode_integer_i64() {
         0b_1000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000,
         0b_1000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0001,
         0b_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111,
-        -9271905709435714,
+        -9071905709435714,
         -23874324,
         -234,
         -1,
@@ -228,6 +229,29 @@ fn encode_integer_blob() {
 
     for ion_value in values {
         let ion_value = IonValue::Blob(ion_value);
+
+        let bytes = encode_ion_value(&ion_value);
+
+        let resulting_ion_value = IonParser::new(&bytes[..]).consume_value().unwrap().0;
+
+        assert_eq!(ion_value, resulting_ion_value);
+    }
+}
+
+#[test]
+fn encode_integer_datetime() {
+    let values: Vec<DateTime<FixedOffset>> = vec![
+        DateTime::parse_from_rfc3339("1996-12-19T16:39:57-08:00").unwrap(),
+        DateTime::parse_from_rfc3339("1996-12-19T16:39:57-00:00").unwrap(),
+        DateTime::parse_from_rfc3339("1996-12-19T16:39:57-16:00").unwrap(),
+        DateTime::parse_from_rfc3339("1996-12-19T16:39:57+16:00").unwrap(),
+        DateTime::parse_from_rfc3339("2200-01-01T00:00:00-00:00").unwrap(),
+        DateTime::parse_from_rfc3339("2200-01-01T00:00:00-08:00").unwrap(),
+        DateTime::parse_from_rfc3339("0000-01-01T00:00:00-08:00").unwrap(),
+    ];
+
+    for ion_value in values {
+        let ion_value = IonValue::DateTime(ion_value);
 
         let bytes = encode_ion_value(&ion_value);
 

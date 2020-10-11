@@ -1,3 +1,4 @@
+use chrono::{DateTime, FixedOffset, Datelike, Timelike};
 use crate::IonValue;
 use crate::NullIonValue;
 use bigdecimal::BigDecimal;
@@ -39,9 +40,56 @@ pub fn encode_ion_value(value: &IonValue) -> Vec<u8> {
         IonValue::String(value) => encode_blob(8, value.as_bytes()),
         IonValue::Clob(value) => encode_blob(9, value),
         IonValue::Blob(value) => encode_blob(10, value),
-        //IonValue::DateTime(DateTime<FixedOffset>),
+        IonValue::DateTime(value) => encode_datetime(value),
         _ => vec![],
     }
+}
+
+fn encode_datetime(value: &DateTime<FixedOffset>) -> Vec<u8> {
+	let datetime = value.naive_utc();
+	
+	let year = datetime.year();
+	let month = datetime.month();
+	let day = datetime.day();
+	let hour = datetime.hour();
+	let minute = datetime.minute();
+	let second = datetime.second();
+	let mut nanosecond = datetime.nanosecond();
+
+	if nanosecond > 1_000_000_000 {
+		nanosecond -= 1_000_000_000;
+	}
+
+	let offset = value.offset().utc_minus_local() / 60;
+
+	let unsigned_offset = (offset.abs() as u32).to_be_bytes();
+
+	let mut buffer: Vec<u8> = vec![];
+
+	buffer.append(&mut encode_varint(&unsigned_offset, offset.is_negative()));
+	buffer.append(&mut encode_varuint(&year.to_be_bytes()));
+	buffer.append(&mut encode_varuint(&month.to_be_bytes()));
+	buffer.append(&mut encode_varuint(&day.to_be_bytes()));
+	buffer.append(&mut encode_varuint(&hour.to_be_bytes()));
+	buffer.append(&mut encode_varuint(&minute.to_be_bytes()));
+	buffer.append(&mut encode_varuint(&second.to_be_bytes()));
+	buffer.append(&mut encode_varint(&[9], true));
+	buffer.append(&mut encode_varuint(&nanosecond.to_be_bytes()));
+
+	let len = buffer.len();
+	let mut len_bytes = filter_significant_bytes(&len.to_be_bytes());
+
+	let has_length_field = len >= ION_LEN_ON_HEADER_WHEN_EXTRA_LEN_FIELD_REQUIRED.into();
+
+	if has_length_field {
+		len_bytes.append(&mut buffer);
+		buffer = len_bytes;
+		buffer.insert(0, 0x6E);
+	} else {
+		buffer.insert(0, u8::try_from(0x60 + len).unwrap());
+	}
+
+	buffer
 }
 
 fn encode_blob(header: u8, value: &[u8]) -> Vec<u8> {
