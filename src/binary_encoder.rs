@@ -1,7 +1,7 @@
-use chrono::{DateTime, FixedOffset, Datelike, Timelike};
 use crate::IonValue;
 use crate::NullIonValue;
 use bigdecimal::BigDecimal;
+use chrono::{DateTime, Datelike, FixedOffset, Timelike};
 use num_bigint::{BigInt, Sign};
 use std::convert::TryFrom;
 
@@ -46,86 +46,86 @@ pub fn encode_ion_value(value: &IonValue) -> Vec<u8> {
 }
 
 fn encode_datetime(value: &DateTime<FixedOffset>) -> Vec<u8> {
-	let datetime = value.naive_utc();
-	
-	let year = datetime.year();
-	let month = datetime.month();
-	let day = datetime.day();
-	let hour = datetime.hour();
-	let minute = datetime.minute();
-	let second = datetime.second();
-	let mut nanosecond = datetime.nanosecond();
+    let datetime = value.naive_utc();
 
-	if nanosecond > 1_000_000_000 {
-		nanosecond -= 1_000_000_000;
-	}
+    let year = datetime.year();
+    let month = datetime.month();
+    let day = datetime.day();
+    let hour = datetime.hour();
+    let minute = datetime.minute();
+    let second = datetime.second();
+    let mut nanosecond = datetime.nanosecond();
 
-	let offset = value.offset().utc_minus_local() / 60;
+    if nanosecond > 1_000_000_000 {
+        nanosecond -= 1_000_000_000;
+    }
 
-	let unsigned_offset = (offset.abs() as u32).to_be_bytes();
+    let offset = value.offset().utc_minus_local() / 60;
 
-	let mut buffer: Vec<u8> = vec![];
+    let unsigned_offset = (offset.abs() as u32).to_be_bytes();
 
-	buffer.append(&mut encode_varint(&unsigned_offset, offset.is_negative()));
-	buffer.append(&mut encode_varuint(&year.to_be_bytes()));
-	buffer.append(&mut encode_varuint(&month.to_be_bytes()));
-	buffer.append(&mut encode_varuint(&day.to_be_bytes()));
-	buffer.append(&mut encode_varuint(&hour.to_be_bytes()));
-	buffer.append(&mut encode_varuint(&minute.to_be_bytes()));
-	buffer.append(&mut encode_varuint(&second.to_be_bytes()));
-	buffer.append(&mut encode_varint(&[9], true));
-	buffer.append(&mut encode_varuint(&nanosecond.to_be_bytes()));
+    let mut buffer: Vec<u8> = vec![];
 
-	let len = buffer.len();
-	let mut len_bytes = filter_significant_bytes(&len.to_be_bytes());
+    buffer.append(&mut encode_varint(&unsigned_offset, offset.is_negative()));
+    buffer.append(&mut encode_varuint(&year.to_be_bytes()));
+    buffer.append(&mut encode_varuint(&month.to_be_bytes()));
+    buffer.append(&mut encode_varuint(&day.to_be_bytes()));
+    buffer.append(&mut encode_varuint(&hour.to_be_bytes()));
+    buffer.append(&mut encode_varuint(&minute.to_be_bytes()));
+    buffer.append(&mut encode_varuint(&second.to_be_bytes()));
+    buffer.append(&mut encode_varint(&[9], true));
+    buffer.append(&mut encode_varuint(&nanosecond.to_be_bytes()));
 
-	let has_length_field = len >= ION_LEN_ON_HEADER_WHEN_EXTRA_LEN_FIELD_REQUIRED.into();
+    let len = buffer.len();
+    let mut len_bytes = filter_significant_bytes(&len.to_be_bytes());
 
-	if has_length_field {
-		len_bytes.append(&mut buffer);
-		buffer = len_bytes;
-		buffer.insert(0, 0x6E);
-	} else {
-		buffer.insert(0, u8::try_from(0x60 + len).unwrap());
-	}
+    let has_length_field = len >= ION_LEN_ON_HEADER_WHEN_EXTRA_LEN_FIELD_REQUIRED.into();
 
-	buffer
+    if has_length_field {
+        len_bytes.append(&mut buffer);
+        buffer = len_bytes;
+        buffer.insert(0, 0x6E);
+    } else {
+        buffer.insert(0, u8::try_from(0x60 + len).unwrap());
+    }
+
+    buffer
 }
 
 fn encode_blob(header: u8, value: &[u8]) -> Vec<u8> {
-	let len = value.len();
+    let len = value.len();
 
-	let header = header << 4;
+    let header = header << 4;
 
-	let has_len_field = len >= ION_LEN_ON_HEADER_WHEN_EXTRA_LEN_FIELD_REQUIRED.into();
+    let has_len_field = len >= ION_LEN_ON_HEADER_WHEN_EXTRA_LEN_FIELD_REQUIRED.into();
 
-	let len_bytes = encode_varuint(&len.to_be_bytes());
-	let len_bytes_len = len_bytes.len();
+    let len_bytes = encode_varuint(&len.to_be_bytes());
+    let len_bytes_len = len_bytes.len();
 
-	let mut buffer: Vec<u8> = if has_len_field {
-		let mut buffer = vec![0; 1 + len_bytes_len + len];
-		buffer[0] = header + ION_LEN_ON_HEADER_WHEN_EXTRA_LEN_FIELD_REQUIRED;
-		buffer
-	} else {
-		let mut buffer = vec![0; 1 + len];
-		buffer[0] = header + u8::try_from(len).expect("Impossible error");
-		buffer
-	};
+    let mut buffer: Vec<u8> = if has_len_field {
+        let mut buffer = vec![0; 1 + len_bytes_len + len];
+        buffer[0] = header + ION_LEN_ON_HEADER_WHEN_EXTRA_LEN_FIELD_REQUIRED;
+        buffer
+    } else {
+        let mut buffer = vec![0; 1 + len];
+        buffer[0] = header + u8::try_from(len).expect("Impossible error");
+        buffer
+    };
 
-	let copy_offset = if has_len_field {
+    let copy_offset = if has_len_field {
         for (index, value) in len_bytes.into_iter().enumerate() {
             buffer[index + 1] = value;
         }
-		1 + len_bytes_len
-	} else {
-		1
-	};
+        1 + len_bytes_len
+    } else {
+        1
+    };
 
     for (index, value) in value.into_iter().enumerate() {
         buffer[index + copy_offset] = *value;
     }
 
-	buffer
+    buffer
 }
 
 fn encode_decimal(value: &BigDecimal) -> Vec<u8> {
@@ -330,11 +330,11 @@ fn encode_varint(value: &[u8], is_negative: bool) -> Vec<u8> {
     let mut buffer = consume_var(value);
 
     if (buffer[0] & 0b_0100_0000) == 0 {
-    	if is_negative {
-    		buffer[0] |= 0b_0100_0000;
-    	}
+        if is_negative {
+            buffer[0] |= 0b_0100_0000;
+        }
     } else {
-    	buffer.insert(0, 0b_0100_0000)
+        buffer.insert(0, 0b_0100_0000)
     }
 
     buffer
