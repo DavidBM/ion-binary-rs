@@ -5,33 +5,13 @@ use chrono::{DateTime, Datelike, FixedOffset, Timelike};
 use num_bigint::{BigInt, Sign};
 use std::convert::TryFrom;
 
-const ION_LEN_ON_HEADER_WHEN_EXTRA_LEN_FIELD_REQUIRED: u8 = 14;
+pub const ION_LEN_ON_HEADER_WHEN_EXTRA_LEN_FIELD_REQUIRED: u8 = 14;
 const BITS_IN_BYTE: u8 = 8;
 
 pub fn encode_ion_value(value: &IonValue) -> Vec<u8> {
     match value {
-        IonValue::Null(NullIonValue::Null) => [0x0F].to_vec(),
-        IonValue::Null(NullIonValue::Bool) => [0x1F].to_vec(),
-        IonValue::Null(NullIonValue::Integer) => [0x2F].to_vec(),
-        IonValue::Null(NullIonValue::BigInteger) => [0x2F].to_vec(),
-        IonValue::Null(NullIonValue::Float) => [0x4F].to_vec(),
-        IonValue::Null(NullIonValue::Decimal) => [0x5F].to_vec(),
-        IonValue::Null(NullIonValue::DateTime) => [0x6F].to_vec(),
-        IonValue::Null(NullIonValue::Symbol) => [0x7F].to_vec(),
-        IonValue::Null(NullIonValue::String) => [0x8F].to_vec(),
-        IonValue::Null(NullIonValue::Clob) => [0x9F].to_vec(),
-        IonValue::Null(NullIonValue::Blob) => [0xAF].to_vec(),
-        IonValue::Null(NullIonValue::List) => [0xBF].to_vec(),
-        IonValue::Null(NullIonValue::SExpr) => [0xCF].to_vec(),
-        IonValue::Null(NullIonValue::Struct) => [0xDF].to_vec(),
-        IonValue::Null(NullIonValue::Annotation) => [0xEF].to_vec(),
-        IonValue::Bool(value) => {
-            if *value {
-                [0x11].to_vec()
-            } else {
-                [0x10].to_vec()
-            }
-        }
+        IonValue::Null(value) => encode_null(value),
+        IonValue::Bool(value) => encode_bool(value),
         IonValue::Integer(value) => encode_integer(&BigInt::from(*value)),
         IonValue::BigInteger(value) => encode_integer(value),
         IonValue::Float32(value) => encode_float32(value),
@@ -41,52 +21,39 @@ pub fn encode_ion_value(value: &IonValue) -> Vec<u8> {
         IonValue::Clob(value) => encode_blob(9, value),
         IonValue::Blob(value) => encode_blob(10, value),
         IonValue::DateTime(value) => encode_datetime(value),
-        IonValue::List(value) => encode_list(value, false),
-        IonValue::SExpr(value) => encode_list(value, true),
-        IonValue::Symbol(_) => {panic!()},
-        IonValue::Struct(_) => {panic!()},
-        IonValue::Annotation(_, _) => {panic!()},
+        _ => unreachable!(),
     }
 }
 
-fn encode_list(values: &[IonValue], is_sexp: bool) -> Vec<u8> {
-	let mut buffer: Vec<u8> = vec![];
-
-	for value in values {
-		let mut bytes = encode_ion_value(value);
-
-		buffer.append(&mut bytes);
-	}
-
-	let buffer_len = buffer.len();
-	let has_len_field = buffer_len >= ION_LEN_ON_HEADER_WHEN_EXTRA_LEN_FIELD_REQUIRED.into();
-
-	let mut header: u8 = if is_sexp {
-		0xC0
-	} else {
-		0xB0
-	};
-
-	if has_len_field {
-		header += ION_LEN_ON_HEADER_WHEN_EXTRA_LEN_FIELD_REQUIRED;
-	} else {
-		header += u8::try_from(buffer_len).unwrap();
-	}
-
-	let mut buffer = if has_len_field {
-		let mut buffer_len_bytes = encode_varuint(&buffer_len.to_be_bytes());
-		buffer_len_bytes.append(&mut buffer);
-		buffer_len_bytes
-	} else {
-		buffer
-	};
-
-	buffer.insert(0, header);
-
-	buffer
+pub fn encode_bool(value: &bool) -> Vec<u8> {
+    if *value {
+        [0x11].to_vec()
+    } else {
+        [0x10].to_vec()
+    }
 }
 
-fn encode_datetime(value: &DateTime<FixedOffset>) -> Vec<u8> {
+pub fn encode_null(value: &NullIonValue) -> Vec<u8> {
+    match value {
+        NullIonValue::Null => [0x0F].to_vec(),
+        NullIonValue::Bool => [0x1F].to_vec(),
+        NullIonValue::Integer => [0x2F].to_vec(),
+        NullIonValue::BigInteger => [0x2F].to_vec(),
+        NullIonValue::Float => [0x4F].to_vec(),
+        NullIonValue::Decimal => [0x5F].to_vec(),
+        NullIonValue::DateTime => [0x6F].to_vec(),
+        NullIonValue::Symbol => [0x7F].to_vec(),
+        NullIonValue::String => [0x8F].to_vec(),
+        NullIonValue::Clob => [0x9F].to_vec(),
+        NullIonValue::Blob => [0xAF].to_vec(),
+        NullIonValue::List => [0xBF].to_vec(),
+        NullIonValue::SExpr => [0xCF].to_vec(),
+        NullIonValue::Struct => [0xDF].to_vec(),
+        NullIonValue::Annotation => [0xEF].to_vec(),
+    }
+}
+
+pub fn encode_datetime(value: &DateTime<FixedOffset>) -> Vec<u8> {
     let datetime = value.naive_utc();
 
     let year = datetime.year();
@@ -133,7 +100,7 @@ fn encode_datetime(value: &DateTime<FixedOffset>) -> Vec<u8> {
     buffer
 }
 
-fn encode_blob(header: u8, value: &[u8]) -> Vec<u8> {
+pub fn encode_blob(header: u8, value: &[u8]) -> Vec<u8> {
     let len = value.len();
 
     let header = header << 4;
@@ -169,7 +136,7 @@ fn encode_blob(header: u8, value: &[u8]) -> Vec<u8> {
     buffer
 }
 
-fn encode_decimal(value: &BigDecimal) -> Vec<u8> {
+pub fn encode_decimal(value: &BigDecimal) -> Vec<u8> {
     if *value == BigDecimal::from(0) {
         return vec![0x50];
     }
@@ -226,7 +193,7 @@ fn encode_decimal(value: &BigDecimal) -> Vec<u8> {
     buffer
 }
 
-fn encode_int(value: &BigInt) -> Vec<u8> {
+pub fn encode_int(value: &BigInt) -> Vec<u8> {
     let (_, mut value_bytes) = value.to_bytes_be();
 
     if *value < BigInt::from(0) {
@@ -240,7 +207,7 @@ fn encode_int(value: &BigInt) -> Vec<u8> {
     value_bytes
 }
 
-fn encode_float32(value: &f32) -> Vec<u8> {
+pub fn encode_float32(value: &f32) -> Vec<u8> {
     if *value == 0.0 && value.is_sign_positive() {
         return vec![0x40];
     }
@@ -259,7 +226,7 @@ fn encode_float32(value: &f32) -> Vec<u8> {
     buffer
 }
 
-fn encode_float64(value: &f64) -> Vec<u8> {
+pub fn encode_float64(value: &f64) -> Vec<u8> {
     if *value == 0.0 && value.is_sign_positive() {
         return vec![0x40];
     }
@@ -282,7 +249,7 @@ fn encode_float64(value: &f64) -> Vec<u8> {
     buffer
 }
 
-fn encode_integer(value: &BigInt) -> Vec<u8> {
+pub fn encode_integer(value: &BigInt) -> Vec<u8> {
     if *value == BigInt::from(0) {
         return [0x20].to_vec();
     }
@@ -337,7 +304,7 @@ fn encode_integer(value: &BigInt) -> Vec<u8> {
     result_buffer
 }
 
-fn filter_significant_bytes(bytes: &[u8]) -> Vec<u8> {
+pub fn filter_significant_bytes(bytes: &[u8]) -> Vec<u8> {
     let mut buffer = vec![];
 
     let mut found_not_zero = false;
@@ -355,7 +322,7 @@ fn filter_significant_bytes(bytes: &[u8]) -> Vec<u8> {
     buffer
 }
 
-fn encode_varuint(value: &[u8]) -> Vec<u8> {
+pub fn encode_varuint(value: &[u8]) -> Vec<u8> {
     if value.is_empty() {
         return vec![];
     }
@@ -363,7 +330,7 @@ fn encode_varuint(value: &[u8]) -> Vec<u8> {
     consume_var(value)
 }
 
-fn encode_varint(value: &[u8], is_negative: bool) -> Vec<u8> {
+pub fn encode_varint(value: &[u8], is_negative: bool) -> Vec<u8> {
     if value.is_empty() {
         return vec![];
     }
@@ -381,7 +348,7 @@ fn encode_varint(value: &[u8], is_negative: bool) -> Vec<u8> {
     buffer
 }
 
-fn consume_var(value: &[u8]) -> Vec<u8> {
+pub fn consume_var(value: &[u8]) -> Vec<u8> {
     if value.is_empty() {
         return vec![];
     }
