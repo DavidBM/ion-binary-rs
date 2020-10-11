@@ -41,8 +41,49 @@ pub fn encode_ion_value(value: &IonValue) -> Vec<u8> {
         IonValue::Clob(value) => encode_blob(9, value),
         IonValue::Blob(value) => encode_blob(10, value),
         IonValue::DateTime(value) => encode_datetime(value),
-        _ => vec![],
+        IonValue::List(value) => encode_list(value, false),
+        IonValue::SExpr(value) => encode_list(value, true),
+        IonValue::Symbol(_) => {panic!()},
+        IonValue::Struct(_) => {panic!()},
+        IonValue::Annotation(_, _) => {panic!()},
     }
+}
+
+fn encode_list(values: &[IonValue], is_sexp: bool) -> Vec<u8> {
+	let mut buffer: Vec<u8> = vec![];
+
+	for value in values {
+		let mut bytes = encode_ion_value(value);
+
+		buffer.append(&mut bytes);
+	}
+
+	let buffer_len = buffer.len();
+	let has_len_field = buffer_len >= ION_LEN_ON_HEADER_WHEN_EXTRA_LEN_FIELD_REQUIRED.into();
+
+	let mut header: u8 = if is_sexp {
+		0xC0
+	} else {
+		0xB0
+	};
+
+	if has_len_field {
+		header += ION_LEN_ON_HEADER_WHEN_EXTRA_LEN_FIELD_REQUIRED;
+	} else {
+		header += u8::try_from(buffer_len).unwrap();
+	}
+
+	let mut buffer = if has_len_field {
+		let mut buffer_len_bytes = encode_varuint(&buffer_len.to_be_bytes());
+		buffer_len_bytes.append(&mut buffer);
+		buffer_len_bytes
+	} else {
+		buffer
+	};
+
+	buffer.insert(0, header);
+
+	buffer
 }
 
 fn encode_datetime(value: &DateTime<FixedOffset>) -> Vec<u8> {
