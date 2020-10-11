@@ -35,7 +35,7 @@ pub fn encode_ion_value(value: &IonValue) -> Vec<u8> {
         IonValue::BigInteger(value) => encode_integer(value),
         IonValue::Float32(value) => encode_float32(value),
         IonValue::Float64(value) => encode_float64(value),
-        //IonValue::Decimal(BigDecimal),
+        IonValue::Decimal(value) => encode_decimal(value),
         //IonValue::DateTime(DateTime<FixedOffset>),
         //IonValue::String(String),
         //IonValue::Symbol(String),
@@ -46,7 +46,76 @@ pub fn encode_ion_value(value: &IonValue) -> Vec<u8> {
 }
 
 fn encode_decimal(value: &BigDecimal) -> Vec<u8> {
-    unimplemented!()
+    if *value == BigDecimal::from(0) {
+        return vec![0x50];
+    }
+
+    let (coefficient, exponent) = value.as_bigint_and_exponent();
+    let exponent_bytes = filter_significant_bytes(&exponent.to_be_bytes());
+    let mut exponent_bytes = encode_varint(&exponent_bytes, !exponent.is_negative());
+    if exponent_bytes.is_empty() {
+        // 0x80 = 0 positive in VarInt 0x_1_0_00_0000
+        exponent_bytes = vec![0x80];
+    }
+    let exponent_bytes_len = exponent_bytes.len();
+    let coefficient_bytes = encode_int(&coefficient);
+    let content_len = exponent_bytes.len() + coefficient_bytes.len();
+    let content_len_bytes = filter_significant_bytes(&encode_varuint(&content_len.to_be_bytes()));
+    let content_len_bytes_len = content_len_bytes.len();
+    let has_len_field = content_len >= ION_LEN_ON_HEADER_WHEN_EXTRA_LEN_FIELD_REQUIRED.into();
+
+println!("{:?} - {:?}", exponent, exponent_bytes);
+
+    let buffer_len = if has_len_field {
+        1 + content_len_bytes_len + content_len
+    } else {
+        1 + content_len
+    };
+
+    let mut buffer: Vec<u8> = vec![0; buffer_len];
+
+    let mut header = 5 << 4;
+
+    if has_len_field {
+        header += ION_LEN_ON_HEADER_WHEN_EXTRA_LEN_FIELD_REQUIRED;
+    } else {
+        header += u8::try_from(content_len).expect("Impossible error");
+    };
+
+    buffer[0] = header;
+
+    let index_offset = if has_len_field {
+        for (index, value) in content_len_bytes.into_iter().enumerate() {
+            buffer[index + 1] = value;
+        }
+        content_len_bytes_len + 1
+    } else {
+        1
+    };
+
+    for (index, value) in exponent_bytes.into_iter().enumerate() {
+        buffer[index + index_offset] = value;
+    }
+
+    for (index, value) in coefficient_bytes.into_iter().enumerate() {
+        buffer[index + index_offset + exponent_bytes_len] = value;
+    }
+
+    buffer
+}
+
+fn encode_int(value: &BigInt) -> Vec<u8> {
+    let (_, mut value_bytes) = value.to_bytes_be();
+
+    if *value < BigInt::from(0) {
+        if value_bytes[0] & 0b_1000_0000 > 0 {
+            value_bytes.insert(0, 0b_1000_0000);
+        } else {
+            value_bytes[0] |= 0b_1000_0000;
+        }
+    }
+
+    value_bytes
 }
 
 fn encode_float32(value: &f32) -> Vec<u8> {
@@ -165,31 +234,43 @@ fn filter_significant_bytes(bytes: &[u8]) -> Vec<u8> {
 }
 
 fn encode_varuint(value: &[u8]) -> Vec<u8> {
-    consume_var(value, 8)
+    if value.is_empty() {
+        return vec![];
+    }
+
+    consume_var(value)
 }
 
 fn encode_varint(value: &[u8], is_negative: bool) -> Vec<u8> {
-    let mut buffer: Vec<u8> = Vec::new();
-
-    let mut bits = value[0] << 2 >> 2;
-
-    if is_negative {
-        bits += 0b_0100_0000;
+    if value.is_empty() {
+        return vec![];
     }
 
-    buffer.push(bits);
+    let mut buffer = consume_var(value);
 
-    consume_var(&value[1..], 2)
+    if (buffer[0] & 0b_0100_0000) == 0 {
+    	if is_negative {
+    		buffer[0] |= 0b_0100_0000;
+    	}
+    } else {
+    	buffer.insert(0, 0b_0100_0000)
+    }
+
+    buffer
 }
 
-fn consume_var(value: &[u8], remaining_bits: u8) -> Vec<u8> {
+fn consume_var(value: &[u8]) -> Vec<u8> {
+    if value.is_empty() {
+        return vec![];
+    }
+
     const RESULTING_BYTE_WIDTH: u8 = 7;
 
     let mut buffer: Vec<u8> = Vec::new();
 
     let value_len = value.len();
     let mut value_index = value_len - 1;
-    let mut remaining_bits = remaining_bits;
+    let mut remaining_bits = 8;
 
     loop {
         match remaining_bits {

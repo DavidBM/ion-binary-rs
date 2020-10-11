@@ -1,6 +1,8 @@
 use crate::binary_encoder::encode_ion_value;
 use crate::{IonParser, IonValue};
+use bigdecimal::BigDecimal;
 use num_bigint::BigInt;
+use std::str::FromStr;
 
 #[test]
 fn encode_integer_i64() {
@@ -143,5 +145,29 @@ fn encode_integer_float64_nan() {
         }
     } else {
         panic!("Not a float!")
+    }
+}
+
+#[test]
+fn encode_integer_decimal() {
+    let values: Vec<BigDecimal> = vec![
+        BigDecimal::from_str(&"-0").unwrap(),
+        BigDecimal::from_str(&"0").unwrap(),
+        BigDecimal::from_str(&"1").unwrap(),
+        BigDecimal::from_str(&"-1").unwrap(),
+        BigDecimal::from_str(&"-0.0").unwrap(),
+        BigDecimal::from_str(&"0.0").unwrap(),
+        BigDecimal::from_str(&"0.").unwrap(),
+        BigDecimal::from_str(&"3297102945745762396524398765238765234876592134160293123875692584562347659243216549875569856324869856966985698696.32842368523654574562654544756435443456544435455432358454565748576554235445562514525565245").unwrap(),
+    ];
+
+    for ion_value in values {
+        let ion_value = IonValue::Decimal(ion_value);
+
+        let bytes = encode_ion_value(&ion_value);
+
+        let resulting_ion_value = IonParser::new(&bytes[..]).consume_value().unwrap().0;
+
+        assert_eq!(ion_value, resulting_ion_value);
     }
 }
