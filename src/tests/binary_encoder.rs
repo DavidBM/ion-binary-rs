@@ -259,12 +259,28 @@ fn encode_integer_datetime() {
 
 #[test]
 fn encode_list() {
+    let list = vec![
+        IonValue::Integer(2523623),
+        IonValue::DateTime(DateTime::parse_from_rfc3339("1996-12-19T16:39:57-00:00").unwrap()),
+        IonValue::String("Hola :D".to_string()),
+        IonValue::String("Hello :D".to_string()),
+        IonValue::Decimal(BigDecimal::from_str(&"329710294.574576239652439876523876").unwrap()),
+        IonValue::String("Test 1".to_string()),
+        IonValue::DateTime(DateTime::parse_from_rfc3339("1996-12-19T16:39:57-00:00").unwrap()),
+        IonValue::String(" ʳ ʴ ʵ ʶ ʷ ʸ ʹ ʺ ʻ ʼ ʽ".to_string()),
+        IonValue::String("ഇഈഉഊഋഌഎഏഐഒഓഔകഖഗഘങച".to_string()),
+    ];
+
+    let ion_value = IonValue::List(list);
+
+    let bytes = encode_ion_value(&ion_value);
 
     let list = vec![
         IonValue::Integer(2523623),
         IonValue::DateTime(DateTime::parse_from_rfc3339("1996-12-19T16:39:57-00:00").unwrap()),
         IonValue::String("Hola :D".to_string()),
         IonValue::String("Hello :D".to_string()),
+        IonValue::Blob(bytes),
         IonValue::Decimal(BigDecimal::from_str(&"329710294.574576239652439876523876").unwrap()),
         IonValue::String("Test 1".to_string()),
         IonValue::DateTime(DateTime::parse_from_rfc3339("1996-12-19T16:39:57-00:00").unwrap()),
