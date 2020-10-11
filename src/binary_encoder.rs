@@ -36,15 +36,15 @@ pub fn encode_ion_value(value: &IonValue) -> Vec<u8> {
         IonValue::Float32(value) => encode_float32(value),
         IonValue::Float64(value) => encode_float64(value),
         IonValue::Decimal(value) => encode_decimal(value),
-        IonValue::String(value) => encode_string(8, value.as_bytes()),
-        //IonValue::Clob(Vec<u8>),
-        //IonValue::Blob(Vec<u8>),
+        IonValue::String(value) => encode_blob(8, value.as_bytes()),
+        IonValue::Clob(value) => encode_blob(9, value),
+        IonValue::Blob(value) => encode_blob(10, value),
         //IonValue::DateTime(DateTime<FixedOffset>),
         _ => vec![],
     }
 }
 
-fn encode_string(header: u8, value: &[u8]) -> Vec<u8> {
+fn encode_blob(header: u8, value: &[u8]) -> Vec<u8> {
 	let len = value.len();
 
 	let header = header << 4;

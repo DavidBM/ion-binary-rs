@@ -189,7 +189,47 @@ fn encode_integer_string() {
 
         let bytes = encode_ion_value(&ion_value);
 
-        println!("{:X?}", bytes);
+        let resulting_ion_value = IonParser::new(&bytes[..]).consume_value().unwrap().0;
+
+        assert_eq!(ion_value, resulting_ion_value);
+    }
+}
+
+#[test]
+fn encode_integer_clob() {
+    let values: Vec<Vec<u8>> = vec![
+        vec![129,34,0,0,0,0,23,123,6,57,2,1,0,0],
+        vec![0,0,129,34,0,0,0,0,23,123,6,57,2,1,0,0],
+        vec![0,0],
+        vec![0],
+        vec![],
+    ];
+
+    for ion_value in values {
+        let ion_value = IonValue::Clob(ion_value);
+
+        let bytes = encode_ion_value(&ion_value);
+
+        let resulting_ion_value = IonParser::new(&bytes[..]).consume_value().unwrap().0;
+
+        assert_eq!(ion_value, resulting_ion_value);
+    }
+}
+
+#[test]
+fn encode_integer_blob() {
+    let values: Vec<Vec<u8>> = vec![
+        vec![129,34,0,0,0,0,23,123,6,57,2,1,0,0],
+        vec![0,0,129,34,0,0,0,0,23,123,6,57,2,1,0,0],
+        vec![0,0],
+        vec![0],
+        vec![],
+    ];
+
+    for ion_value in values {
+        let ion_value = IonValue::Blob(ion_value);
+
+        let bytes = encode_ion_value(&ion_value);
 
         let resulting_ion_value = IonParser::new(&bytes[..]).consume_value().unwrap().0;
 
