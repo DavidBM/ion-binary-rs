@@ -7,7 +7,7 @@
 //! [![Documentation](https://docs.rs/ion-binary-rs/badge.svg)](https://docs.rs/ion-binary-rs)
 //! [![Crates.io](https://img.shields.io/crates/v/ion-binary-rs)](https://crates.io/crates/ion-binary-rs)
 //!
-//! It should be able to parse and encode anything you throw at it. Any failure to do so 
+//! It should be able to parse and encode anything you throw at it. Any failure to do so
 //! is a bug 💥 that we will fix and we will be very happy if you report them 🙌.
 //!
 //! ## How to use the library
@@ -16,10 +16,10 @@
 //!
 //! - The API returns strings instead of Symbols. If needed we can add symbol, but we
 //! think string is the simpler and safer bet for now.
-//! - When parsing/decosing You can add shared tables for binary blobs that doesn't have 
+//! - When parsing/decoding You can add shared tables for binary blobs that doesn't have
 //! all the required symbols.
 //!
-//! We have implemented (and still are) the amazon ion test-suite. You can check all the 
+//! We have implemented (and still are) the amazon ion test-suite. You can check all the
 //! test for examples.
 //!
 //! ## Example
@@ -37,7 +37,7 @@
 //! // Decoded Ion: [Struct({"Color": String("White"), "Year": Integer(2019), "VIN": String("1C4RJFAG0FC625797"), "Make": String("Mercedes"), "Model": String("CLK 350"), "Type": String("Sedan")})]
 //!
 //! ```
-//! 
+//!
 //! ```rust,no_run
 //!
 //! use ion_binary_rs::{IonEncoder, IonParser, IonValue};
