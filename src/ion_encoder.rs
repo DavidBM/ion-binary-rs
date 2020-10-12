@@ -10,7 +10,7 @@ use num_bigint::{BigInt, BigUint};
 use std::collections::HashMap;
 use std::convert::TryFrom;
 
-/// It allows to binary encode IonValues. Given the nature of the Ion binary format
+/// TODO: It allows to binary encode IonValues. Given the nature of the Ion binary format
 /// it has two working modes. One is the method `encode_all` which takes an array
 /// and encodes all. If there is any symbol it will create a initial symbol table
 /// for all the values. Then you have the "add_value" which adds more and more
@@ -20,7 +20,7 @@ use std::convert::TryFrom;
 /// in your structure.
 #[derive(Debug)]
 pub struct IonEncoder {
-    current_buffer: Vec<u8>,
+    current_buffer: Vec<IonValue>,
     symbol_table: SymbolContext,
 }
 
@@ -36,6 +36,35 @@ impl IonEncoder {
             current_buffer: vec![],
             symbol_table: SymbolContext::new(),
         }
+    }
+
+    pub fn add(&mut self, value: IonValue) {
+        self.current_buffer.push(value);
+    }
+
+    pub fn encode(&mut self) -> Vec<u8> {
+        let mut values = vec![];
+
+        values.append(&mut self.current_buffer);
+
+        let mut values_buffer: Vec<u8> = values
+            .into_iter()
+            .map(|value| self.encode_value(&value))
+            .flatten()
+            .collect();
+
+        let mut symbol_table = self.encode_current_symbol_table();
+
+        let mut buffer = IonEncoder::get_ion_1_0_header();
+
+        buffer.append(&mut symbol_table);
+        buffer.append(&mut values_buffer);
+
+        buffer
+    }
+
+    fn get_ion_1_0_header() -> Vec<u8> {
+        vec![0xE0, 0x01, 0x00, 0xEA]
     }
 
     pub(crate) fn encode_value(&mut self, value: &IonValue) -> Vec<u8> {

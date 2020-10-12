@@ -1,3 +1,4 @@
+use crate::hashmap;
 use crate::{IonEncoder, IonParser, IonValue};
 use bigdecimal::BigDecimal;
 use chrono::DateTime;
@@ -52,6 +53,29 @@ fn encode_empty_list() {
     let ion_value = IonValue::List(Vec::new());
 
     let bytes = encoder.encode_value(&ion_value);
+
+    let resulting_ion_value = IonParser::new(&bytes[..]).consume_value().unwrap().0;
+
+    assert_eq!(ion_value, resulting_ion_value);
+}
+
+#[test]
+fn encode_struct() {
+    let mut encoder = IonEncoder::new();
+
+    let expected = hashmap!(
+        "Model".to_string() => IonValue::String("CLK 350".to_string()),
+        "Type".to_string() => IonValue::String("Sedan".to_string()),
+        "Color".to_string() => IonValue::String("White".to_string()),
+        "VIN".to_string() => IonValue::String("1C4RJFAG0FC625797".to_string()),
+        "Make".to_string() => IonValue::String("Mercedes".to_string()),
+        "Year".to_string() => IonValue::Integer(2019)
+    );
+
+    let ion_value = IonValue::Struct(expected);
+
+    encoder.add(ion_value.clone());
+    let bytes = encoder.encode();
 
     let resulting_ion_value = IonParser::new(&bytes[..]).consume_value().unwrap().0;
 

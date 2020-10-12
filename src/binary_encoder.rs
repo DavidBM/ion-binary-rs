@@ -1,4 +1,3 @@
-use crate::IonValue;
 use crate::NullIonValue;
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Datelike, FixedOffset, Timelike};
@@ -8,6 +7,10 @@ use std::convert::TryFrom;
 pub const ION_LEN_ON_HEADER_WHEN_EXTRA_LEN_FIELD_REQUIRED: u8 = 14;
 const BITS_IN_BYTE: u8 = 8;
 
+#[cfg(test)]
+use crate::IonValue;
+
+#[cfg(test)]
 pub fn encode_ion_value(value: &IonValue) -> Vec<u8> {
     match value {
         IonValue::Null(value) => encode_null(value),
@@ -129,7 +132,7 @@ pub fn encode_blob(header: u8, value: &[u8]) -> Vec<u8> {
         1
     };
 
-    for (index, value) in value.into_iter().enumerate() {
+    for (index, value) in value.iter().enumerate() {
         buffer[index + copy_offset] = *value;
     }
 
