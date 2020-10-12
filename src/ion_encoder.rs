@@ -10,14 +10,43 @@ use num_bigint::{BigInt, BigUint};
 use std::collections::HashMap;
 use std::convert::TryFrom;
 
-/// TODO: It allows to binary encode IonValues. Given the nature of the Ion binary format
-/// it has two working modes. One is the method `encode_all` which takes an array
-/// and encodes all. If there is any symbol it will create a initial symbol table
-/// for all the values. Then you have the "add_value" which adds more and more
-/// IonValues to the buffer, but it doesn't encode them, it is not until you call
-/// `reset_symbol_table1` or `encode` that it does the encoding. This is because you
-/// may want some control over the symbol tables in the case you have several secitions
-/// in your structure.
+/// Allows to binary encode one or multiple IonValue.
+///
+/// Given how Ion format works there are two methods in order to use
+/// this utility.
+///
+/// - `add` allows to add IonValue to the buffer to later encoding.
+/// - `encode` takes all biffered values and encodes them, generating
+/// the symbol's table and the ion header. It returns a Vec<u8>.
+///
+/// ```rust,no_run
+///
+/// use ion_binary_rs::{IonEncoder, IonParser, IonValue};
+/// use std::collections::HashMap;
+///
+/// let mut ion_struct = HashMap::new();
+///
+/// ion_struct.insert("Model".to_string(), IonValue::String("CLK 350".to_string()));
+/// ion_struct.insert("Type".to_string(), IonValue::String("Sedan".to_string()));
+/// ion_struct.insert("Color".to_string(), IonValue::String("White".to_string()));
+/// ion_struct.insert(
+///     "VIN".to_string(),
+///     IonValue::String("1C4RJFAG0FC625797".to_string()),
+/// );
+/// ion_struct.insert("Make".to_string(), IonValue::String("Mercedes".to_string()));
+/// ion_struct.insert("Year".to_string(), IonValue::Integer(2019));
+///
+/// let ion_value = IonValue::Struct(ion_struct);
+///
+/// let mut encoder = IonEncoder::new();
+///
+/// encoder.add(ion_value.clone());
+/// let bytes = encoder.encode();
+///
+/// let resulting_ion_value = IonParser::new(&bytes[..]).consume_value().unwrap().0;
+///
+/// assert_eq!(ion_value, resulting_ion_value);
+/// ```
 #[derive(Debug)]
 pub struct IonEncoder {
     current_buffer: Vec<IonValue>,

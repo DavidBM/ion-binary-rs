@@ -7,8 +7,8 @@
 //! [![Documentation](https://docs.rs/ion-binary-rs/badge.svg)](https://docs.rs/ion-binary-rs)
 //! [![Crates.io](https://img.shields.io/crates/v/ion-binary-rs)](https://crates.io/crates/ion-binary-rs)
 //!
-//! It doesn't handle the text format and it cannot encode complex structures, just the
-//! primitives but it can parse any Ion blob you find.
+//! It should be able to parse and encode anything you throw at it. Any failure to do so 
+//! is a bug 💥 that we will fix and we will be very happy if you report them 🙌.
 //!
 //! ## How to use the library
 //!
@@ -16,11 +16,11 @@
 //!
 //! - The API returns strings instead of Symbols. If needed we can add symbol, but we
 //! think string is the simpler and safer bet for now.
-//! - You can add shared tables for binary blobs that doesn't have all the required
-//! symbols
+//! - When parsing/decosing You can add shared tables for binary blobs that doesn't have 
+//! all the required symbols.
 //!
-//! We have implemented (and still are) the amazon ion test-suite. So you can check
-//! all the examples.
+//! We have implemented (and still are) the amazon ion test-suite. You can check all the 
+//! test for examples.
 //!
 //! ## Example
 //!
@@ -36,6 +36,35 @@
 //! println!("Decoded Ion: {:?}", parser.consume_all().unwrap())
 //! // Decoded Ion: [Struct({"Color": String("White"), "Year": Integer(2019), "VIN": String("1C4RJFAG0FC625797"), "Make": String("Mercedes"), "Model": String("CLK 350"), "Type": String("Sedan")})]
 //!
+//! ```
+//! 
+//! ```rust,no_run
+//!
+//! use ion_binary_rs::{IonEncoder, IonParser, IonValue};
+//! use std::collections::HashMap;
+//!
+//! let mut ion_struct = HashMap::new();
+//!
+//! ion_struct.insert("Model".to_string(), IonValue::String("CLK 350".to_string()));
+//! ion_struct.insert("Type".to_string(), IonValue::String("Sedan".to_string()));
+//! ion_struct.insert("Color".to_string(), IonValue::String("White".to_string()));
+//! ion_struct.insert(
+//!     "VIN".to_string(),
+//!     IonValue::String("1C4RJFAG0FC625797".to_string()),
+//! );
+//! ion_struct.insert("Make".to_string(), IonValue::String("Mercedes".to_string()));
+//! ion_struct.insert("Year".to_string(), IonValue::Integer(2019));
+//!
+//! let ion_value = IonValue::Struct(ion_struct);
+//!
+//! let mut encoder = IonEncoder::new();
+//!
+//! encoder.add(ion_value.clone());
+//! let bytes = encoder.encode();
+//!
+//! let resulting_ion_value = IonParser::new(&bytes[..]).consume_value().unwrap().0;
+//!
+//! assert_eq!(ion_value, resulting_ion_value);
 //! ```
 //!
 //! ## Safe Rust
