@@ -291,10 +291,6 @@ impl SymbolContext {
             })
             .collect()
     }
-
-    /*pub fn  get_id_by_symbol(&self, symbol: String) -> Option<usize> {
-        self.current_table.get_id_by_symbol(symbol)
-    }*/
 }
 
 impl Default for SymbolContext {
