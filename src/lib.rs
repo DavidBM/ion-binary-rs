@@ -9,7 +9,7 @@
 //!
 //! It should be able to parse and encode anything you throw at it. Any failure to do so
 //! is a bug 💥 that we will fix and we will be very happy if you report them 🙌.
-//! 
+//!
 //! ## How to use the library
 //!
 //! First of all, you need to be aware of the trade offs that we took for this library:
