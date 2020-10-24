@@ -1,3 +1,4 @@
+use crate::ion_hash_encoder::encode_value_for_hash;
 use crate::IonValue;
 use std::cmp::{Ordering, PartialEq};
 use digest::Digest;
@@ -29,6 +30,14 @@ impl <D: Digest>IonHash<D> {
         }
     }
 
+    pub fn from_ion_vaue(value: &IonValue) -> IonHash<D> {
+        let mut hash = IonHash::<D>::new();
+
+        hash.add_ion_value(value);
+
+        hash
+    }
+
     pub fn get(&self) -> &[u8] {
         &self.buffer
     }
@@ -46,15 +55,15 @@ impl <D: Digest>IonHash<D> {
     }
 
     pub fn add_ion_value(&mut self, value: &IonValue) {
-        todo!()
-    }
+        let buffer = encode_value_for_hash::<D>(value);
 
-    pub fn is_empty(&self) -> bool {
-        self.buffer.is_empty()
+        let value = IonHash::<D>::from_bytes(&buffer);
+
+        self.dot(&value);
     }
 
     pub fn dot(&mut self, value: &IonHash<D>) -> &mut Self {
-        if value.is_empty() {
+        if value.buffer.is_empty() {
             return self;
         }
 

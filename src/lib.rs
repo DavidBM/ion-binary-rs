@@ -104,6 +104,7 @@ pub(crate) mod ion_parser;
 pub(crate) mod ion_parser_types;
 pub(crate) mod symbol_table;
 pub(crate) mod ion_hash;
+pub(crate) mod ion_hash_encoder;
 
 #[cfg(test)]
 mod tests;

@@ -56,7 +56,7 @@ pub fn encode_null(value: &NullIonValue) -> Vec<u8> {
     }
 }
 
-pub fn encode_datetime(value: &DateTime<FixedOffset>) -> Vec<u8> {
+pub fn encode_datetime_representation(value: &DateTime<FixedOffset>) -> Vec<u8> {
     let datetime = value.naive_utc();
 
     let year = datetime.year();
@@ -86,6 +86,12 @@ pub fn encode_datetime(value: &DateTime<FixedOffset>) -> Vec<u8> {
     buffer.append(&mut encode_varuint(&second.to_be_bytes()));
     buffer.append(&mut encode_varint(&[9], true));
     buffer.append(&mut encode_varuint(&nanosecond.to_be_bytes()));
+
+    buffer
+}
+
+pub fn encode_datetime(value: &DateTime<FixedOffset>) -> Vec<u8> {
+    let mut buffer = encode_datetime_representation(value);
 
     let len = buffer.len();
     let mut len_bytes = filter_significant_bytes(&len.to_be_bytes());
