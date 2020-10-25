@@ -2,10 +2,11 @@ use crate::ion_hash_encoder::encode_value_for_hash;
 use crate::IonValue;
 use std::cmp::{Ordering, PartialEq};
 use digest::Digest;
+use sha2::Sha256;
 use std::marker::PhantomData;
 
 #[derive(Debug)]
-pub struct IonHash<D: Digest> {
+pub struct IonHash<D: Digest = Sha256> {
     buffer: Vec<u8>,
     hasher_type: PhantomData<D>,
 }
@@ -38,6 +39,13 @@ impl <D: Digest>IonHash<D> {
         hash
     }
 
+    pub fn with_hasher<D1: Digest>() -> IonHash<D1> {
+        IonHash {
+            buffer: vec![],
+            hasher_type: PhantomData,
+        }
+    }
+
     pub fn get(&self) -> &[u8] {
         &self.buffer
     }
@@ -56,6 +64,8 @@ impl <D: Digest>IonHash<D> {
 
     pub fn add_ion_value(&mut self, value: &IonValue) {
         let buffer = encode_value_for_hash::<D>(value);
+
+        println!("{:X?}", buffer);
 
         let value = IonHash::<D>::from_bytes(&buffer);
 
@@ -83,9 +93,9 @@ impl <D: Digest>IonHash<D> {
     }
 }
 
-impl <D: Digest>Default for IonHash<D> {
-    fn default() -> IonHash<D> {
-        IonHash::<D>::from_hashes_bytes(&[])
+impl Default for IonHash<Sha256> {
+    fn default() -> IonHash<Sha256> {
+        IonHash::<Sha256>::new()
     }
 }
 

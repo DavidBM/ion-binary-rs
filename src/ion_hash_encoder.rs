@@ -38,9 +38,21 @@ fn encode_value<D: Digest>(value: &IonValue) -> Vec<u8> {
 		IonValue::List(value) => encode_list::<D>(value, 0xB0),
 		IonValue::SExpr(value) => encode_list::<D>(value, 0xC0),
 		IonValue::Struct(value) => encode_struct::<D>(value),
-		//IonValue::Annotation(Vec<String>, Box<IonValue>) => panic!()
-		_ => panic!()
+		IonValue::Annotation(annotations, value) => encode_annotation::<D>(annotations, value),
 	}
+}
+
+fn encode_annotation<D: Digest>(annotations: &[String], value: &IonValue) -> Vec<u8> {
+	let mut buffer = vec![];
+
+	for annotation in annotations {
+		buffer.append(&mut annotation.as_bytes().to_vec());
+	}
+
+	buffer.append(&mut encode_value::<D>(value));
+
+	buffer
+
 }
 
 fn encode_struct<D: Digest>(values: &HashMap<String, IonValue>) -> Vec<u8> {
