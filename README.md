@@ -1,8 +1,8 @@
 <!-- cargo-sync-readme start -->
 
-# Ion Binary in Rust
+# Ion Binary & Ion Hash in Rust
 
-Ion binary is a library written in safe rust for parsing Amazon's Ion binary format.
+Ion binary is a library written in safe rust for parsing, encoding and hashing Amazon's Ion binary format.
 
 [![Coverage Status](https://coveralls.io/repos/github/Couragium/ion-binary-rs/badge.svg?branch=master)](https://coveralls.io/github/Couragium/ion-binary-rs?branch=master)
 [![Buils Status](https://github.com/Couragium/ion-binary-rs/workflows/Rust/badge.svg)](https://github.com/Couragium/ion-binary-rs/actions)
@@ -18,11 +18,12 @@ First of all, you need to be aware of the trade offs that we took for this libra
 
 - The API returns strings instead of Symbols. If needed we can add symbol, but we
 think string is the simpler and safer bet for now.
-- When parsing/decoding You can add shared tables for binary blobs that doesn't have
+- When parsing/decoding you can add shared tables for binary blobs that doesn't have
 all the required symbols.
 
-We have implemented (and still are) the amazon ion test-suite. You can check all the
-test for examples.
+We have implemented the whole amazon ion test-suite for parsing. Encoding and Hashing 
+testing is still a work in progress, we would appreciate any bug you can report. 
+You can check all the test for examples.
 
 ## Example
 
@@ -67,6 +68,30 @@ let bytes = encoder.encode();
 let resulting_ion_value = IonParser::new(&bytes[..]).consume_value().unwrap().0;
 
 assert_eq!(ion_value, resulting_ion_value);
+```
+
+```rust,no_run
+use sha2::Sha256;
+use crate::{IonHash, IonValue};
+use std::collections::HashMap;
+
+let mut ion_struct = HashMap::new();
+
+ion_struct.insert("Model".to_string(), IonValue::String("CLK 350".to_string()));
+ion_struct.insert("Type".to_string(), IonValue::String("Sedan".to_string()));
+ion_struct.insert("Color".to_string(), IonValue::String("White".to_string()));
+ion_struct.insert(
+    "VIN".to_string(),
+    IonValue::String("1C4RJFAG0FC625797".to_string()),
+);
+ion_struct.insert("Make".to_string(), IonValue::String("Mercedes".to_string()));
+ion_struct.insert("Year".to_string(), IonValue::Integer(2019));
+
+let ion_value = IonValue::Struct(ion_struct);
+
+let hash = IonHash::<Sha256>::from_ion_value(&ion_value);
+
+println!("{:X?}", hash.get());
 ```
 
 ## Safe Rust

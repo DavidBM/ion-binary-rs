@@ -31,7 +31,7 @@ impl <D: Digest>IonHash<D> {
         }
     }
 
-    pub fn from_ion_vaue(value: &IonValue) -> IonHash<D> {
+    pub fn from_ion_value(value: &IonValue) -> IonHash<D> {
         let mut hash = IonHash::<D>::new();
 
         hash.add_ion_value(value);

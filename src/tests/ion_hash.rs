@@ -1,5 +1,4 @@
 use sha2::Sha256;
-use digest::Digest;
 use crate::{IonHash, IonValue};
 use crate::hashmap;
 
@@ -67,9 +66,36 @@ fn ion_hash_general_2() {
         "g".into() => IonValue::Integer(7)
     ));
 
-    let ion_hash = IonHash::<Sha256>::from_ion_vaue(&value);
+    let ion_hash = IonHash::<Sha256>::from_ion_value(&value);
 
     let hash = ion_hash.get();
 
     assert_eq!(b"", hash);
+}
+
+#[test]
+fn ion_hash_general_3() {
+    use sha2::Sha256;
+    use crate::{IonHash, IonValue};
+    use std::collections::HashMap;
+
+    let mut ion_struct = HashMap::new();
+
+    ion_struct.insert("Model".to_string(), IonValue::String("CLK 350".to_string()));
+    ion_struct.insert("Type".to_string(), IonValue::String("Sedan".to_string()));
+    ion_struct.insert("Color".to_string(), IonValue::String("White".to_string()));
+    ion_struct.insert(
+        "VIN".to_string(),
+        IonValue::String("1C4RJFAG0FC625797".to_string()),
+    );
+    ion_struct.insert("Make".to_string(), IonValue::String("Mercedes".to_string()));
+    ion_struct.insert("Year".to_string(), IonValue::Integer(2019));
+
+    let ion_value = IonValue::Struct(ion_struct);
+    
+    let hash = IonHash::<Sha256>::from_ion_value(&ion_value);
+    
+    println!("{:X?}", hash.get());
+
+    assert_eq!(b"", hash.get())
 }
