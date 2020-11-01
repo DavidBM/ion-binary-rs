@@ -44,43 +44,10 @@ fn ion_hash_general_1() {
     );
 }
 
-#[test]
-fn ion_hash_general_simple_struct() {
-    let value = IonValue::Struct(hashmap!(
-        "e".into() => IonValue::Integer(5)
-    ));
-
-    let hash = IonHash::default_digest(&value);
-
-    assert_eq!(b"\x51\xdb\x1a\xe9\x86\x74\x3b\x61\x43\xa8\x37\x43\x67\x99\xb0\x9e\x73\xf1\x0b\x2b\xa8\x29\x9d\xe2\x8c\x19\x37\x73\x6f\xbb\x63\xb8", &hash[..]);
-}
+// STRING
 
 #[test]
-fn ion_hash_general_long_struct() {
-    let value = IonValue::Struct(hashmap!(
-        "e".into() => IonValue::Integer(5),
-        "a".into() => IonValue::Integer(1),
-        "l".into() => IonValue::Integer(12),
-        "b".into() => IonValue::Integer(2),
-        "i".into() => IonValue::Integer(9),
-        "n".into() => IonValue::Integer(14),
-        "c".into() => IonValue::Integer(3),
-        "j".into() => IonValue::Integer(10),
-        "d".into() => IonValue::Integer(4),
-        "f".into() => IonValue::Integer(6),
-        "h".into() => IonValue::Integer(8),
-        "k".into() => IonValue::Integer(11),
-        "m".into() => IonValue::Integer(13),
-        "g".into() => IonValue::Integer(7)
-    ));
-
-    let hash = IonHash::default_digest(&value);
-
-    assert_eq!(b"\x82\x8d\xd7\x95\x06\x30\x75\x60\xcb\x32\xaf\x18\xf0\x7e\x8b\x72\xc3\x16\x92\x52\x1c\x19\xcd\xa0\x6e\x38\x79\xf2\xb7\x9e\x2f\xaf", &hash[..]);
-}
-
-#[test]
-fn ion_hash_general_string() {
+fn ion_hash_string() {
     let value = IonValue::String("Hola".to_string());
 
     let hash = IonHash::digest::<Sha256>(&value);
@@ -90,8 +57,10 @@ fn ion_hash_general_string() {
     assert_eq!(b"\x39\xc4\xf3\x56\x39\xf5\xf2\xa5\x83\xc5\xe4\x39\x43\xc2\x06\x79\x92\xe5\x5e\xd2\xaa\x31\x90\x34\x28\x76\x56\x6c\xbf\xf6\x2e\xe0", &hash[..]);
 }
 
+// INTEGER
+
 #[test]
-fn ion_hash_general_int() {
+fn ion_hash_int() {
     let value = IonValue::Integer(1);
 
     let hash = IonHash::digest::<Sha256>(&value);
@@ -102,7 +71,7 @@ fn ion_hash_general_int() {
 }
 
 #[test]
-fn ion_hash_general_negative_int() {
+fn ion_hash_negative_int() {
     let value = IonValue::Integer(-3);
 
     let hash = IonHash::digest::<Sha256>(&value);
@@ -112,8 +81,10 @@ fn ion_hash_general_negative_int() {
     assert_eq!(b"\x8a\xe5\x52\x93\xae\x65\x99\x36\xc7\x26\x9a\xb3\x59\x16\x0c\xfd\xde\xd0\x8d\x53\x10\xc0\xff\x1d\x4f\x77\xbb\xd9\x69\x9f\x48\xfc", &hash[..]);
 }
 
+// LIST
+
 #[test]
-fn ion_hash_general_simple_list() {
+fn ion_hash_simple_list() {
     let value = IonValue::List(vec![
         IonValue::Integer(1),
         IonValue::Integer(2),
@@ -127,8 +98,10 @@ fn ion_hash_general_simple_list() {
     assert_eq!(b"\x46\xf8\xa1\xd9\x02\xe3\x3e\x7e\x34\xec\xb6\x2e\xb7\xab\x90\x54\x69\x14\xa1\x53\xe1\x90\x96\xa5\x53\x13\x4a\x05\x01\xf6\xd3\xc3", &hash[..]);
 }
 
+// STRUCT
+
 #[test]
-fn ion_hash_general_3() {
+fn ion_hash_3() {
     use crate::{IonHash, IonValue};
     use std::collections::HashMap;
 
@@ -154,7 +127,44 @@ fn ion_hash_general_3() {
 }
 
 #[test]
-fn ion_hash_general_symbol() {
+fn ion_hash_simple_struct() {
+    let value = IonValue::Struct(hashmap!(
+        "e".into() => IonValue::Integer(5)
+    ));
+
+    let hash = IonHash::default_digest(&value);
+
+    assert_eq!(b"\x51\xdb\x1a\xe9\x86\x74\x3b\x61\x43\xa8\x37\x43\x67\x99\xb0\x9e\x73\xf1\x0b\x2b\xa8\x29\x9d\xe2\x8c\x19\x37\x73\x6f\xbb\x63\xb8", &hash[..]);
+}
+
+#[test]
+fn ion_hash_long_struct() {
+    let value = IonValue::Struct(hashmap!(
+        "e".into() => IonValue::Integer(5),
+        "a".into() => IonValue::Integer(1),
+        "l".into() => IonValue::Integer(12),
+        "b".into() => IonValue::Integer(2),
+        "i".into() => IonValue::Integer(9),
+        "n".into() => IonValue::Integer(14),
+        "c".into() => IonValue::Integer(3),
+        "j".into() => IonValue::Integer(10),
+        "d".into() => IonValue::Integer(4),
+        "f".into() => IonValue::Integer(6),
+        "h".into() => IonValue::Integer(8),
+        "k".into() => IonValue::Integer(11),
+        "m".into() => IonValue::Integer(13),
+        "g".into() => IonValue::Integer(7)
+    ));
+
+    let hash = IonHash::default_digest(&value);
+
+    assert_eq!(b"\x82\x8d\xd7\x95\x06\x30\x75\x60\xcb\x32\xaf\x18\xf0\x7e\x8b\x72\xc3\x16\x92\x52\x1c\x19\xcd\xa0\x6e\x38\x79\xf2\xb7\x9e\x2f\xaf", &hash[..]);
+}
+
+// SYMBOL
+
+#[test]
+fn ion_hash_symbol() {
     let value = IonValue::Symbol("Hola".to_string());
 
     let hash = IonHash::digest::<Sha256>(&value);
@@ -164,8 +174,10 @@ fn ion_hash_general_symbol() {
     assert_eq!(b"\x5b\xa7\xb1\xcd\xf4\xc6\x7b\xd4\x9e\x32\x25\x38\xad\x2a\x04\xaa\x11\xd7\xcd\xb1\x61\x49\xfe\x69\x9d\x78\xd2\xeb\xfb\xfc\xa8\x43", &hash[..]);
 }
 
+// TIMESTAMP
+
 #[test]
-fn ion_hash_general_datetime_1() {
+fn ion_hash_datetime_1() {
     let value = IonValue::DateTime(
         chrono::DateTime::parse_from_rfc3339("2011-02-20T11:30:59.1-08:00").unwrap(),
     );
@@ -178,7 +190,7 @@ fn ion_hash_general_datetime_1() {
 }
 
 #[test]
-fn ion_hash_general_datetime_2() {
+fn ion_hash_datetime_2() {
     let value = IonValue::DateTime(
         chrono::DateTime::parse_from_rfc3339("2234-11-01T23:59:59.999+03:45").unwrap(),
     );
@@ -189,3 +201,31 @@ fn ion_hash_general_datetime_2() {
 
     assert_eq!(b"\x7e\x68\x18\xa4\x10\x3e\x0f\x7a\xf8\x63\x1c\x92\x1a\x60\xa9\xb8\x35\x3f\x0c\x9b\x41\x69\xec\x8c\xee\xd9\xb4\xbe\xed\xaf\x23\x28", &hash[..]);
 }
+
+// BOOL 
+
+#[test]
+fn ion_hash_bool_true() {
+    let value = IonValue::Bool(true);
+
+    let hash = IonHash::digest::<Sha256>(&value);
+
+    println!("Resulting hash: {:X?}", hash);
+
+    assert_eq!(b"\xce\xe5\x44\x99\xd5\xf3\x62\xb2\x72\xfb\xd8\xee\x64\x80\xff\x54\x7a\x6d\xc4\xe2\xd9\xe1\x27\x33\x45\x9f\x82\x0e\x70\x30\x50\x17", &hash[..]);
+}
+
+#[test]
+fn ion_hash_bool_false() {
+    let value = IonValue::Bool(false);
+
+    let hash = IonHash::digest::<Sha256>(&value);
+
+    println!("Resulting hash: {:X?}", hash);
+
+    assert_eq!(b"\x85\xed\x3a\xb0\xdc\xf0\x03\xe3\x2c\x98\x71\xc0\x22\x0f\xf7\x9f\xe2\xa1\xd5\xf0\xc9\x51\x01\x67\x07\x72\xd7\xde\xa9\x46\xa2\x67", &hash[..]);
+}
+
+// NULL
+
+
