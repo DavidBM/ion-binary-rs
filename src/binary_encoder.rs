@@ -1,5 +1,5 @@
 use crate::NullIonValue;
-use bigdecimal::BigDecimal;
+use bigdecimal::{BigDecimal, Zero};
 use chrono::{DateTime, Datelike, FixedOffset, Timelike};
 use num_bigint::{BigInt, BigUint, Sign};
 use std::convert::TryFrom;
@@ -67,13 +67,39 @@ pub fn encode_datetime_representation(value: &DateTime<FixedOffset>) -> Vec<u8> 
     let second = datetime.second();
     let mut nanosecond = datetime.nanosecond();
 
+    // Accounting for the case of a leap second, which shouldn't ever happen.
+    // https://docs.rs/chrono/0.4.19/chrono/naive/struct.NaiveTime.html#leap-second-handling
     if nanosecond > 1_000_000_000 {
         nanosecond -= 1_000_000_000;
     }
 
-    let offset = value.offset().utc_minus_local() / 60;
+    // WARNING:
+    // 
+    // This is a bit tricky. With this line we ensure that we have 9 decimal position
+    // of precission and uses less bytes if the number is like 23.100 seconds,making it 
+    // like 23.1. The problem is that for Ion 23.100 is not the same as 23.1
+    // so this Rust implementation is not literally following the Ion Spec (which is kind
+    // of hard to follow to be honest). At the same time there isn't much we can do as we 
+    // choosed to use the DateTime type for the decoded value. With that type there is no 
+    // way to encode the "desired precission", so we just assume that is the lowest one
+    // that doesn't loose data. Life is hard. If you are reading this I hope this didn't 
+    // caused you too many problems. Edit: Ohh, and another thing, the ISO standard doesn't 
+    // caps the maximun quantity of decimals for seconds, but many languages do. Seems that 
+    // nodejs rounds to 3 deciamls, so 23.999 seconds are 23.999 but 23.9999 are 24 seconds. 
+    // Good luck.
+    let nanosecond: BigDecimal = BigDecimal::from(nanosecond) / BigDecimal::from(1_000_000_000);
+
+    let (coefficient, exponent) = nanosecond.as_bigint_and_exponent();
+
+    let exponent = -exponent;
+
+    let (exponent_sign, exponent) = BigInt::from(exponent).to_bytes_be();
+
+    let offset = value.offset().local_minus_utc() / 60;
 
     let unsigned_offset = (offset.abs() as u32).to_be_bytes();
+
+    println!("Offset: {:?} \n Year: {:?} \n Month: {:?} \n Day: {:?} \n Hour: {:?} \n Minute: {:?} \n Second: {:?} \n sec_frac: {:?} \n", offset, year, month, day, hour, minute, second, nanosecond);
 
     let mut buffer: Vec<u8> = vec![];
 
@@ -84,9 +110,14 @@ pub fn encode_datetime_representation(value: &DateTime<FixedOffset>) -> Vec<u8> 
     buffer.append(&mut encode_varuint(&hour.to_be_bytes()));
     buffer.append(&mut encode_varuint(&minute.to_be_bytes()));
     buffer.append(&mut encode_varuint(&second.to_be_bytes()));
-    buffer.append(&mut encode_varint(&[9], true));
-    buffer.append(&mut encode_varuint(&nanosecond.to_be_bytes()));
+    buffer.append(&mut encode_varint(&exponent, exponent_sign == Sign::Minus));
 
+    if !coefficient.is_zero() {
+        buffer.append(&mut encode_int(&coefficient));
+    }
+
+    println!("{:X?}", &buffer);
+    
     buffer
 }
 

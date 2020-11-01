@@ -70,7 +70,7 @@
 //! 
 //! ```rust,no_run
 //! use sha2::Sha256;
-//! use crate::{IonHash, IonValue};
+//! use ion_binary_rs::{IonHash, IonValue};
 //! use std::collections::HashMap;
 //! 
 //! let mut ion_struct = HashMap::new();
@@ -87,9 +87,9 @@
 //! 
 //! let ion_value = IonValue::Struct(ion_struct);
 //! 
-//! let hash = IonHash::<Sha256>::from_ion_value(&ion_value);
+//! let hash = IonHash::digest::<Sha256>(&ion_value);
 //! 
-//! println!("{:X?}", hash.get());
+//! println!("{:X?}", hash);
 //! ```
 //!
 //! ## Safe Rust

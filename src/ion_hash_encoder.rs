@@ -8,30 +8,18 @@ use num_bigint::{BigInt, Sign};
 use bigdecimal::Zero;
 use crate::{ IonValue, NullIonValue };
 
-pub fn encode_value_for_hash<D: Digest>(value: &IonValue) -> Vec<u8> {
+pub fn encode_value<D: Digest>(value: &IonValue) -> Vec<u8> {
 
-	let buffer = encode_value::<D>(value);
-
-	let mut escaped_buffer = escape_buffer(&buffer);
-
-	let mut buffer = vec![0x0B];
-	buffer.append(&mut escaped_buffer);
-	buffer.push(0x0E);
-
-	buffer
-}
-
-fn encode_value<D: Digest>(value: &IonValue) -> Vec<u8> {
-	match value {
+	let encoded_value = match value {
 		IonValue::Null(value) => encode_null_value(value),
 		IonValue::Bool(value) => encode_bool_value(value),
 		IonValue::Integer(value) => encode_integer_value(value),
 		IonValue::BigInteger(value) => encode_big_integer_value(value),
-		IonValue::Float32(value) => encode_float_value(&(*value as f64)),
+		IonValue::Float32(value) => encode_float_value(&f64::from(*value)),
 		IonValue::Float64(value) => encode_float_value(value),
 		IonValue::Decimal(value) => encode_decimal_value(value),
 		IonValue::DateTime(value) => encode_datetime_value(value),
-		IonValue::String(value) => encode_string(value, 0x08),
+		IonValue::String(value) => encode_string(value, 0x80),
 		IonValue::Symbol(value) => encode_symbol(value),
 		IonValue::Clob(value) => encode_blob(value, 0x90),
 		IonValue::Blob(value) => encode_blob(value, 0xA0),
@@ -39,7 +27,17 @@ fn encode_value<D: Digest>(value: &IonValue) -> Vec<u8> {
 		IonValue::SExpr(value) => encode_list::<D>(value, 0xC0),
 		IonValue::Struct(value) => encode_struct::<D>(value),
 		IonValue::Annotation(annotations, value) => encode_annotation::<D>(annotations, value),
-	}
+	};
+
+	add_markers(encoded_value)
+}
+
+fn add_markers(mut encoded_value: Vec<u8>) -> Vec<u8> {
+	let mut buffer = vec![0x0B];
+	buffer.append(&mut encoded_value);
+	buffer.push(0x0E);
+
+	buffer
 }
 
 fn encode_annotation<D: Digest>(annotations: &[String], value: &IonValue) -> Vec<u8> {
@@ -59,7 +57,7 @@ fn encode_struct<D: Digest>(values: &HashMap<String, IonValue>) -> Vec<u8> {
 	let mut hashes: Vec<Vec<u8>> = vec![];
 
 	for (name, value) in values {
-		let mut buffer = encode_symbol(name);
+		let mut buffer = add_markers(encode_symbol(name));
 		buffer.append(&mut encode_value::<D>(value));
 		let hash = D::digest(&buffer).to_vec();
 		hashes.push(hash);
@@ -90,7 +88,7 @@ fn encode_list<D: Digest>(values: &[IonValue], header: u8) -> Vec<u8> {
 fn encode_blob(value: &[u8], header: u8) -> Vec<u8> {
 	let mut buffer = vec![header];
 
-	buffer.append(&mut value.to_owned());
+	buffer.append(&mut escape_buffer(&value.to_owned()));
 
 	buffer
 }
@@ -106,15 +104,15 @@ fn encode_symbol(value: &str) -> Vec<u8> {
 fn encode_string(value: &str, header: u8) -> Vec<u8> {
 	let mut buffer = vec![header];
 
-	buffer.append(&mut value.as_bytes().to_vec());
+	buffer.append(&mut escape_buffer(&value.as_bytes()));
 
 	buffer
 }
 
 fn encode_datetime_value(value: &DateTime<FixedOffset>) -> Vec<u8> {
-	let mut buffer = vec![0x06];
+	let mut buffer = vec![0x60];
 
-	buffer.append(&mut encode_datetime_representation(value));
+	buffer.append(&mut escape_buffer(&encode_datetime_representation(value)));
 
 	buffer
 }
@@ -136,8 +134,14 @@ fn encode_decimal_value(value: &BigDecimal) -> Vec<u8> {
 
 	let mut coefficient = encode_int(&coefficient);
 
-	buffer.append(&mut exponent);
-	buffer.append(&mut coefficient);
+	let mut representation = vec![];
+
+	representation.append(&mut exponent);
+	representation.append(&mut coefficient);
+
+	let mut representation = escape_buffer(&representation);
+
+	buffer.append(&mut representation);
 
 	buffer
 }
@@ -146,7 +150,7 @@ fn encode_float_value(value: &f64) -> Vec<u8> {
 	let mut buffer = vec![0x40];
 
 	if value.is_nan() {
-		buffer.append(&mut vec![0x7F, 0xF8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+		buffer.append(&mut escape_buffer(&[0x7F, 0xF8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]));
 		return buffer;
 	}
 
@@ -155,21 +159,21 @@ fn encode_float_value(value: &f64) -> Vec<u8> {
 	}
 
 	if value.is_infinite() && value.is_sign_positive() {
-		buffer.append(&mut vec![0x7f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+		buffer.append(&mut escape_buffer(&[0x7f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]));
 		return buffer;
 	}
 
 	if value.is_infinite() && value.is_sign_negative() {
-		buffer.append(&mut vec![0xff, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+		buffer.append(&mut escape_buffer(&[0xff, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]));
 		return buffer;
 	}
 
 	if value.is_zero() && value.is_sign_negative() {
-		buffer.append(&mut vec![0x80, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+		buffer.append(&mut escape_buffer(&[0x80, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]));
 		return buffer;
 	}
 
-	buffer.append(&mut value.to_be_bytes().to_vec());
+	buffer.append(&mut escape_buffer(&value.to_be_bytes().to_vec()));
 
 	buffer
 }
@@ -180,12 +184,14 @@ fn encode_big_integer_value(value: &BigInt) -> Vec<u8> {
 	}
 
 	// It returns the bytes encoded as positive number, same as Ion
-	let (sign, mut bytes) = value.to_bytes_be();
+	let (sign, bytes) = value.to_bytes_be();
+
+	let mut bytes = escape_buffer(&bytes);
 
 	let mut buffer = if let Sign::Minus = sign {
-		vec![0x20]
-	} else {
 		vec![0x30]
+	} else {
+		vec![0x20]
 	};
 
 	buffer.append(&mut bytes);
