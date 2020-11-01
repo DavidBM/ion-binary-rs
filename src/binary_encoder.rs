@@ -99,8 +99,6 @@ pub fn encode_datetime_representation(value: &DateTime<FixedOffset>) -> Vec<u8> 
 
     let unsigned_offset = (offset.abs() as u32).to_be_bytes();
 
-    println!("Offset: {:?} \n Year: {:?} \n Month: {:?} \n Day: {:?} \n Hour: {:?} \n Minute: {:?} \n Second: {:?} \n sec_frac: {:?} \n", offset, year, month, day, hour, minute, second, nanosecond);
-
     let mut buffer: Vec<u8> = vec![];
 
     buffer.append(&mut encode_varint(&unsigned_offset, offset.is_negative()));
@@ -115,8 +113,6 @@ pub fn encode_datetime_representation(value: &DateTime<FixedOffset>) -> Vec<u8> 
     if !coefficient.is_zero() {
         buffer.append(&mut encode_int(&coefficient));
     }
-
-    println!("{:X?}", &buffer);
 
     buffer
 }
