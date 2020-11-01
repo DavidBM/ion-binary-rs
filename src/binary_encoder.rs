@@ -86,6 +86,9 @@ pub fn encode_datetime_representation(value: &DateTime<FixedOffset>) -> Vec<u8> 
     // caused you too many problems. Edit: Ohh, and another thing, the ISO standard doesn't
     // caps the maximun quantity of decimals for seconds, but many languages do. Seems that
     // nodejs rounds to 3 deciamls, so 23.999 seconds are 23.999 but 23.9999 are 24 seconds.
+    // This affects if you are comparing values and expect the comparation to be an Ion
+    // comparation or if you are hashing thing things in Rust and another languages. Maybe.
+    // I think it should be ok for most cases, but theremay be some that cause problems.
     // Good luck.
     let nanosecond: BigDecimal = BigDecimal::from(nanosecond) / BigDecimal::from(1_000_000_000);
 
