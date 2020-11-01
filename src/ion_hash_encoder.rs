@@ -14,7 +14,7 @@ pub fn encode_value<D: Digest>(value: &IonValue) -> Vec<u8> {
         IonValue::Bool(value) => encode_bool_value(value),
         IonValue::Integer(value) => encode_integer_value(value),
         IonValue::BigInteger(value) => encode_big_integer_value(value),
-        IonValue::Float32(value) => encode_float_value(&f64::from(*value)),
+        IonValue::Float32(value) => encode_float_value(&f32tof64(value)),
         IonValue::Float64(value) => encode_float_value(value),
         IonValue::Decimal(value) => encode_decimal_value(value),
         IonValue::DateTime(value) => encode_datetime_value(value),
@@ -144,7 +144,7 @@ fn encode_decimal_value(value: &BigDecimal) -> Vec<u8> {
     buffer
 }
 
-fn encode_float_value(value: &f64) -> Vec<u8> {
+fn encode_float_value(value: &f64) -> Vec<u8> { println!("{:?}", value.to_be_bytes());
     let mut buffer = vec![0x40];
 
     if value.is_nan() {
@@ -251,4 +251,14 @@ fn escape_buffer(buffer: &[u8]) -> Vec<u8> {
     }
 
     escaped_buffer
+}
+
+// Seems that 123.4f64.to_be_bytes() equals to [64, 94, 217, 153, 153, 153, 153, 154]
+// but let value: f32 = 123.4f32; (f64::from(value)).to_be_bytes() equals to 
+// [64, 94, 217, 153, 160, 0, 0, 0]. So, given that I cannot find a way to transform 
+// the f32 to a f64 in a way that keeps all the bits like it it was declared initially
+// as f64, we represent the number in an string and then parse it.
+// Pull request more than welcomed here.
+fn f32tof64(value: &f32) -> f64 {
+	value.to_string().parse().unwrap()
 }
