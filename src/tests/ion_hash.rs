@@ -44,8 +44,6 @@ fn ion_hash_general_1() {
     );
 }
 
-
-
 #[test]
 fn ion_hash_general_simple_struct() {
     let value = IonValue::Struct(hashmap!(
@@ -168,7 +166,9 @@ fn ion_hash_general_symbol() {
 
 #[test]
 fn ion_hash_general_datetime_1() {
-    let value = IonValue::DateTime(chrono::DateTime::parse_from_rfc3339("2011-02-20T11:30:59.1-08:00").unwrap());
+    let value = IonValue::DateTime(
+        chrono::DateTime::parse_from_rfc3339("2011-02-20T11:30:59.1-08:00").unwrap(),
+    );
 
     let hash = IonHash::digest::<Sha256>(&value);
 
@@ -179,7 +179,9 @@ fn ion_hash_general_datetime_1() {
 
 #[test]
 fn ion_hash_general_datetime_2() {
-    let value = IonValue::DateTime(chrono::DateTime::parse_from_rfc3339("2234-11-01T23:59:59.999+03:45").unwrap());
+    let value = IonValue::DateTime(
+        chrono::DateTime::parse_from_rfc3339("2234-11-01T23:59:59.999+03:45").unwrap(),
+    );
 
     let hash = IonHash::digest::<Sha256>(&value);
 

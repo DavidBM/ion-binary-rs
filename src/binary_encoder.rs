@@ -74,18 +74,18 @@ pub fn encode_datetime_representation(value: &DateTime<FixedOffset>) -> Vec<u8> 
     }
 
     // WARNING:
-    // 
+    //
     // This is a bit tricky. With this line we ensure that we have 9 decimal position
-    // of precission and uses less bytes if the number is like 23.100 seconds,making it 
+    // of precission and uses less bytes if the number is like 23.100 seconds,making it
     // like 23.1. The problem is that for Ion 23.100 is not the same as 23.1
     // so this Rust implementation is not literally following the Ion Spec (which is kind
-    // of hard to follow to be honest). At the same time there isn't much we can do as we 
-    // choosed to use the DateTime type for the decoded value. With that type there is no 
+    // of hard to follow to be honest). At the same time there isn't much we can do as we
+    // choosed to use the DateTime type for the decoded value. With that type there is no
     // way to encode the "desired precission", so we just assume that is the lowest one
-    // that doesn't loose data. Life is hard. If you are reading this I hope this didn't 
-    // caused you too many problems. Edit: Ohh, and another thing, the ISO standard doesn't 
-    // caps the maximun quantity of decimals for seconds, but many languages do. Seems that 
-    // nodejs rounds to 3 deciamls, so 23.999 seconds are 23.999 but 23.9999 are 24 seconds. 
+    // that doesn't loose data. Life is hard. If you are reading this I hope this didn't
+    // caused you too many problems. Edit: Ohh, and another thing, the ISO standard doesn't
+    // caps the maximun quantity of decimals for seconds, but many languages do. Seems that
+    // nodejs rounds to 3 deciamls, so 23.999 seconds are 23.999 but 23.9999 are 24 seconds.
     // Good luck.
     let nanosecond: BigDecimal = BigDecimal::from(nanosecond) / BigDecimal::from(1_000_000_000);
 
@@ -117,7 +117,7 @@ pub fn encode_datetime_representation(value: &DateTime<FixedOffset>) -> Vec<u8> 
     }
 
     println!("{:X?}", &buffer);
-    
+
     buffer
 }
 

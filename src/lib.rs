@@ -19,8 +19,8 @@
 //! - When parsing/decoding you can add shared tables for binary blobs that doesn't have
 //! all the required symbols.
 //!
-//! We have implemented the whole amazon ion test-suite for parsing. Encoding and Hashing 
-//! testing is still a work in progress, we would appreciate any bug you can report. 
+//! We have implemented the whole amazon ion test-suite for parsing. Encoding and Hashing
+//! testing is still a work in progress, we would appreciate any bug you can report.
 //! You can check all the test for examples.
 //!
 //! ## Example
@@ -67,14 +67,14 @@
 //!
 //! assert_eq!(ion_value, resulting_ion_value);
 //! ```
-//! 
+//!
 //! ```rust,no_run
 //! use sha2::Sha256;
 //! use ion_binary_rs::{IonHash, IonValue};
 //! use std::collections::HashMap;
-//! 
+//!
 //! let mut ion_struct = HashMap::new();
-//! 
+//!
 //! ion_struct.insert("Model".to_string(), IonValue::String("CLK 350".to_string()));
 //! ion_struct.insert("Type".to_string(), IonValue::String("Sedan".to_string()));
 //! ion_struct.insert("Color".to_string(), IonValue::String("White".to_string()));
@@ -84,11 +84,11 @@
 //! );
 //! ion_struct.insert("Make".to_string(), IonValue::String("Mercedes".to_string()));
 //! ion_struct.insert("Year".to_string(), IonValue::Integer(2019));
-//! 
+//!
 //! let ion_value = IonValue::Struct(ion_struct);
-//! 
+//!
 //! let hash = IonHash::digest::<Sha256>(&ion_value);
-//! 
+//!
 //! println!("{:X?}", hash);
 //! ```
 //!
@@ -125,18 +125,18 @@ pub(crate) mod binary_encoder;
 pub(crate) mod binary_parser;
 pub(crate) mod binary_parser_types;
 pub(crate) mod ion_encoder;
+pub(crate) mod ion_hash;
+pub(crate) mod ion_hash_encoder;
 pub(crate) mod ion_parser;
 pub(crate) mod ion_parser_types;
 pub(crate) mod symbol_table;
-pub(crate) mod ion_hash;
-pub(crate) mod ion_hash_encoder;
 
 #[cfg(test)]
 mod tests;
 
 pub use binary_parser_types::ParsingError;
 pub use ion_encoder::IonEncoder;
+pub use ion_hash::IonHash;
 pub use ion_parser::IonParser;
 pub use ion_parser_types::{IonParserError, IonValue, NullIonValue};
 pub use symbol_table::{Symbol, SymbolContextError};
-pub use ion_hash::IonHash;

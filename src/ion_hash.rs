@@ -1,24 +1,24 @@
 use crate::ion_hash_encoder::encode_value;
 use crate::IonValue;
-use std::cmp::{Ordering, PartialEq};
 use digest::Digest;
 use sha2::Sha256;
+use std::cmp::{Ordering, PartialEq};
 use std::marker::PhantomData;
 
 /// Ion Hash implementation. Once the hasher is initialized you can add new values to it
-/// and it will perform the dot operation internally. Once you added everything you want 
-/// to add just call `get()` and it will provide you with a &[u8] slice containing the 
+/// and it will perform the dot operation internally. Once you added everything you want
+/// to add just call `get()` and it will provide you with a &[u8] slice containing the
 /// hash.
-/// 
+///
 /// You can use the method digest if you want to hash only one IonValue.
-/// 
+///
 /// ```rust,no_run
 /// use sha2::Sha256;
 /// use ion_binary_rs::{IonHash, IonValue};
 /// use std::collections::HashMap;
-/// 
+///
 /// let mut ion_struct = HashMap::new();
-/// 
+///
 /// ion_struct.insert("Model".to_string(), IonValue::String("CLK 350".to_string()));
 /// ion_struct.insert("Type".to_string(), IonValue::String("Sedan".to_string()));
 /// ion_struct.insert("Color".to_string(), IonValue::String("White".to_string()));
@@ -28,21 +28,21 @@ use std::marker::PhantomData;
 /// );
 /// ion_struct.insert("Make".to_string(), IonValue::String("Mercedes".to_string()));
 /// ion_struct.insert("Year".to_string(), IonValue::Integer(2019));
-/// 
+///
 /// let ion_value = IonValue::Struct(ion_struct);
-/// 
+///
 /// let hash = IonHash::digest::<Sha256>(&ion_value);
-/// 
+///
 /// println!("{:X?}", hash);
 /// ```
-/// 
+///
 #[derive(Debug)]
 pub struct IonHash<D: Digest = Sha256> {
     buffer: Vec<u8>,
     hasher_type: PhantomData<D>,
 }
 
-impl <D: Digest>IonHash<D> {
+impl<D: Digest> IonHash<D> {
     pub fn add_bytes(&mut self, value: &[u8]) {
         let value = IonHash::from_bytes::<D>(value);
 
@@ -63,7 +63,6 @@ impl <D: Digest>IonHash<D> {
         self.dot(value);
     }
 
-
     pub fn dot(&mut self, value: IonHash<D>) -> &mut Self {
         if value.buffer.is_empty() {
             return self;
@@ -74,7 +73,7 @@ impl <D: Digest>IonHash<D> {
             return self;
         }
 
-        let mut buffer:Vec<u8> = vec![];
+        let mut buffer: Vec<u8> = vec![];
 
         if *self < value {
             buffer.extend(self.get());
@@ -107,10 +106,10 @@ impl IonHash {
         IonHash::from_hashes_bytes(&hased_bytes)
     }
 
-    pub fn from_hashes_bytes<D: Digest>(buf: &[u8]) -> IonHash<D>{
+    pub fn from_hashes_bytes<D: Digest>(buf: &[u8]) -> IonHash<D> {
         IonHash {
             buffer: buf.to_vec(),
-            hasher_type: PhantomData
+            hasher_type: PhantomData,
         }
     }
 
@@ -144,14 +143,17 @@ impl Default for IonHash {
     }
 }
 
-impl <D: Digest>PartialEq for IonHash<D> {
+impl<D: Digest> PartialEq for IonHash<D> {
     fn eq(&self, _: &IonHash<D>) -> bool {
         self.buffer == self.get()
     }
 }
 
-impl <D: Digest>PartialOrd for IonHash<D> {
+impl<D: Digest> PartialOrd for IonHash<D> {
     fn partial_cmp(&self, value: &IonHash<D>) -> Option<Ordering> {
-        self.buffer.iter().rev().partial_cmp(value.get().iter().rev())
+        self.buffer
+            .iter()
+            .rev()
+            .partial_cmp(value.get().iter().rev())
     }
 }
