@@ -1,7 +1,7 @@
 use crate::hashmap;
 use crate::{IonHash, IonValue, NullIonValue};
-use sha2::Sha256;
 use bigdecimal::BigDecimal;
+use sha2::Sha256;
 use std::str::FromStr;
 
 // The basic testing is taken from Amazons github implementation
@@ -577,7 +577,7 @@ fn ion_hash_decimal_3() {
 
     println!("Resulting hash: {:X?}", hash);
 
-    // Technically speaking Ion can store -0.0 but BigDecimal cannot, 
+    // Technically speaking Ion can store -0.0 but BigDecimal cannot,
     // so we put this test in place hoping it will break and then we
     // will have a correct Ion implementation.
     assert_eq!(b"\x2c\x58\x27\xb6\xd7\x7a\x31\x17\xa1\x55\xeb\x69\x9e\x26\x56\x85\x49\x2e\x19\x1b\x71\xbe\x6f\xf9\x36\x94\xff\x7f\xc9\xdd\xb6\x46", &hash[..]);
@@ -591,7 +591,7 @@ fn ion_hash_decimal_4() {
 
     println!("Resulting hash: {:X?}", hash);
 
-    // Technically speaking Ion can store -0.0 but BigDecimal cannot, 
+    // Technically speaking Ion can store -0.0 but BigDecimal cannot,
     // so we put this test in place hoping it will break and then we
     // will have a correct Ion implementation.
     assert_eq!(b"\x02\xfa\xb2\x89\x5f\x19\xe9\x3f\x63\xcc\xbc\x0b\x89\x3d\xd9\xd0\x66\x6f\x36\x8c\xc8\xb4\x73\x6b\x23\xd7\xd2\xf5\xf7\x59\x45\x32", &hash[..]);
@@ -605,7 +605,7 @@ fn ion_hash_decimal_5() {
 
     println!("Resulting hash: {:X?}", hash);
 
-    // Technically speaking Ion can store -0.0 but BigDecimal cannot, 
+    // Technically speaking Ion can store -0.0 but BigDecimal cannot,
     // so we put this test in place hoping it will break and then we
     // will have a correct Ion implementation.
     assert_eq!(b"\x4c\xff\x73\xd8\xad\x1e\xd0\x06\x2f\x5b\xd8\x16\x22\x35\x07\x4e\xa9\x2f\xba\xfc\xa9\x31\x9e\x01\x8f\x76\x9a\xb6\x65\x32\x6e\x50", &hash[..]);
@@ -674,9 +674,10 @@ fn ion_hash_blob_2() {
 
 #[test]
 fn ion_hash_annotation_1() {
-    let value = IonValue::Annotation(vec![
-        "Annot 1".into()
-    ], Box::new(IonValue::Null(NullIonValue::Null)));
+    let value = IonValue::Annotation(
+        vec!["Annot 1".into()],
+        Box::new(IonValue::Null(NullIonValue::Null)),
+    );
 
     let hash = IonHash::default_digest(&value);
 
@@ -685,18 +686,17 @@ fn ion_hash_annotation_1() {
 
 #[test]
 fn ion_hash_annotation_2() {
-    let value = IonValue::Annotation(vec![
-        "Annot 1".into(),
-        "Annot 2".into(),
-        "Annot 3".into()
-    ], Box::new(IonValue::Struct(hashmap!(
-        "e".into() => IonValue::Integer(5),
-        "a".into() => IonValue::Integer(1),
-        "l".into() => IonValue::Integer(12),
-        "b".into() => IonValue::Integer(2),
-        "i".into() => IonValue::Integer(9),
-        "n".into() => IonValue::Integer(14)
-    ))));
+    let value = IonValue::Annotation(
+        vec!["Annot 1".into(), "Annot 2".into(), "Annot 3".into()],
+        Box::new(IonValue::Struct(hashmap!(
+            "e".into() => IonValue::Integer(5),
+            "a".into() => IonValue::Integer(1),
+            "l".into() => IonValue::Integer(12),
+            "b".into() => IonValue::Integer(2),
+            "i".into() => IonValue::Integer(9),
+            "n".into() => IonValue::Integer(14)
+        ))),
+    );
 
     let hash = IonHash::default_digest(&value);
 
@@ -708,7 +708,6 @@ fn ion_hash_annotation_2() {
 // Hash for test generated using src/tests/js_hash/ion_hash_complex.ts
 #[test]
 fn ion_hash_complex() {
-
     let list = IonValue::List(vec![
         IonValue::Integer(1),
         IonValue::Integer(2),
@@ -760,18 +759,17 @@ fn ion_hash_complex() {
         "n".into() => IonValue::Integer(14)
     ));
 
-    let value = IonValue::Annotation(vec![
-        "Annot 1".into(),
-        "Annot 2".into(),
-        "Annot 3".into()
-    ], Box::new(IonValue::Struct(hashmap!(
-        "e".into() => IonValue::Integer(5),
-        "a".into() => long_struct,
-        "l".into() => IonValue::Integer(12),
-        "b".into() => IonValue::Integer(2),
-        "i".into() => IonValue::Integer(9),
-        "n".into() => IonValue::Float32(123.12)
-    ))));
+    let value = IonValue::Annotation(
+        vec!["Annot 1".into(), "Annot 2".into(), "Annot 3".into()],
+        Box::new(IonValue::Struct(hashmap!(
+            "e".into() => IonValue::Integer(5),
+            "a".into() => long_struct,
+            "l".into() => IonValue::Integer(12),
+            "b".into() => IonValue::Integer(2),
+            "i".into() => IonValue::Integer(9),
+            "n".into() => IonValue::Float32(123.12)
+        ))),
+    );
 
     let hash = IonHash::default_digest(&value);
 

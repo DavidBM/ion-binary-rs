@@ -20,11 +20,11 @@
 //! all the required symbols.
 //!
 //! We have implemented the whole amazon ion test-suite for parsing. Encoding and Hashing
-//! testing is feature complete but we are working in expading the coverage, we would 
+//! testing is feature complete but we are working in expading the coverage, we would
 //! appreciate any bug you can report. You can check all the test for examples.
 //!
 //! ## Example
-//! 
+//!
 //! ### Parsing
 //!
 //! ```rust,no_run
@@ -40,7 +40,7 @@
 //! // Decoded Ion: [Struct({"Color": String("White"), "Year": Integer(2019), "VIN": String("1C4RJFAG0FC625797"), "Make": String("Mercedes"), "Model": String("CLK 350"), "Type": String("Sedan")})]
 //!
 //! ```
-//! 
+//!
 //! ### Encoding
 //!
 //! ```rust,no_run
@@ -71,7 +71,7 @@
 //!
 //! assert_eq!(ion_value, resulting_ion_value);
 //! ```
-//! 
+//!
 //! ### Hashing
 //!
 //! ```rust,no_run

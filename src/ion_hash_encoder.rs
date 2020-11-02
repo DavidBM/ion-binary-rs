@@ -115,12 +115,11 @@ fn encode_datetime_value(value: &DateTime<FixedOffset>) -> Vec<u8> {
     buffer
 }
 
-
 // Warning:
-// 
+//
 // BigDecimal doesn't distinguish between -0 and 0, but Ion does, so -0 get
-// read as 0 in the Rust implementation. This is ok if Rust never compares 
-// hashes of the same value with other languages (lets say both Rust and JS 
+// read as 0 in the Rust implementation. This is ok if Rust never compares
+// hashes of the same value with other languages (lets say both Rust and JS
 // are parsing a decimal value from the same string).
 fn encode_decimal_value(value: &BigDecimal) -> Vec<u8> {
     let mut buffer = vec![0x50];
@@ -152,7 +151,8 @@ fn encode_decimal_value(value: &BigDecimal) -> Vec<u8> {
     buffer
 }
 
-fn encode_float_value(value: &f64) -> Vec<u8> { println!("{:?}", value.to_be_bytes());
+fn encode_float_value(value: &f64) -> Vec<u8> {
+    println!("{:?}", value.to_be_bytes());
     let mut buffer = vec![0x40];
 
     if value.is_nan() {
@@ -262,11 +262,11 @@ fn escape_buffer(buffer: &[u8]) -> Vec<u8> {
 }
 
 // Seems that 123.4f64.to_be_bytes() equals to [64, 94, 217, 153, 153, 153, 153, 154]
-// but let value: f32 = 123.4f32; (f64::from(value)).to_be_bytes() equals to 
-// [64, 94, 217, 153, 160, 0, 0, 0]. So, given that I cannot find a way to transform 
+// but let value: f32 = 123.4f32; (f64::from(value)).to_be_bytes() equals to
+// [64, 94, 217, 153, 160, 0, 0, 0]. So, given that I cannot find a way to transform
 // the f32 to a f64 in a way that keeps all the bits like it it was declared initially
 // as f64, we represent the number in an string and then parse it.
 // Pull request more than welcomed here.
 fn f32tof64(value: &f32) -> f64 {
-	value.to_string().parse().unwrap()
+    value.to_string().parse().unwrap()
 }
