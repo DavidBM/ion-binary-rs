@@ -702,3 +702,78 @@ fn ion_hash_annotation_2() {
 
     assert_eq!(b"\x6e\xbf\xeb\xda\xd9\xf4\xab\x09\xc3\x3b\x3e\xbb\xad\xc8\xbb\x77\x6c\x2e\xe2\x14\x5f\x00\xac\x71\x7c\xb9\x03\x72\xe7\x95\x60\x55", &hash[..]);
 }
+
+// COMPLEX TEST
+
+// Hash for test generated using src/tests/js_hash/ion_hash_complex.ts
+#[test]
+fn ion_hash_complex() {
+
+    let list = IonValue::List(vec![
+        IonValue::Integer(1),
+        IonValue::Integer(2),
+        IonValue::Integer(3),
+        IonValue::Integer(-3),
+        IonValue::Integer(-3354654),
+    ]);
+
+    let qldb_struct = IonValue::Struct(hashmap!(
+        "Model".to_string() => IonValue::String("CLK 350".to_string()),
+        "Type".to_string() => IonValue::String("Sedan".to_string()),
+        "Color".to_string() => IonValue::String("White".to_string()),
+        "VIN".to_string() => IonValue::String("1C4RJFAG0FC625797".to_string()),
+        "Make".to_string() => IonValue::String("Mercedes".to_string()),
+        "Year".to_string() => IonValue::Integer(2019)
+    ));
+
+    let long_struct = IonValue::Struct(hashmap!(
+        "000021i".into() => IonValue::Integer(9),
+        "012i".into() => IonValue::Integer(9),
+        "01d".into() => IonValue::Integer(4),
+        "01h".into() => IonValue::Integer(8),
+        "11n".into() => IonValue::Float32(std::f32::NAN),
+        "12l".into() => IonValue::Integer(12),
+        "1d".into() => IonValue::Integer(4),
+        "21l".into() => IonValue::Integer(12),
+        "2h".into() => list,
+        "aaa".into() => IonValue::Integer(1),
+        "aak".into() => IonValue::Integer(11),
+        "ae".into() => IonValue::Integer(5),
+        "b".into() => qldb_struct,
+        "bb".into() => IonValue::Integer(2),
+        "cb".into() => IonValue::Integer(2),
+        "c".into() => IonValue::Integer(3),
+        "d".into() => IonValue::Null(NullIonValue::Clob),
+        "9f".into() => IonValue::Integer(6),
+        "09f".into() => IonValue::Decimal(BigDecimal::from_str("92407156491786485918754613897564897561387954629341564305176435762934857629384756024751649587623498561204576329654.1239476129586128957624351682956187465187324618724691845696216935").unwrap()),
+        "g".into() => IonValue::Integer(7),
+        "00h".into() => IonValue::Integer(8),
+        "0h".into() => IonValue::Integer(8),
+        "i".into() => IonValue::Integer(9),
+        "j".into() => IonValue::Integer(10),
+        "k".into() => IonValue::Null(NullIonValue::Float),
+        "00001l".into() => IonValue::Integer(12),
+        "00002l".into() => IonValue::Integer(12),
+        "10000l".into() => IonValue::Integer(12),
+        "l".into() => IonValue::Integer(12),
+        "m".into() => IonValue::Integer(13),
+        "n".into() => IonValue::Integer(14)
+    ));
+
+    let value = IonValue::Annotation(vec![
+        "Annot 1".into(),
+        "Annot 2".into(),
+        "Annot 3".into()
+    ], Box::new(IonValue::Struct(hashmap!(
+        "e".into() => IonValue::Integer(5),
+        "a".into() => long_struct,
+        "l".into() => IonValue::Integer(12),
+        "b".into() => IonValue::Integer(2),
+        "i".into() => IonValue::Integer(9),
+        "n".into() => IonValue::Float32(123.12)
+    ))));
+
+    let hash = IonHash::default_digest(&value);
+
+    assert_eq!(b"\xeb\x22\x0f\xab\xcb\x85\x48\xb0\xe5\x7b\x6b\xfe\xed\xdb\x8d\xe8\x5d\x9b\x01\x75\xdd\x77\xb1\x15\x3b\xfc\xf6\x2d\x08\x9c\x61\x4b", &hash[..]);
+}
