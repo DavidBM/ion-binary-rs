@@ -1,6 +1,6 @@
 <!-- cargo-sync-readme start -->
 
-# Ion Binary & Ion Hash in Rust
+# Ion Binary parser/encoder & Ion Hash in Rust
 
 Ion binary is a library written in safe rust for parsing, encoding and hashing Amazon's Ion binary format.
 
@@ -9,7 +9,7 @@ Ion binary is a library written in safe rust for parsing, encoding and hashing A
 [![Documentation](https://docs.rs/ion-binary-rs/badge.svg)](https://docs.rs/ion-binary-rs)
 [![Crates.io](https://img.shields.io/crates/v/ion-binary-rs)](https://crates.io/crates/ion-binary-rs)
 
-It should be able to parse and encode anything you throw at it. Any failure to do so
+It should be able to **parse**, **encode** and **hash** anything you throw at it. Any failure to do so
 is a bug 💥 that we will fix and we will be very happy if you report them 🙌.
 
 ## How to use the library
@@ -17,15 +17,17 @@ is a bug 💥 that we will fix and we will be very happy if you report them 🙌
 First of all, you need to be aware of the trade offs that we took for this library:
 
 - The API returns strings instead of Symbols. If needed we can add symbol, but we
-think string is the simpler and safer bet for now.
+think string is the the most ergonomic way.
 - When parsing/decoding you can add shared tables for binary blobs that doesn't have
 all the required symbols.
 
-We have implemented the whole amazon ion test-suite for parsing. Encoding and Hashing 
-testing is still a work in progress, we would appreciate any bug you can report. 
-You can check all the test for examples.
+We have implemented the whole amazon ion test-suite for parsing. Encoding and Hashing
+testing is feature complete but we are working in expading the coverage, we would 
+appreciate any bug you can report. You can check all the test for examples.
 
 ## Example
+
+### Parsing
 
 ```rust,no_run
 
@@ -40,6 +42,8 @@ println!("Decoded Ion: {:?}", parser.consume_all().unwrap())
 // Decoded Ion: [Struct({"Color": String("White"), "Year": Integer(2019), "VIN": String("1C4RJFAG0FC625797"), "Make": String("Mercedes"), "Model": String("CLK 350"), "Type": String("Sedan")})]
 
 ```
+
+### Encoding
 
 ```rust,no_run
 
@@ -70,9 +74,11 @@ let resulting_ion_value = IonParser::new(&bytes[..]).consume_value().unwrap().0;
 assert_eq!(ion_value, resulting_ion_value);
 ```
 
+### Hashing
+
 ```rust,no_run
 use sha2::Sha256;
-use crate::{IonHash, IonValue};
+use ion_binary_rs::{IonHash, IonValue};
 use std::collections::HashMap;
 
 let mut ion_struct = HashMap::new();
@@ -89,9 +95,9 @@ ion_struct.insert("Year".to_string(), IonValue::Integer(2019));
 
 let ion_value = IonValue::Struct(ion_struct);
 
-let hash = IonHash::<Sha256>::from_ion_value(&ion_value);
+let hash = IonHash::digest::<Sha256>(&ion_value);
 
-println!("{:X?}", hash.get());
+println!("{:X?}", hash);
 ```
 
 ## Safe Rust
