@@ -680,7 +680,6 @@ fn ion_hash_annotation_1() {
 
     let hash = IonHash::default_digest(&value);
 
-    // TODO: The JS implementation doesn't support annotations, so no test for now.
     assert_eq!(b"\x09\x44\x30\x5e\xf7\x77\xc6\x10\xdf\xf0\x8f\xc9\xd2\x04\xc9\xc8\xf0\xf7\x3b\x4b\x9a\xfe\xc6\xb9\x2e\xd3\x36\x8a\x1e\x05\xad\x7f", &hash[..]);
 }
 
@@ -701,6 +700,5 @@ fn ion_hash_annotation_2() {
 
     let hash = IonHash::default_digest(&value);
 
-    // TODO: The JS implementation doesn't support annotations, so no test for now.
     assert_eq!(b"\x6e\xbf\xeb\xda\xd9\xf4\xab\x09\xc3\x3b\x3e\xbb\xad\xc8\xbb\x77\x6c\x2e\xe2\x14\x5f\x00\xac\x71\x7c\xb9\x03\x72\xe7\x95\x60\x55", &hash[..]);
 }
