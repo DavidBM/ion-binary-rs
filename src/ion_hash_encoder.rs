@@ -40,10 +40,10 @@ fn add_markers(mut encoded_value: Vec<u8>) -> Vec<u8> {
 }
 
 fn encode_annotation<D: Digest>(annotations: &[String], value: &IonValue) -> Vec<u8> {
-    let mut buffer = vec![];
+    let mut buffer = vec![0xE0];
 
     for annotation in annotations {
-        buffer.append(&mut annotation.as_bytes().to_vec());
+        buffer.append(&mut encode_value::<D>(&IonValue::Symbol(annotation.into())));
     }
 
     buffer.append(&mut encode_value::<D>(value));
@@ -115,6 +115,13 @@ fn encode_datetime_value(value: &DateTime<FixedOffset>) -> Vec<u8> {
     buffer
 }
 
+
+// Warning:
+// 
+// BigDecimal doesn't distinguish between -0 and 0, but Ion does, so -0 get
+// read as 0 in the Rust implementation. This is ok if Rust never compares 
+// hashes of the same value with other languages (lets say both Rust and JS 
+// are parsing a decimal value from the same string).
 fn encode_decimal_value(value: &BigDecimal) -> Vec<u8> {
     let mut buffer = vec![0x50];
 
@@ -123,6 +130,7 @@ fn encode_decimal_value(value: &BigDecimal) -> Vec<u8> {
     }
 
     let (coefficient, exponent) = value.as_bigint_and_exponent();
+    let exponent = -exponent;
 
     let mut exponent = if exponent.is_zero() {
         vec![0x80]

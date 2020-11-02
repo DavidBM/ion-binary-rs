@@ -1,6 +1,8 @@
 use crate::hashmap;
 use crate::{IonHash, IonValue, NullIonValue};
 use sha2::Sha256;
+use bigdecimal::BigDecimal;
+use std::str::FromStr;
 
 // The basic testing is taken from Amazons github implementation
 
@@ -98,6 +100,23 @@ fn ion_hash_simple_list() {
     assert_eq!(b"\x46\xf8\xa1\xd9\x02\xe3\x3e\x7e\x34\xec\xb6\x2e\xb7\xab\x90\x54\x69\x14\xa1\x53\xe1\x90\x96\xa5\x53\x13\x4a\x05\x01\xf6\xd3\xc3", &hash[..]);
 }
 
+// SEXP
+
+#[test]
+fn ion_hash_simple_sexp() {
+    let value = IonValue::SExpr(vec![
+        IonValue::String("this".into()),
+        IonValue::String("is".into()),
+        IonValue::String("a".into()),
+        IonValue::String("test".into()),
+        IonValue::Integer(42),
+    ]);
+
+    let hash = IonHash::default_digest(&value);
+
+    assert_eq!(b"\x91\xd5\x62\xba\xa8\xa4\x7a\xf2\x0b\xfd\xde\x6f\xb1\x0c\xb8\xde\x34\xc2\xca\x2f\x38\x39\xb6\x7a\x13\x32\xe1\x6c\xf0\x08\x89\x75", &hash[..]);
+}
+
 // STRUCT
 
 #[test]
@@ -159,6 +178,47 @@ fn ion_hash_long_struct() {
     let hash = IonHash::default_digest(&value);
 
     assert_eq!(b"\x82\x8d\xd7\x95\x06\x30\x75\x60\xcb\x32\xaf\x18\xf0\x7e\x8b\x72\xc3\x16\x92\x52\x1c\x19\xcd\xa0\x6e\x38\x79\xf2\xb7\x9e\x2f\xaf", &hash[..]);
+}
+
+#[test]
+fn ion_hash_long_long_struct() {
+    let value = IonValue::Struct(hashmap!(
+        "000021i".into() => IonValue::Integer(9),
+        "012i".into() => IonValue::Integer(9),
+        "01d".into() => IonValue::Integer(4),
+        "01h".into() => IonValue::Integer(8),
+        "11n".into() => IonValue::Integer(14),
+        "12l".into() => IonValue::Integer(12),
+        "1d".into() => IonValue::Integer(4),
+        "21l".into() => IonValue::Integer(12),
+        "2h".into() => IonValue::Integer(8),
+        "aaa".into() => IonValue::Integer(1),
+        "aak".into() => IonValue::Integer(11),
+        "ae".into() => IonValue::Integer(5),
+        "b".into() => IonValue::Integer(2),
+        "bb".into() => IonValue::Integer(2),
+        "cb".into() => IonValue::Integer(2),
+        "c".into() => IonValue::Integer(3),
+        "d".into() => IonValue::Integer(4),
+        "9f".into() => IonValue::Integer(6),
+        "09f".into() => IonValue::Integer(6),
+        "g".into() => IonValue::Integer(7),
+        "00h".into() => IonValue::Integer(8),
+        "0h".into() => IonValue::Integer(8),
+        "i".into() => IonValue::Integer(9),
+        "j".into() => IonValue::Integer(10),
+        "k".into() => IonValue::Integer(11),
+        "00001l".into() => IonValue::Integer(12),
+        "00002l".into() => IonValue::Integer(12),
+        "10000l".into() => IonValue::Integer(12),
+        "l".into() => IonValue::Integer(12),
+        "m".into() => IonValue::Integer(13),
+        "n".into() => IonValue::Integer(14)
+    ));
+
+    let hash = IonHash::default_digest(&value);
+
+    assert_eq!(b"\xc5\xb0\xb2\x7c\x35\x54\xec\x01\x4f\x66\x49\x6c\x6a\x84\x7f\x3b\xaa\xfe\x0d\x23\xe5\x5b\x91\x1a\xd3\x1f\xb8\x71\xce\xd7\xf7\x8b", &hash[..]);
 }
 
 // SYMBOL
@@ -483,4 +543,164 @@ fn ion_hash_float32_5() {
     println!("Resulting hash: {:X?}", hash);
 
     assert_eq!(b"\xb6\x73\x52\x88\xaf\xba\x1c\x84\xb5\xad\xd0\x63\xd1\x77\x91\x13\x26\xd5\x92\x91\x41\x22\x73\x80\x92\x78\x08\x32\xea\xea\xd1\xc5", &hash[..]);
+}
+
+// DECIMAL
+
+#[test]
+fn ion_hash_decimal_1() {
+    let value = IonValue::Decimal(BigDecimal::from_str("12.34").unwrap());
+
+    let hash = IonHash::digest::<Sha256>(&value);
+
+    println!("Resulting hash: {:X?}", hash);
+
+    assert_eq!(b"\x6f\xd7\x1d\xbb\x0a\xc1\xce\xad\xd0\x6f\x7d\x18\x69\xc3\xa5\x1d\x37\x2f\xe1\xe2\xc4\x97\x42\x93\x7c\x06\xd4\x7c\x06\xe8\x1d\xa3", &hash[..]);
+}
+
+#[test]
+fn ion_hash_decimal_2() {
+    let value = IonValue::Decimal(BigDecimal::from_str("0").unwrap());
+
+    let hash = IonHash::digest::<Sha256>(&value);
+
+    println!("Resulting hash: {:X?}", hash);
+
+    assert_eq!(b"\x2c\x58\x27\xb6\xd7\x7a\x31\x17\xa1\x55\xeb\x69\x9e\x26\x56\x85\x49\x2e\x19\x1b\x71\xbe\x6f\xf9\x36\x94\xff\x7f\xc9\xdd\xb6\x46", &hash[..]);
+}
+
+#[test]
+fn ion_hash_decimal_3() {
+    let value = IonValue::Decimal(BigDecimal::from_str("-0.0").unwrap());
+
+    let hash = IonHash::digest::<Sha256>(&value);
+
+    println!("Resulting hash: {:X?}", hash);
+
+    // Technically speaking Ion can store -0.0 but BigDecimal cannot, 
+    // so we put this test in place hoping it will break and then we
+    // will have a correct Ion implementation.
+    assert_eq!(b"\x2c\x58\x27\xb6\xd7\x7a\x31\x17\xa1\x55\xeb\x69\x9e\x26\x56\x85\x49\x2e\x19\x1b\x71\xbe\x6f\xf9\x36\x94\xff\x7f\xc9\xdd\xb6\x46", &hash[..]);
+}
+
+#[test]
+fn ion_hash_decimal_4() {
+    let value = IonValue::Decimal(BigDecimal::from_str("-0.000000000000000000000000000000000000000000000000000000000123412356690101501598143987613957812309456159716591874596834").unwrap());
+
+    let hash = IonHash::digest::<Sha256>(&value);
+
+    println!("Resulting hash: {:X?}", hash);
+
+    // Technically speaking Ion can store -0.0 but BigDecimal cannot, 
+    // so we put this test in place hoping it will break and then we
+    // will have a correct Ion implementation.
+    assert_eq!(b"\x02\xfa\xb2\x89\x5f\x19\xe9\x3f\x63\xcc\xbc\x0b\x89\x3d\xd9\xd0\x66\x6f\x36\x8c\xc8\xb4\x73\x6b\x23\xd7\xd2\xf5\xf7\x59\x45\x32", &hash[..]);
+}
+
+#[test]
+fn ion_hash_decimal_5() {
+    let value = IonValue::Decimal(BigDecimal::from_str("92407156491786485918754613897564897561387954629341564305176435762934857629384756024751649587623498561204576329654.1239476129586128957624351682956187465187324618724691845696216935").unwrap());
+
+    let hash = IonHash::digest::<Sha256>(&value);
+
+    println!("Resulting hash: {:X?}", hash);
+
+    // Technically speaking Ion can store -0.0 but BigDecimal cannot, 
+    // so we put this test in place hoping it will break and then we
+    // will have a correct Ion implementation.
+    assert_eq!(b"\x4c\xff\x73\xd8\xad\x1e\xd0\x06\x2f\x5b\xd8\x16\x22\x35\x07\x4e\xa9\x2f\xba\xfc\xa9\x31\x9e\x01\x8f\x76\x9a\xb6\x65\x32\x6e\x50", &hash[..]);
+}
+
+#[test]
+fn ion_hash_decimal_6() {
+    let value = IonValue::Decimal(BigDecimal::from_str("-12.34").unwrap());
+
+    let hash = IonHash::digest::<Sha256>(&value);
+
+    println!("Resulting hash: {:X?}", hash);
+
+    assert_eq!(b"\xd1\x2c\xb9\xe7\x42\x8d\x9d\x63\x61\x83\x02\x7f\x87\xbd\x75\xcc\x23\xe1\x03\xd5\x97\xec\xcc\x7f\xc0\x1b\x38\x32\xce\xe0\xaf\xbb", &hash[..]);
+}
+
+// CLOB
+
+#[test]
+fn ion_hash_clob_1() {
+    let value = IonValue::Clob(b"clobtest".to_vec());
+
+    let hash = IonHash::digest::<Sha256>(&value);
+
+    println!("Resulting hash: {:X?}", hash);
+
+    assert_eq!(b"\x4a\x90\xec\x6c\xf2\x60\xce\x02\xee\x03\xd1\x09\x36\x37\x52\x77\x54\x6c\xd1\x6b\xa4\x95\x24\xac\xa4\x7e\xb5\xbe\x38\xe8\xd4\xba", &hash[..]);
+}
+
+#[test]
+fn ion_hash_clob_2() {
+    let value = IonValue::Clob(vec![]);
+
+    let hash = IonHash::digest::<Sha256>(&value);
+
+    println!("Resulting hash: {:X?}", hash);
+
+    assert_eq!(b"\x32\x07\x70\xb9\xc1\x2a\x79\x9d\x54\x0d\x5f\x8b\x36\xb6\x5e\x84\xbe\x6d\x1f\xd8\x6f\xcc\x49\x5b\x46\x84\xdc\xf1\x17\x58\xb6\x6f", &hash[..]);
+}
+
+// BLOB
+
+#[test]
+fn ion_hash_blob_1() {
+    let value = IonValue::Blob(b"clobtest".to_vec());
+
+    let hash = IonHash::digest::<Sha256>(&value);
+
+    println!("Resulting hash: {:X?}", hash);
+
+    assert_eq!(b"\x41\x7e\x01\x85\x38\xa7\x3e\xa2\xeb\x47\xcf\xa4\x66\xbf\x28\xf0\xe3\x28\xb8\x8f\x7a\xdf\x0a\xfc\x2a\x5f\xfd\xa5\x55\x5a\xe0\xe1", &hash[..]);
+}
+
+#[test]
+fn ion_hash_blob_2() {
+    let value = IonValue::Blob(vec![]);
+
+    let hash = IonHash::digest::<Sha256>(&value);
+
+    println!("Resulting hash: {:X?}", hash);
+
+    assert_eq!(b"\x40\x39\x1b\x6d\xb6\x0d\xb7\xae\xf0\x2b\xab\xee\x5b\x77\xd9\x33\xe3\x64\xe3\xf2\xdd\xc1\xdf\xa3\xf0\x97\xf0\xc6\xf9\x08\x5b\x34", &hash[..]);
+}
+
+// ANNOTATION
+
+#[test]
+fn ion_hash_annotation_1() {
+    let value = IonValue::Annotation(vec![
+        "Annot 1".into()
+    ], Box::new(IonValue::Null(NullIonValue::Null)));
+
+    let hash = IonHash::default_digest(&value);
+
+    // TODO: The JS implementation doesn't support annotations, so no test for now.
+    assert_eq!(b"\x09\x44\x30\x5e\xf7\x77\xc6\x10\xdf\xf0\x8f\xc9\xd2\x04\xc9\xc8\xf0\xf7\x3b\x4b\x9a\xfe\xc6\xb9\x2e\xd3\x36\x8a\x1e\x05\xad\x7f", &hash[..]);
+}
+
+#[test]
+fn ion_hash_annotation_2() {
+    let value = IonValue::Annotation(vec![
+        "Annot 1".into(),
+        "Annot 2".into(),
+        "Annot 3".into()
+    ], Box::new(IonValue::Struct(hashmap!(
+        "e".into() => IonValue::Integer(5),
+        "a".into() => IonValue::Integer(1),
+        "l".into() => IonValue::Integer(12),
+        "b".into() => IonValue::Integer(2),
+        "i".into() => IonValue::Integer(9),
+        "n".into() => IonValue::Integer(14)
+    ))));
+
+    let hash = IonHash::default_digest(&value);
+
+    // TODO: The JS implementation doesn't support annotations, so no test for now.
+    assert_eq!(b"\x6e\xbf\xeb\xda\xd9\xf4\xab\x09\xc3\x3b\x3e\xbb\xad\xc8\xbb\x77\x6c\x2e\xe2\x14\x5f\x00\xac\x71\x7c\xb9\x03\x72\xe7\x95\x60\x55", &hash[..]);
 }
