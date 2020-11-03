@@ -10,12 +10,23 @@ use num_traits::ops::checked::CheckedSub;
 use std::convert::{TryFrom, TryInto};
 use std::{collections::HashMap, io::Read};
 
-/// The library entry point.
-///
-/// In order to use it, call the new method and then the "consume_all" method.
+/// In order to use it call the new method and then the "consume_all" method.
 ///
 /// ### Example
 ///
+/// ```rust,no_run
+///
+/// use ion_binary_rs::IonParser;
+///
+/// // This is the response from Amazon's QLDB introduction example using Rusoto
+/// let ion_test = b"\xe0\x01\0\xea\xee\xa6\x81\x83\xde\xa2\x87\xbe\x9f\x83VIN\x84Type\x84Year\x84Make\x85Model\x85Color\xde\xb9\x8a\x8e\x911C4RJFAG0FC625797\x8b\x85Sedan\x8c\"\x07\xe3\x8d\x88Mercedes\x8e\x87CLK 350\x8f\x85White";
+///
+/// let mut parser = IonParser::new(&ion_test[..]);
+///
+/// println!("Decoded Ion: {:?}", parser.consume_all().unwrap())
+/// // Decoded Ion: [Struct({"Color": String("White"), "Year": Integer(2019), "VIN": String("1C4RJFAG0FC625797"), "Make": String("Mercedes"), "Model": String("CLK 350"), "Type": String("Sedan")})]
+///
+/// ```
 #[derive(Debug)]
 pub struct IonParser<T: Read> {
     parser: IonBinaryParser<T>,
@@ -179,7 +190,7 @@ impl<T: Read> IonParser<T> {
         // i64::MIN as u64 is not a "correct" transformation. It just binary cast
         // the value to a u64, so the most negative number in i64 becomes a huge
         // positive one un u64. We do this here knowingly as it is exactly what we
-        // want in order to avoid a .clone(). Clippy will yield at us here D:
+        // want in order to avoid a .clone().
         if negative && value == BigUint::from(i64::MIN as u64) {
             return Ok((IonValue::Integer(i64::MIN), total));
         }

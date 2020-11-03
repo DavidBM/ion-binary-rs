@@ -1,5 +1,5 @@
 use crate::NullIonValue;
-use bigdecimal::BigDecimal;
+use bigdecimal::{BigDecimal, Zero};
 use chrono::{DateTime, Datelike, FixedOffset, Timelike};
 use num_bigint::{BigInt, BigUint, Sign};
 use std::convert::TryFrom;
@@ -56,7 +56,7 @@ pub fn encode_null(value: &NullIonValue) -> Vec<u8> {
     }
 }
 
-pub fn encode_datetime(value: &DateTime<FixedOffset>) -> Vec<u8> {
+pub fn encode_datetime_representation(value: &DateTime<FixedOffset>) -> Vec<u8> {
     let datetime = value.naive_utc();
 
     let year = datetime.year();
@@ -67,11 +67,40 @@ pub fn encode_datetime(value: &DateTime<FixedOffset>) -> Vec<u8> {
     let second = datetime.second();
     let mut nanosecond = datetime.nanosecond();
 
+    // Accounting for the case of a leap second, which shouldn't ever happen.
+    // https://docs.rs/chrono/0.4.19/chrono/naive/struct.NaiveTime.html#leap-second-handling
     if nanosecond > 1_000_000_000 {
         nanosecond -= 1_000_000_000;
     }
 
-    let offset = value.offset().utc_minus_local() / 60;
+    // This gives us a maximum decimal precision of 9 places.
+    // It will use less bytes if the number needs less. 23.100 seconds will become 23.1.
+    //
+    // This means that this implementation is not fully following the Ion Spec.
+    // In an Ion Timestamp 23.100 seconds are not the same as 23.1 seconds. An Ion
+    // Timestamp comparison between two dates representing the same moment but with
+    // different number of zeros in the seconds value results in "not equal". Given
+    // that we use DateTime type for the decoded value we loose the original stored
+    // precision. We assume that the precision is the lowest one that doesn't
+    // loose data. So equality comparisons in this library are less strict than in
+    // the Ion standard.
+    //
+    // Additionally, the ISO standard doesn't caps the maximum quantity of decimals
+    // in a seconds, but many implementations do. For example, nodejs rounds to 3
+    // decimals, so 23.999 seconds are 23.999 but 23.9999 are 24 seconds.
+    //
+    // If you are comparing Ion Timestamps and expect the equality to be an Ion
+    // equality operation or if you are comparing hashes hashed in Rust and other
+    // languages you may end with unexpected results.
+    let nanosecond: BigDecimal = BigDecimal::from(nanosecond) / BigDecimal::from(1_000_000_000);
+
+    let (coefficient, exponent) = nanosecond.as_bigint_and_exponent();
+
+    let exponent = -exponent;
+
+    let (exponent_sign, exponent) = BigInt::from(exponent).to_bytes_be();
+
+    let offset = value.offset().local_minus_utc() / 60;
 
     let unsigned_offset = (offset.abs() as u32).to_be_bytes();
 
@@ -84,8 +113,17 @@ pub fn encode_datetime(value: &DateTime<FixedOffset>) -> Vec<u8> {
     buffer.append(&mut encode_varuint(&hour.to_be_bytes()));
     buffer.append(&mut encode_varuint(&minute.to_be_bytes()));
     buffer.append(&mut encode_varuint(&second.to_be_bytes()));
-    buffer.append(&mut encode_varint(&[9], true));
-    buffer.append(&mut encode_varuint(&nanosecond.to_be_bytes()));
+    buffer.append(&mut encode_varint(&exponent, exponent_sign == Sign::Minus));
+
+    if !coefficient.is_zero() {
+        buffer.append(&mut encode_int(&coefficient));
+    }
+
+    buffer
+}
+
+pub fn encode_datetime(value: &DateTime<FixedOffset>) -> Vec<u8> {
+    let mut buffer = encode_datetime_representation(value);
 
     let len = buffer.len();
     let mut len_bytes = filter_significant_bytes(&len.to_be_bytes());

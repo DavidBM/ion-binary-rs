@@ -314,7 +314,7 @@ impl<T: Read> IonBinaryParser<T> {
 
     fn get_field_length(&mut self, id: u8) -> Result<ValueLength, ParsingError> {
         match id {
-            14 => Ok(ValueLength::LongLength), // L = 14 and the real length is in the field after this one: "length [VarUInt]"
+            14 => Ok(ValueLength::LongLength), // L = 14 real length is in this field's following field: "length [VarUInt]"
             15 => Ok(ValueLength::NullValue),  // L = 15
             0..=13 => Ok(ValueLength::ShortLength(id)), // 0 <= L <= 13 and we omit the "length [VarUInt]" field,
             _ => Err(ParsingError::InvalidHeaderLength),
