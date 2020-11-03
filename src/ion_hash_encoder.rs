@@ -263,10 +263,10 @@ fn escape_buffer(buffer: &[u8]) -> Vec<u8> {
 
 // Seems that 123.4f64.to_be_bytes() equals to [64, 94, 217, 153, 153, 153, 153, 154]
 // but let value: f32 = 123.4f32; (f64::from(value)).to_be_bytes() equals to
-// [64, 94, 217, 153, 160, 0, 0, 0]. So, given that I cannot find a way to transform
-// the f32 to a f64 in a way that keeps all the bits like it it was declared initially
+// [64, 94, 217, 153, 160, 0, 0, 0]. Given that I cannot find a way to transform
+// the f32 to a f64 in a way that keeps all the bits like if it was declared initially
 // as f64, we represent the number in an string and then parse it.
-// Pull request more than welcomed here.
+// TODO: Improve transformation method
 fn f32tof64(value: &f32) -> f64 {
     value.to_string().parse().unwrap()
 }

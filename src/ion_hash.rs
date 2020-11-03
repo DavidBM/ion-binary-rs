@@ -43,18 +43,26 @@ pub struct IonHash<D: Digest = Sha256> {
 }
 
 impl<D: Digest> IonHash<D> {
+    /// Hashes the bytes and perform a dot operation with 
+    /// current version of the IonHash hash. 
     pub fn add_bytes(&mut self, value: &[u8]) {
         let value = IonHash::from_bytes::<D>(value);
 
         self.dot(value);
     }
 
+    /// Assumes that the bytes are already hashed and performs
+    /// the dot operation with current version of the IonHash 
+    /// hash. 
     pub fn add_hashed_bytes(&mut self, value: &[u8]) {
         let value = IonHash::from_hashes_bytes::<D>(value);
 
         self.dot(value);
     }
 
+    /// Serializes and hashes the Ion Value and performs
+    /// the dot operation with current version of the IonHash 
+    /// hash. 
     pub fn add_ion_value(&mut self, value: &IonValue) {
         let buffer = encode_value::<D>(value);
 
@@ -63,6 +71,8 @@ impl<D: Digest> IonHash<D> {
         self.dot(value);
     }
 
+    /// performs the dot operation with current version of the
+    /// IonHash hash. 
     pub fn dot(&mut self, value: IonHash<D>) -> &mut Self {
         if value.buffer.is_empty() {
             return self;
@@ -88,12 +98,15 @@ impl<D: Digest> IonHash<D> {
         self
     }
 
+    /// Gets the current hash. Useful for when you need to 
+    /// extract the final result after several operations.
     pub fn get(&self) -> &[u8] {
         &self.buffer
     }
 }
 
 impl IonHash {
+    /// Creates an empty Ion Hash with the default hasher: Sha256
     pub fn new() -> IonHash {
         IonHash {
             buffer: vec![],
@@ -101,11 +114,14 @@ impl IonHash {
         }
     }
 
+    /// Creates a hasher with some starting bytes which will 
+    /// be first hashed
     pub fn from_bytes<D: Digest>(buf: &[u8]) -> IonHash<D> {
         let hased_bytes = D::digest(buf);
         IonHash::from_hashes_bytes(&hased_bytes)
     }
 
+    /// Creates a hasher with some starting hash
     pub fn from_hashes_bytes<D: Digest>(buf: &[u8]) -> IonHash<D> {
         IonHash {
             buffer: buf.to_vec(),
@@ -113,6 +129,8 @@ impl IonHash {
         }
     }
 
+    /// Creates a hasher with some starting Ion Value which will 
+    /// be first serialized and hashed
     pub fn from_ion_value<D: Digest>(value: &IonValue) -> IonHash<D> {
         let mut hash = IonHash::with_hasher::<D>();
 
@@ -121,6 +139,7 @@ impl IonHash {
         hash
     }
 
+    /// Creates an empty hasher using the provided hasher
     pub fn with_hasher<D: Digest>() -> IonHash<D> {
         IonHash {
             buffer: vec![],
@@ -128,10 +147,13 @@ impl IonHash {
         }
     }
 
+    /// Shorthand method for hashing an Ion Value in one step.
     pub fn digest<D: Digest>(value: &IonValue) -> Vec<u8> {
         IonHash::from_ion_value::<D>(value).get().to_vec()
     }
 
+    /// Shorthand method for hashing an Ion Value in one step.
+    /// It uses the default hasher: Sha256
     pub fn default_digest(value: &IonValue) -> Vec<u8> {
         IonHash::from_ion_value::<Sha256>(value).get().to_vec()
     }

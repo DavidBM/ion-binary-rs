@@ -73,23 +73,25 @@ pub fn encode_datetime_representation(value: &DateTime<FixedOffset>) -> Vec<u8> 
         nanosecond -= 1_000_000_000;
     }
 
-    // WARNING:
-    //
-    // This is a bit tricky. With this line we ensure that we have 9 decimal position
-    // of precission and uses less bytes if the number is like 23.100 seconds,making it
-    // like 23.1. The problem is that for Ion 23.100 is not the same as 23.1
-    // so this Rust implementation is not literally following the Ion Spec (which is kind
-    // of hard to follow to be honest). At the same time there isn't much we can do as we
-    // choosed to use the DateTime type for the decoded value. With that type there is no
-    // way to encode the "desired precission", so we just assume that is the lowest one
-    // that doesn't loose data. Life is hard. If you are reading this I hope this didn't
-    // caused you too many problems. Edit: Ohh, and another thing, the ISO standard doesn't
-    // caps the maximun quantity of decimals for seconds, but many languages do. Seems that
-    // nodejs rounds to 3 deciamls, so 23.999 seconds are 23.999 but 23.9999 are 24 seconds.
-    // This affects if you are comparing values and expect the comparation to be an Ion
-    // comparation or if you are hashing thing things in Rust and another languages. Maybe.
-    // I think it should be ok for most cases, but theremay be some that cause problems.
-    // Good luck.
+    // This gives us a maximum decimal precision of 9 places. 
+    // It will use less bytes if the number needs less. 23.100 seconds will become 23.1. 
+    // 
+    // This means that this implementation is not fully following the Ion Spec. 
+    // In an Ion Timestamp 23.100 seconds are not the same as 23.1 seconds. An Ion 
+    // Timestamp comparison between two dates representing the same moment but with 
+    // different number of zeros in the seconds value results in "not equal". Given 
+    // that we use DateTime type for the decoded value we loose the original stored 
+    // precision. We assume that the precision is the lowest one that doesn't 
+    // loose data. So equality comparisons in this library are less strict than in 
+    // the Ion standard.
+    // 
+    // Additionally, the ISO standard doesn't caps the maximum quantity of decimals 
+    // in a seconds, but many implementations do. For example, nodejs rounds to 3 
+    // decimals, so 23.999 seconds are 23.999 but 23.9999 are 24 seconds. 
+    // 
+    // If you are comparing Ion Timestamps and expect the equality to be an Ion 
+    // equality operation or if you are comparing hashes hashed in Rust and other 
+    // languages you may end with unexpected results.
     let nanosecond: BigDecimal = BigDecimal::from(nanosecond) / BigDecimal::from(1_000_000_000);
 
     let (coefficient, exponent) = nanosecond.as_bigint_and_exponent();

@@ -2,7 +2,8 @@ import * as ion from 'ion-js';
 import * as ionHash from 'ion-hash-js';
 import * as crypto from "crypto";
 
-// This function will print a strict ready to copy past into rust
+// This function will print a string with the hashed value 
+// ready to be pasted in Rust using a b"" str
 calculate_hash();
 
 function calculate_hash() {

@@ -22,7 +22,7 @@ think string is the the most ergonomic way.
 all the required symbols.
 
 We have implemented the whole amazon ion test-suite for parsing. Encoding and Hashing
-testing is feature complete but we are working in expading the coverage, we would 
+testing is feature complete but we are working in expading the coverage, we would
 appreciate any bug you can report. You can check all the test for examples.
 
 ## Example
