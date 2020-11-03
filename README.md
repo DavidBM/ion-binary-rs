@@ -10,7 +10,7 @@ Ion binary is a library written in safe rust for parsing, encoding and hashing A
 [![Crates.io](https://img.shields.io/crates/v/ion-binary-rs)](https://crates.io/crates/ion-binary-rs)
 
 It should be able to **parse**, **encode** and **hash** anything you throw at it. Any failure to do so
-is a bug 💥 that we will fix and we will be very happy if you report them 🙌.
+is a bug that we will fix and we will be very happy if you report them.
 
 ## How to use the library
 
@@ -21,9 +21,9 @@ think string is the the most ergonomic way.
 - When parsing/decoding you can add shared tables for binary blobs that doesn't have
 all the required symbols.
 
-We have implemented the whole amazon ion test-suite for parsing. Encoding and Hashing
-testing is feature complete but we are working in expading the coverage, we would
-appreciate any bug you can report. You can check all the test for examples.
+We have implemented the whole amazon ion test-suite for parsing. 
+Encoding and Hashing fully tested. We are working in expading the coverage.
+We would appreciate any bug you can report. You can check all the test for examples.
 
 ## Example
 
