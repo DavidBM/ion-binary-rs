@@ -1,12 +1,12 @@
 [package]
 name = "ion-binary-rs"
-version = "0.3.0"
-authors = ["David Bonet <webbonet@gmail.com>"]
+version = "0.4.0"
+authors = ["Couragium Solutions <info@couragium.com>"]
 edition = "2018"
-description="Pure Rust binary parser for Amazon's Ion. It helps to communicate with products like QLDB."
+description="Pure Rust parsing, hashing and encoding for Amazon's Ion binary format."
 license = "Apache-2.0/MIT"
 readme = "README.md"
-keywords = ["ion", "binary", "network", "protocol", "amazon"]
+keywords = ["ion", "binary", "network", "protocol", "amazon", "hash", "encode", "parse"]
 categories = ["network-programming"]
 documentation = "https://docs.rs/ion-binary-rs"
 homepage = "https://crates.io/crates/ion-binary-rs"
@@ -14,7 +14,7 @@ repository = "https://github.com/Couragium/ion-binary-rs"
 
 
 [badges]
-maintenance = { status = "actively-developed" }
+maintenance = { status = "actively-maintained" }
 
 [dependencies]
 chrono = "0.4.15"
