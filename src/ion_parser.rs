@@ -10,7 +10,6 @@ use num_traits::ops::checked::CheckedSub;
 use std::convert::{TryFrom, TryInto};
 use std::{collections::HashMap, io::Read};
 
-
 /// In order to use it call the new method and then the "consume_all" method.
 ///
 /// ### Example

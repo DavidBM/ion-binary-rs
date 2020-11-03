@@ -42,8 +42,7 @@ fn ion_hash_general_1() {
     );
 }
 
-
-// Hash for this test generated using 
+// Hash for this test generated using
 // src/tests/ion_hash/reference_hash_impl/ion_hash_complex.ts
 #[test]
 fn ion_hash_general_2() {
