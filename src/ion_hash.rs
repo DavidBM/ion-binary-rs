@@ -176,6 +176,7 @@ impl<D: Digest> PartialOrd for IonHash<D> {
         self.buffer
             .iter()
             .rev()
-            .partial_cmp(value.get().iter().rev())
+            .map(|byte| *byte as i8)
+            .partial_cmp(value.get().iter().rev().map(|byte| *byte as i8))
     }
 }
