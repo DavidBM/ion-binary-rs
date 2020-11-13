@@ -126,7 +126,7 @@ pub fn encode_datetime_representation(value: &DateTime<FixedOffset>) -> Vec<u8> 
             buffer.append(&mut encode_int(&coefficient));
         }
     }
-println!("Time: {:?}", buffer);
+
     buffer
 }
 
