@@ -85,7 +85,6 @@ pub enum NullIonValue {
     Null,
     Bool,
     Integer,
-    BigInteger,
     Float,
     Decimal,
     DateTime,

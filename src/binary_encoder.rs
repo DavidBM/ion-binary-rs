@@ -41,7 +41,6 @@ pub fn encode_null(value: &NullIonValue) -> Vec<u8> {
         NullIonValue::Null => [0x0F].to_vec(),
         NullIonValue::Bool => [0x1F].to_vec(),
         NullIonValue::Integer => [0x2F].to_vec(),
-        NullIonValue::BigInteger => [0x2F].to_vec(),
         NullIonValue::Float => [0x4F].to_vec(),
         NullIonValue::Decimal => [0x5F].to_vec(),
         NullIonValue::DateTime => [0x6F].to_vec(),

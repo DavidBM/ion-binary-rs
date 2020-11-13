@@ -230,7 +230,6 @@ fn encode_null_value(value: &NullIonValue) -> Vec<u8> {
         NullIonValue::Null => vec![0x0F],
         NullIonValue::Bool => vec![0x1F],
         NullIonValue::Integer => vec![0x2F],
-        NullIonValue::BigInteger => vec![0x2F],
         NullIonValue::Float => vec![0x4F],
         NullIonValue::Decimal => vec![0x5F],
         NullIonValue::DateTime => vec![0x6F],
