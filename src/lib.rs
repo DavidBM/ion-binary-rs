@@ -136,6 +136,7 @@ pub(crate) mod ion_hash_encoder;
 pub(crate) mod ion_parser;
 pub(crate) mod ion_parser_types;
 pub(crate) mod symbol_table;
+pub(crate) mod ion_value_impl;
 
 #[cfg(test)]
 mod tests;
@@ -144,5 +145,5 @@ pub use binary_parser_types::ParsingError;
 pub use ion_encoder::IonEncoder;
 pub use ion_hash::IonHash;
 pub use ion_parser::IonParser;
-pub use ion_parser_types::{IonParserError, IonValue, NullIonValue};
+pub use ion_parser_types::{IonParserError, IonValue, NullIonValue, IonExtractionError};
 pub use symbol_table::{Symbol, SymbolContextError};
