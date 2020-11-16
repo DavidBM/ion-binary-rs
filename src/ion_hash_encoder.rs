@@ -152,7 +152,6 @@ fn encode_decimal_value(value: &BigDecimal) -> Vec<u8> {
 }
 
 fn encode_float_value(value: &f64) -> Vec<u8> {
-    println!("{:?}", value.to_be_bytes());
     let mut buffer = vec![0x40];
 
     if value.is_nan() {

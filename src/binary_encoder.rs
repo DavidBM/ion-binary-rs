@@ -97,7 +97,7 @@ pub fn encode_datetime_representation(value: &DateTime<FixedOffset>) -> Vec<u8> 
 
     let exponent = -exponent;
 
-    let (exponent_sign, exponent) = BigInt::from(exponent).to_bytes_be();
+    let (exponent_sign, exponent_bytes) = BigInt::from(exponent).to_bytes_be();
 
     let offset = value.offset().local_minus_utc() / 60;
 
@@ -112,10 +112,19 @@ pub fn encode_datetime_representation(value: &DateTime<FixedOffset>) -> Vec<u8> 
     buffer.append(&mut encode_varuint(&hour.to_be_bytes()));
     buffer.append(&mut encode_varuint(&minute.to_be_bytes()));
     buffer.append(&mut encode_varuint(&second.to_be_bytes()));
-    buffer.append(&mut encode_varint(&exponent, exponent_sign == Sign::Minus));
 
-    if !coefficient.is_zero() {
-        buffer.append(&mut encode_int(&coefficient));
+    // Timestamp precision in term of components (day, hour, seconds, etc) 
+    // depends of the representation.
+    // 2011-01-01T00 encodes to 80 0F DB 81 81 80
+    // 2011-01-01T00:00:00+00:00 encodes to 80 0F DB 81 81 80 80 80 even 
+    // if the minutes and seconds are 0.
+    // We don't know the original represented precision, so we use seconds
+    // or fractional seconds.
+    if !exponent.is_zero() && !coefficient.is_zero() {
+        buffer.append(&mut encode_varint(&exponent_bytes, exponent_sign == Sign::Minus));
+        if !coefficient.is_zero() {
+            buffer.append(&mut encode_int(&coefficient));
+        }
     }
 
     buffer
