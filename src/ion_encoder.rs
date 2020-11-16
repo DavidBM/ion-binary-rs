@@ -1,7 +1,6 @@
 use crate::binary_encoder::{
-    encode_blob, encode_bool, encode_datetime, encode_decimal, encode_float32, encode_float64,
-    encode_integer, encode_null, encode_uint, encode_varuint,
-    ION_LEN_ON_HEADER_WHEN_EXTRA_LEN_FIELD_REQUIRED,
+    encode_blob, encode_bool, encode_datetime, encode_decimal, encode_float64, encode_integer,
+    encode_null, encode_uint, encode_varuint, ION_LEN_ON_HEADER_WHEN_EXTRA_LEN_FIELD_REQUIRED,
 };
 use crate::binary_parser_types::{SystemSymbolIds, SYSTEM_SYMBOL_TABLE};
 use crate::symbol_table::SymbolContext;
@@ -102,8 +101,7 @@ impl IonEncoder {
             IonValue::Bool(value) => encode_bool(value),
             IonValue::Integer(value) => encode_integer(&BigInt::from(*value)),
             IonValue::BigInteger(value) => encode_integer(value),
-            IonValue::Float32(value) => encode_float32(value),
-            IonValue::Float64(value) => encode_float64(value),
+            IonValue::Float(value) => encode_float64(value),
             IonValue::Decimal(value) => encode_decimal(value),
             IonValue::String(value) => encode_blob(8, value.as_bytes()),
             IonValue::Clob(value) => encode_blob(9, value),

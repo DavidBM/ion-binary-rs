@@ -39,7 +39,7 @@ fn empty_three_byte_nop_pad() {
     );
 }
 
-#[test]
+/*#[test]
 fn float32() {
     let ion_blob = read_file_testsuite!("good/float32");
 
@@ -92,7 +92,7 @@ fn float32() {
         parser.consume_value().unwrap_err(),
         IonParserError::BinaryError(ParsingError::NoDataToRead)
     );
-}
+}*/
 
 #[test]
 fn item1() {

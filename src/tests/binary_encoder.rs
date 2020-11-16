@@ -66,7 +66,7 @@ fn encode_integer_big_negative() {
     assert_eq!(ion_value, resulting_ion_value);
 }
 
-#[test]
+/*#[test]
 fn encode_integer_float32() {
     let values: Vec<f32> = vec![
         f32::MIN,
@@ -103,7 +103,7 @@ fn encode_integer_float32_nan() {
     } else {
         panic!("Not a float!")
     }
-}
+}*/
 
 #[test]
 fn encode_integer_float64() {
@@ -118,7 +118,7 @@ fn encode_integer_float64() {
     ];
 
     for ion_value in values {
-        let ion_value = IonValue::Float64(ion_value);
+        let ion_value = IonValue::Float(ion_value);
 
         let bytes = encode_ion_value(&ion_value);
 
@@ -130,13 +130,13 @@ fn encode_integer_float64() {
 
 #[test]
 fn encode_integer_float64_nan() {
-    let ion_value = IonValue::Float64(f64::NAN);
+    let ion_value = IonValue::Float(f64::NAN);
 
     let bytes = encode_ion_value(&ion_value);
 
     let resulting_ion_value = IonParser::new(&bytes[..]).consume_value().unwrap().0;
 
-    if let IonValue::Float64(value) = resulting_ion_value {
+    if let IonValue::Float(value) = resulting_ion_value {
         if !value.is_nan() {
             panic!("It is not a nan");
         }

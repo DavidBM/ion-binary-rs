@@ -17,8 +17,7 @@ pub fn encode_ion_value(value: &IonValue) -> Vec<u8> {
         IonValue::Bool(value) => encode_bool(value),
         IonValue::Integer(value) => encode_integer(&BigInt::from(*value)),
         IonValue::BigInteger(value) => encode_integer(value),
-        IonValue::Float32(value) => encode_float32(value),
-        IonValue::Float64(value) => encode_float64(value),
+        IonValue::Float(value) => encode_float64(value),
         IonValue::Decimal(value) => encode_decimal(value),
         IonValue::String(value) => encode_blob(8, value.as_bytes()),
         IonValue::Clob(value) => encode_blob(9, value),
@@ -113,15 +112,18 @@ pub fn encode_datetime_representation(value: &DateTime<FixedOffset>) -> Vec<u8> 
     buffer.append(&mut encode_varuint(&minute.to_be_bytes()));
     buffer.append(&mut encode_varuint(&second.to_be_bytes()));
 
-    // Timestamp precision in term of components (day, hour, seconds, etc) 
+    // Timestamp precision in term of components (day, hour, seconds, etc)
     // depends of the representation.
     // 2011-01-01T00 encodes to 80 0F DB 81 81 80
-    // 2011-01-01T00:00:00+00:00 encodes to 80 0F DB 81 81 80 80 80 even 
+    // 2011-01-01T00:00:00+00:00 encodes to 80 0F DB 81 81 80 80 80 even
     // if the minutes and seconds are 0.
     // We don't know the original represented precision, so we use seconds
     // or fractional seconds.
     if !exponent.is_zero() && !coefficient.is_zero() {
-        buffer.append(&mut encode_varint(&exponent_bytes, exponent_sign == Sign::Minus));
+        buffer.append(&mut encode_varint(
+            &exponent_bytes,
+            exponent_sign == Sign::Minus,
+        ));
         if !coefficient.is_zero() {
             buffer.append(&mut encode_int(&coefficient));
         }
@@ -258,25 +260,6 @@ pub fn encode_int(value: &BigInt) -> Vec<u8> {
 
 pub fn encode_uint(value: &BigUint) -> Vec<u8> {
     value.to_bytes_be()
-}
-
-pub fn encode_float32(value: &f32) -> Vec<u8> {
-    if *value == 0.0 && value.is_sign_positive() {
-        return vec![0x40];
-    }
-
-    let mut buffer: Vec<u8> = vec![0; 5];
-
-    buffer[0] = 0x44;
-
-    let bytes = value.to_be_bytes();
-
-    buffer[1] = bytes[0];
-    buffer[2] = bytes[1];
-    buffer[3] = bytes[2];
-    buffer[4] = bytes[3];
-
-    buffer
 }
 
 pub fn encode_float64(value: &f64) -> Vec<u8> {

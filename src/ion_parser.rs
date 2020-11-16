@@ -484,16 +484,19 @@ impl<T: Read> IonParser<T> {
 
         Ok(match header.length {
             ValueLength::ShortLength(len) => match len {
-                0 => (IonValue::Float32(0f32), 0),
+                0 => (IonValue::Float(0f64), 0),
                 4 => {
                     let mut buffer = [0u8; FOUR_BYTES];
                     self.parser.read_bytes(&mut buffer)?;
-                    (IonValue::Float32(f32::from_be_bytes(buffer)), FOUR_BYTES)
+                    (
+                        IonValue::Float(f32::from_be_bytes(buffer).into()),
+                        FOUR_BYTES,
+                    )
                 }
                 8 => {
                     let mut buffer = [0u8; EIGHT_BYTES];
                     self.parser.read_bytes(&mut buffer)?;
-                    (IonValue::Float64(f64::from_be_bytes(buffer)), EIGHT_BYTES)
+                    (IonValue::Float(f64::from_be_bytes(buffer)), EIGHT_BYTES)
                 }
                 _ => return Err(IonParserError::NotValidLengthFloat),
             },

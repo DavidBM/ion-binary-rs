@@ -5,7 +5,7 @@ use sha2::Sha256;
 
 #[test]
 fn ion_hash_float64_1() {
-    let value = IonValue::Float64(123.123);
+    let value = IonValue::Float(123.123);
 
     let hash = IonHash::digest::<Sha256>(&value);
 
@@ -16,7 +16,7 @@ fn ion_hash_float64_1() {
 
 #[test]
 fn ion_hash_float64_2() {
-    let value = IonValue::Float64(std::f64::INFINITY);
+    let value = IonValue::Float(std::f64::INFINITY);
 
     let hash = IonHash::digest::<Sha256>(&value);
 
@@ -27,7 +27,7 @@ fn ion_hash_float64_2() {
 
 #[test]
 fn ion_hash_float64_3() {
-    let value = IonValue::Float64(std::f64::NEG_INFINITY);
+    let value = IonValue::Float(std::f64::NEG_INFINITY);
 
     let hash = IonHash::digest::<Sha256>(&value);
 
@@ -38,7 +38,7 @@ fn ion_hash_float64_3() {
 
 #[test]
 fn ion_hash_float64_4() {
-    let value = IonValue::Float64(std::f64::NAN);
+    let value = IonValue::Float(std::f64::NAN);
 
     let hash = IonHash::digest::<Sha256>(&value);
 
@@ -49,7 +49,7 @@ fn ion_hash_float64_4() {
 
 #[test]
 fn ion_hash_float64_5() {
-    let value = IonValue::Float64(-123.123);
+    let value = IonValue::Float(-123.123);
 
     let hash = IonHash::digest::<Sha256>(&value);
 
@@ -58,6 +58,18 @@ fn ion_hash_float64_5() {
     assert_eq!(b"\xec\x5e\xae\x54\x67\x3a\xc2\xcb\x3c\xc7\x5c\xde\x4d\x9f\xec\x1a\xde\xc1\x08\x40\x97\x6a\xd9\x79\x96\x64\x4d\x76\x20\x90\xc6\x51", &hash[..]);
 }
 
+#[test]
+fn ion_hash_float64_neg_zero() {
+    let value = IonValue::Float(-0.0);
+
+    let hash = IonHash::digest::<Sha256>(&value);
+
+    println!("Resulting hash: {:X?}", hash);
+
+    assert_eq!(b"\x56\x32\x5d\x7b\xb2\x99\x07\x67\x48\x0c\xc4\x52\x99\x30\x58\xd2\xb4\x0c\xe5\x53\x7f\xea\x1a\x54\xf9\x32\xae\x0b\x4a\x04\xf5\x03", &hash[..]);
+}
+
+/*
 // FLOAT 32
 
 #[test]
@@ -114,3 +126,15 @@ fn ion_hash_float32_5() {
 
     assert_eq!(b"\xb6\x73\x52\x88\xaf\xba\x1c\x84\xb5\xad\xd0\x63\xd1\x77\x91\x13\x26\xd5\x92\x91\x41\x22\x73\x80\x92\x78\x08\x32\xea\xea\xd1\xc5", &hash[..]);
 }
+
+#[test]
+fn ion_hash_float32_min() {
+    let value = IonValue::Float32(f32::MIN);
+
+    let hash = IonHash::digest::<Sha256>(&value);
+
+    println!("Resulting hash: {:X?}", hash);
+
+    assert_eq!(b"\xed\x88\xa4\x35\x64\xcd\xed\xea\xcf\xa6\x55\xeb\xaf\x66\x1c\xcf\xfb\x8b\x03\xb2\x56\x26\x97\x30\xe7\xa6\x95\xe3\x22\xf9\xe7\x49", &hash[..]);
+}
+*/
