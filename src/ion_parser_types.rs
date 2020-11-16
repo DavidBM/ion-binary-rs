@@ -81,6 +81,30 @@ impl From<ParsingError> for IonParserError {
     }
 }
 
+#[derive(Debug, Error)]
+pub enum IonExtractionError {
+    #[error("The current type doesn't support the requested transformation")]
+    TypeNotSupported(IonValue),
+    #[error("The current type doesn't support the requested transformation")]
+    NumericTransformationError(Box<dyn Error + Send + Sync>)
+}
+
+impl PartialEq for IonExtractionError {
+    fn eq(&self, other: &IonExtractionError) -> bool {
+        use IonExtractionError::NumericTransformationError;
+
+        match (self, other) {
+            (NumericTransformationError(err_a), NumericTransformationError(err_b)) => {
+                format!("{}", err_a) == format!("{}", err_b)
+            },
+            _ => {
+                *self == *other
+            }
+        }
+    }
+}
+
+
 /// The structure wrapping all possible return ion values by the IonParser.
 ///
 /// Please, pay attention to Integer and BigInteger. The parser will return the 
@@ -114,7 +138,7 @@ impl Eq for IonValue {}
 /// null value, we opted to join all Null values in the IonValue::Null(_) which
 /// contains this struct. Here you can check what kind of null you got. We do this
 /// because we believe is more ergonomic and simplifies the API handling.
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Eq)]
 pub enum NullIonValue {
     Null,
     Bool,
