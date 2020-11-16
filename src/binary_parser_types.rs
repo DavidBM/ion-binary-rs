@@ -1,3 +1,5 @@
+use thiserror::Error;
+
 pub const SYSTEM_SYMBOL_TABLE: &[&str; 10] = &[
     "$0",
     "$ion",
@@ -56,22 +58,29 @@ pub enum ValueType {
 
 /// This errors indicate a problem in a primitive parsing. It comes always
 /// wrapped by the "BinaryError" of the error type "IonParserError".
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, Error)]
 pub enum ParsingError {
+    #[error("Header type not valid")]
     InvalidHeaderType,
+    #[error("Header length not valid")]
     InvalidHeaderLength,
-    TooBigForU64,
-    VarIntTooBigForI64,
+    #[error("Reached end of the ion stream")]
     NoDataToRead,
+    #[error("There is not enough data to read, provably a premature ion stream end")]
     NotEnoughtDataToRead(usize),
+    #[error("The read method returned an error which mean that the ion stream provider may have a problem")]
     ErrorReadingData(String),
+    #[error("Trying to read 0 bytes")]
     CannotReadZeroBytes,
+    #[error("Ion Stream Header is wrong")]
     BadFormedVersionHeader,
-    MalformedIonVersion,
+    #[error("Null cannot have len")]
     InvalidNullLength(ValueLength),
+    #[error("Annotation cannot be shorter than 3 bytes")]
     InvalidAnnotationLength(ValueLength),
-    ParsedIntTooBigThisIsABug,
+    #[error("VaruInt returned a number so huge that doesn't fit in an BitUInt")]
     ThisIsABugConsumingVarUInt,
+    #[error("VaruInt returned a number so huge that doesn't fit in an BitInt")]
     ThisIsABugConsumingVarInt,
 }
 

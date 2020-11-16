@@ -25,6 +25,7 @@ num-bigint = "0.3.0"
 num-traits = "0.2.12"
 digest = "0.9.0"
 sha2 = "0.9.1"
+thiserror = "1.0.22"
 
 [dev-dependencies]
 bytes = "0.5.6"
