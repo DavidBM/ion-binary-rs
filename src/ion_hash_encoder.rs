@@ -180,11 +180,10 @@ fn encode_float_value(value: &f64) -> Vec<u8> {
 
     if value.is_zero() && value.is_sign_negative() {
         buffer.append(&mut escape_buffer(&[
-            0x80, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         ]));
         return buffer;
     }
-
     buffer.append(&mut escape_buffer(&value.to_be_bytes().to_vec()));
 
     buffer
