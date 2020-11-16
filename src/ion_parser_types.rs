@@ -50,18 +50,19 @@ impl From<ParsingError> for IonParserError {
 
 /// The structure wrapping all possible return ion values by the IonParser.
 ///
-/// Please, pay attention to the Float32, Float 64 (as Ion just defined "float")
-/// and the Integer and BigInteger. The parser will return the most adequate
-/// Integer type. If you expect small numbers you can get by with Integer alone,
-/// but if you don't know, you will need to match both types.
+/// Please, pay attention to Integer and BigInteger. The parser will return the 
+/// most adequate integer type. If you expect small numbers you can get by with 
+/// Integer alone, but if you don't know, you will need to match both types.
+/// 
+/// Floats are implemented only using f64. Previously there was Float32 and 
+/// Float64, but there are some problems with IonHash and QLDB when using Float32.
 #[derive(PartialEq, Debug, Clone)]
 pub enum IonValue {
     Null(NullIonValue),
     Bool(bool),
     Integer(i64),
     BigInteger(BigInt),
-    Float32(f32),
-    Float64(f64),
+    Float(f64),
     Decimal(BigDecimal),
     DateTime(DateTime<FixedOffset>),
     String(String),
