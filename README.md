@@ -21,7 +21,7 @@ think string is the the most ergonomic way.
 - When parsing/decoding you can add shared tables for binary blobs that doesn't have
 all the required symbols.
 
-We have implemented the whole amazon ion test-suite for parsing. 
+We have implemented the whole amazon ion test-suite for parsing.
 Encoding and Hashing fully tested. We are working in expading the coverage.
 We would appreciate any bug you can report. You can check all the test for examples.
 
