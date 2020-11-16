@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use crate::{IonHash, IonValue};
 use sha2::Sha256;
+use std::collections::HashMap;
 
 #[test]
 fn ion_hash_datetime_1() {
@@ -45,13 +45,13 @@ fn ion_hash_datetime_3() {
 fn ion_hash_datetime_4() {
     let value = IonValue::DateTime(
         // In this case, this is the equivalent to encode in JS
-        // 2011-02-20T11:30:59.1-08:00 without following zeros 
+        // 2011-02-20T11:30:59.1-08:00 without following zeros
         // in the seconds decimals places, as in JS is not the same
-        // .100 than .1 because the Ion system. Here we never 
+        // .100 than .1 because the Ion system. Here we never
         // represent the DateTime in string, so we don't know how
         // many following zeros has the decimal. This implementation
         // removes them all and assumes the minimum precision for the
-        // number to be represented. 
+        // number to be represented.
         chrono::DateTime::parse_from_rfc3339("2011-02-20T11:30:59.100-08:00").unwrap(),
     );
 
@@ -172,4 +172,3 @@ fn ion_hash_datetimes_in_struct_4() {
 
     assert_eq!(b"\x59\x5f\x83\xe8\xfa\xb5\x45\xd7\xd4\xa8\x0d\x05\x2d\x25\x63\x92\xae\x4b\xaa\xcd\x89\x49\x4a\x3c\x25\x28\xb9\xea\xed\xe2\xd7\x15", &hash[..]);
 }
-

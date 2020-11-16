@@ -1,8 +1,8 @@
-use std::collections::HashMap;
-use bigdecimal::BigDecimal;
-use chrono::{DateTime, Utc, FixedOffset};
-use num_bigint::{BigInt, BigUint};
 use crate::{IonExtractionError, IonParserError, IonValue};
+use bigdecimal::BigDecimal;
+use chrono::{DateTime, FixedOffset, Utc};
+use num_bigint::{BigInt, BigUint};
+use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 
 use IonParserError::ValueExtractionFailure;
@@ -431,7 +431,7 @@ impl From<u64> for IonValue {
     fn from(value: u64) -> IonValue {
         match i64::try_from(value) {
             Ok(value) => IonValue::Integer(value),
-            Err(_) => IonValue::BigInteger(BigInt::from(value))
+            Err(_) => IonValue::BigInteger(BigInt::from(value)),
         }
     }
 }
@@ -514,10 +514,10 @@ impl From<BigDecimal> for IonValue {
     }
 }
 
-impl <I: Into<IonValue>> From<Vec<I>> for IonValue {
+impl<I: Into<IonValue>> From<Vec<I>> for IonValue {
     fn from(values: Vec<I>) -> Self {
         let mut vec: Vec<IonValue> = vec![];
-        
+
         for value in values {
             vec.push(value.into())
         }
@@ -526,10 +526,10 @@ impl <I: Into<IonValue>> From<Vec<I>> for IonValue {
     }
 }
 
-impl <I: Into<IonValue> + Clone> From<&[I]> for IonValue {
+impl<I: Into<IonValue> + Clone> From<&[I]> for IonValue {
     fn from(values: &[I]) -> Self {
         let mut vec: Vec<IonValue> = vec![];
-        
+
         for value in values.to_vec() {
             vec.push(value.into())
         }
@@ -538,10 +538,10 @@ impl <I: Into<IonValue> + Clone> From<&[I]> for IonValue {
     }
 }
 
-impl <I: Into<IonValue>, K: Into<String>> From<HashMap<K, I>> for IonValue {
+impl<I: Into<IonValue>, K: Into<String>> From<HashMap<K, I>> for IonValue {
     fn from(values: HashMap<K, I>) -> Self {
         let mut vec: HashMap<String, IonValue> = HashMap::new();
-        
+
         for (key, value) in values.into_iter() {
             vec.insert(key.into(), value.into());
         }
@@ -550,7 +550,7 @@ impl <I: Into<IonValue>, K: Into<String>> From<HashMap<K, I>> for IonValue {
     }
 }
 
-impl <I: Into<IonValue> + Clone> From<&I> for IonValue {
+impl<I: Into<IonValue> + Clone> From<&I> for IonValue {
     fn from(value: &I) -> IonValue {
         value.clone().into()
     }

@@ -46,7 +46,6 @@ fn ion_hash_general_1() {
 // src/tests/ion_hash/reference_hash_impl/ion_hash_complex.ts
 #[test]
 fn ion_hash_general_2() {
-
     let value = IonValue::Annotation(
         vec!["Annot 1".into(), "Annot 2".into(), "Annot 3".into()],
         Box::new(build_big_struct()),

@@ -488,7 +488,10 @@ impl<T: Read> IonParser<T> {
                 4 => {
                     let mut buffer = [0u8; FOUR_BYTES];
                     self.parser.read_bytes(&mut buffer)?;
-                    (IonValue::Float(f32::from_be_bytes(buffer).into()), FOUR_BYTES)
+                    (
+                        IonValue::Float(f32::from_be_bytes(buffer).into()),
+                        FOUR_BYTES,
+                    )
                 }
                 8 => {
                     let mut buffer = [0u8; EIGHT_BYTES];

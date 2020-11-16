@@ -1,10 +1,10 @@
-use std::error::Error;
 use crate::binary_parser_types::*;
 use crate::symbol_table::SymbolContextError;
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, FixedOffset};
 use num_bigint::BigInt;
 use std::collections::HashMap;
+use std::error::Error;
 use thiserror::Error;
 
 /// Indicated a problem in the binary blob internal structure. When all data is read
@@ -72,7 +72,7 @@ pub enum IonParserError {
     #[error("Ordered structs cannot be empty")]
     EmptyOrderedStruct,
     #[error("Error transforming the IonValue to a rust type")]
-    ValueExtractionFailure(IonExtractionError)
+    ValueExtractionFailure(IonExtractionError),
 }
 
 impl From<ParsingError> for IonParserError {
@@ -86,7 +86,7 @@ pub enum IonExtractionError {
     #[error("The current type doesn't support the requested transformation")]
     TypeNotSupported(IonValue),
     #[error("The current type doesn't support the requested transformation")]
-    NumericTransformationError(Box<dyn Error + Send + Sync>)
+    NumericTransformationError(Box<dyn Error + Send + Sync>),
 }
 
 impl PartialEq for IonExtractionError {
@@ -96,22 +96,19 @@ impl PartialEq for IonExtractionError {
         match (self, other) {
             (NumericTransformationError(err_a), NumericTransformationError(err_b)) => {
                 format!("{}", err_a) == format!("{}", err_b)
-            },
-            _ => {
-                *self == *other
             }
+            _ => *self == *other,
         }
     }
 }
 
-
 /// The structure wrapping all possible return ion values by the IonParser.
 ///
-/// Please, pay attention to Integer and BigInteger. The parser will return the 
-/// most adequate integer type. If you expect small numbers you can get by with 
+/// Please, pay attention to Integer and BigInteger. The parser will return the
+/// most adequate integer type. If you expect small numbers you can get by with
 /// Integer alone, but if you don't know, you will need to match both types.
-/// 
-/// Floats are implemented only using f64. Previously there was Float32 and 
+///
+/// Floats are implemented only using f64. Previously there was Float32 and
 /// Float64, but there are some problems with IonHash and QLDB when using Float32.
 #[derive(PartialEq, Debug, Clone)]
 pub enum IonValue {

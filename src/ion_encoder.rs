@@ -1,7 +1,6 @@
 use crate::binary_encoder::{
-    encode_blob, encode_bool, encode_datetime, encode_decimal, encode_float64,
-    encode_integer, encode_null, encode_uint, encode_varuint,
-    ION_LEN_ON_HEADER_WHEN_EXTRA_LEN_FIELD_REQUIRED,
+    encode_blob, encode_bool, encode_datetime, encode_decimal, encode_float64, encode_integer,
+    encode_null, encode_uint, encode_varuint, ION_LEN_ON_HEADER_WHEN_EXTRA_LEN_FIELD_REQUIRED,
 };
 use crate::binary_parser_types::{SystemSymbolIds, SYSTEM_SYMBOL_TABLE};
 use crate::symbol_table::SymbolContext;
