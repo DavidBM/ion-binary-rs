@@ -46,6 +46,18 @@ fn ion_hash_general_1() {
 // src/tests/ion_hash/reference_hash_impl/ion_hash_complex.ts
 #[test]
 fn ion_hash_general_2() {
+
+    let value = IonValue::Annotation(
+        vec!["Annot 1".into(), "Annot 2".into(), "Annot 3".into()],
+        Box::new(build_big_struct()),
+    );
+
+    let hash = IonHash::default_digest(&value);
+
+    assert_eq!(b"\xeb\x22\x0f\xab\xcb\x85\x48\xb0\xe5\x7b\x6b\xfe\xed\xdb\x8d\xe8\x5d\x9b\x01\x75\xdd\x77\xb1\x15\x3b\xfc\xf6\x2d\x08\x9c\x61\x4b", &hash[..]);
+}
+
+fn build_big_struct() -> IonValue {
     let list = IonValue::List(vec![
         IonValue::Integer(1),
         IonValue::Integer(2),
@@ -97,19 +109,12 @@ fn ion_hash_general_2() {
         "n".into() => IonValue::Integer(14)
     ));
 
-    let value = IonValue::Annotation(
-        vec!["Annot 1".into(), "Annot 2".into(), "Annot 3".into()],
-        Box::new(IonValue::Struct(hashmap!(
-            "e".into() => IonValue::Integer(5),
-            "a".into() => long_struct,
-            "l".into() => IonValue::Integer(12),
-            "b".into() => IonValue::Integer(2),
-            "i".into() => IonValue::Integer(9),
-            "n".into() => IonValue::Float32(123.12)
-        ))),
-    );
-
-    let hash = IonHash::default_digest(&value);
-
-    assert_eq!(b"\xeb\x22\x0f\xab\xcb\x85\x48\xb0\xe5\x7b\x6b\xfe\xed\xdb\x8d\xe8\x5d\x9b\x01\x75\xdd\x77\xb1\x15\x3b\xfc\xf6\x2d\x08\x9c\x61\x4b", &hash[..]);
+    IonValue::Struct(hashmap!(
+        "e".into() => IonValue::Integer(5),
+        "a".into() => long_struct,
+        "l".into() => IonValue::Integer(12),
+        "b".into() => IonValue::Integer(2),
+        "i".into() => IonValue::Integer(9),
+        "n".into() => IonValue::Float(123.12)
+    ))
 }
