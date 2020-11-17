@@ -66,6 +66,42 @@ impl TryFrom<IonValue> for i64 {
     }
 }
 
+impl TryFrom<IonValue> for u32 {
+    type Error = IonParserError;
+
+    fn try_from(value: IonValue) -> Result<Self, IonParserError> {
+        match value {
+            IonValue::Integer(value) => value.try_into().map_err(|e| {
+                ValueExtractionFailure(IonExtractionError::NumericTransformationError(Box::new(e)))
+            }),
+            IonValue::BigInteger(value) => value.try_into().map_err(|e| {
+                ValueExtractionFailure(IonExtractionError::NumericTransformationError(Box::new(e)))
+            }),
+            _ => Err(ValueExtractionFailure(
+                IonExtractionError::TypeNotSupported(value),
+            )),
+        }
+    }
+}
+
+impl TryFrom<IonValue> for i32 {
+    type Error = IonParserError;
+
+    fn try_from(value: IonValue) -> Result<Self, IonParserError> {
+        match value {
+            IonValue::Integer(value) => value.try_into().map_err(|e| {
+                ValueExtractionFailure(IonExtractionError::NumericTransformationError(Box::new(e)))
+            }),
+            IonValue::BigInteger(value) => value.try_into().map_err(|e| {
+                ValueExtractionFailure(IonExtractionError::NumericTransformationError(Box::new(e)))
+            }),
+            _ => Err(ValueExtractionFailure(
+                IonExtractionError::TypeNotSupported(value),
+            )),
+        }
+    }
+}
+
 impl TryFrom<IonValue> for BigUint {
     type Error = IonParserError;
 
@@ -255,6 +291,42 @@ impl TryFrom<&IonValue> for i64 {
     fn try_from(value: &IonValue) -> Result<Self, IonParserError> {
         match value {
             IonValue::Integer(value) => Ok(*value),
+            IonValue::BigInteger(value) => value.try_into().map_err(|e| {
+                ValueExtractionFailure(IonExtractionError::NumericTransformationError(Box::new(e)))
+            }),
+            _ => Err(ValueExtractionFailure(
+                IonExtractionError::TypeNotSupported(value.clone()),
+            )),
+        }
+    }
+}
+
+impl TryFrom<&IonValue> for u32 {
+    type Error = IonParserError;
+
+    fn try_from(value: &IonValue) -> Result<Self, IonParserError> {
+        match value {
+            IonValue::Integer(value) => (*value).try_into().map_err(|e| {
+                ValueExtractionFailure(IonExtractionError::NumericTransformationError(Box::new(e)))
+            }),
+            IonValue::BigInteger(value) => value.try_into().map_err(|e| {
+                ValueExtractionFailure(IonExtractionError::NumericTransformationError(Box::new(e)))
+            }),
+            _ => Err(ValueExtractionFailure(
+                IonExtractionError::TypeNotSupported(value.clone()),
+            )),
+        }
+    }
+}
+
+impl TryFrom<&IonValue> for i32 {
+    type Error = IonParserError;
+
+    fn try_from(value: &IonValue) -> Result<Self, IonParserError> {
+        match value {
+            IonValue::Integer(value) => (*value).try_into().map_err(|e| {
+                ValueExtractionFailure(IonExtractionError::NumericTransformationError(Box::new(e)))
+            }),
             IonValue::BigInteger(value) => value.try_into().map_err(|e| {
                 ValueExtractionFailure(IonExtractionError::NumericTransformationError(Box::new(e)))
             }),
