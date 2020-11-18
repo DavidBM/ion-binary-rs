@@ -8,12 +8,13 @@ use std::convert::{TryFrom, TryInto};
 use IonParserError::ValueExtractionFailure;
 
 impl TryFrom<IonValue> for std::collections::HashMap<String, IonValue> {
-    type Error = ();
+    type Error = IonParserError;
     fn try_from(value: IonValue) -> Result<Self, Self::Error> {
-        if let IonValue::Struct(value) = value {
-            Ok(value)
-        } else {
-            Err(())
+        match value {
+            IonValue::Struct(value) => Ok(value),
+            _ => Err(ValueExtractionFailure(
+                IonExtractionError::TypeNotSupported(value),
+            ))
         }
     }
 }
@@ -55,6 +56,42 @@ impl TryFrom<IonValue> for i64 {
     fn try_from(value: IonValue) -> Result<Self, IonParserError> {
         match value {
             IonValue::Integer(value) => Ok(value),
+            IonValue::BigInteger(value) => value.try_into().map_err(|e| {
+                ValueExtractionFailure(IonExtractionError::NumericTransformationError(Box::new(e)))
+            }),
+            _ => Err(ValueExtractionFailure(
+                IonExtractionError::TypeNotSupported(value),
+            )),
+        }
+    }
+}
+
+impl TryFrom<IonValue> for u32 {
+    type Error = IonParserError;
+
+    fn try_from(value: IonValue) -> Result<Self, IonParserError> {
+        match value {
+            IonValue::Integer(value) => value.try_into().map_err(|e| {
+                ValueExtractionFailure(IonExtractionError::NumericTransformationError(Box::new(e)))
+            }),
+            IonValue::BigInteger(value) => value.try_into().map_err(|e| {
+                ValueExtractionFailure(IonExtractionError::NumericTransformationError(Box::new(e)))
+            }),
+            _ => Err(ValueExtractionFailure(
+                IonExtractionError::TypeNotSupported(value),
+            )),
+        }
+    }
+}
+
+impl TryFrom<IonValue> for i32 {
+    type Error = IonParserError;
+
+    fn try_from(value: IonValue) -> Result<Self, IonParserError> {
+        match value {
+            IonValue::Integer(value) => value.try_into().map_err(|e| {
+                ValueExtractionFailure(IonExtractionError::NumericTransformationError(Box::new(e)))
+            }),
             IonValue::BigInteger(value) => value.try_into().map_err(|e| {
                 ValueExtractionFailure(IonExtractionError::NumericTransformationError(Box::new(e)))
             }),
@@ -254,6 +291,42 @@ impl TryFrom<&IonValue> for i64 {
     fn try_from(value: &IonValue) -> Result<Self, IonParserError> {
         match value {
             IonValue::Integer(value) => Ok(*value),
+            IonValue::BigInteger(value) => value.try_into().map_err(|e| {
+                ValueExtractionFailure(IonExtractionError::NumericTransformationError(Box::new(e)))
+            }),
+            _ => Err(ValueExtractionFailure(
+                IonExtractionError::TypeNotSupported(value.clone()),
+            )),
+        }
+    }
+}
+
+impl TryFrom<&IonValue> for u32 {
+    type Error = IonParserError;
+
+    fn try_from(value: &IonValue) -> Result<Self, IonParserError> {
+        match value {
+            IonValue::Integer(value) => (*value).try_into().map_err(|e| {
+                ValueExtractionFailure(IonExtractionError::NumericTransformationError(Box::new(e)))
+            }),
+            IonValue::BigInteger(value) => value.try_into().map_err(|e| {
+                ValueExtractionFailure(IonExtractionError::NumericTransformationError(Box::new(e)))
+            }),
+            _ => Err(ValueExtractionFailure(
+                IonExtractionError::TypeNotSupported(value.clone()),
+            )),
+        }
+    }
+}
+
+impl TryFrom<&IonValue> for i32 {
+    type Error = IonParserError;
+
+    fn try_from(value: &IonValue) -> Result<Self, IonParserError> {
+        match value {
+            IonValue::Integer(value) => (*value).try_into().map_err(|e| {
+                ValueExtractionFailure(IonExtractionError::NumericTransformationError(Box::new(e)))
+            }),
             IonValue::BigInteger(value) => value.try_into().map_err(|e| {
                 ValueExtractionFailure(IonExtractionError::NumericTransformationError(Box::new(e)))
             }),
