@@ -134,6 +134,21 @@ impl TryFrom<IonValue> for BigInt {
     }
 }
 
+impl TryFrom<IonValue> for BigDecimal {
+    type Error = IonParserError;
+
+    fn try_from(value: IonValue) -> Result<Self, IonParserError> {
+        match value {
+            IonValue::Decimal(value) => Ok(value),
+            IonValue::Integer(value) => Ok(BigDecimal::from(value)),
+            IonValue::BigInteger(value) => Ok(BigDecimal::from(value)),
+            _ => Err(ValueExtractionFailure(
+                IonExtractionError::TypeNotSupported(value),
+            )),
+        }
+    }
+}
+
 impl TryFrom<IonValue> for f64 {
     type Error = IonParserError;
 
