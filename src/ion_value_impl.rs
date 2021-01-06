@@ -14,7 +14,7 @@ impl TryFrom<IonValue> for std::collections::HashMap<String, IonValue> {
             IonValue::Struct(value) => Ok(value),
             _ => Err(ValueExtractionFailure(
                 IonExtractionError::TypeNotSupported(value),
-            ))
+            )),
         }
     }
 }
@@ -127,6 +127,21 @@ impl TryFrom<IonValue> for BigInt {
         match value {
             IonValue::Integer(value) => Ok(BigInt::from(value)),
             IonValue::BigInteger(value) => Ok(value),
+            _ => Err(ValueExtractionFailure(
+                IonExtractionError::TypeNotSupported(value),
+            )),
+        }
+    }
+}
+
+impl TryFrom<IonValue> for BigDecimal {
+    type Error = IonParserError;
+
+    fn try_from(value: IonValue) -> Result<Self, IonParserError> {
+        match value {
+            IonValue::Decimal(value) => Ok(value),
+            IonValue::Integer(value) => Ok(BigDecimal::from(value)),
+            IonValue::BigInteger(value) => Ok(BigDecimal::from(value)),
             _ => Err(ValueExtractionFailure(
                 IonExtractionError::TypeNotSupported(value),
             )),

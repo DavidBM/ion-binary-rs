@@ -461,7 +461,7 @@ impl<T: Read> IonParser<T> {
             .try_into()
             .map_err(|_| IonParserError::DateValueTooBig)?;
 
-        let offset = FixedOffset::east_opt(offset * 60).ok_or_else(|| {
+        let offset = FixedOffset::east_opt(offset * 60).ok_or({
             IonParserError::InvalidDate(year, month, day, hour, minute, second, second_fraction)
         })?;
 
@@ -521,7 +521,7 @@ impl<T: Read> IonParser<T> {
         let (exponent, consumed_bytes) = self.parser.consume_varint()?;
         let coefficient_size = length
             .checked_sub(consumed_bytes)
-            .ok_or_else(|| IonParserError::DecimalExponentTooBig)?;
+            .ok_or(IonParserError::DecimalExponentTooBig)?;
 
         let coefficient = if coefficient_size > 0 {
             self.parser.consume_int(coefficient_size)?
