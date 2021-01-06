@@ -14,7 +14,7 @@ impl TryFrom<IonValue> for std::collections::HashMap<String, IonValue> {
             IonValue::Struct(value) => Ok(value),
             _ => Err(ValueExtractionFailure(
                 IonExtractionError::TypeNotSupported(value),
-            ))
+            )),
         }
     }
 }
