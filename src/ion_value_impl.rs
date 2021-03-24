@@ -1,8 +1,12 @@
-use crate::{IonExtractionError, IonParserError, IonValue};
+use crate::{
+    ion_parser_types::SerdeJsonParseError, IonExtractionError, IonParserError, IonValue,
+    NullIonValue,
+};
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, FixedOffset, Utc};
+use core::num;
 use num_bigint::{BigInt, BigUint};
-use std::collections::HashMap;
+use std::collections::{btree_map::Range, HashMap};
 use std::convert::{TryFrom, TryInto};
 
 use IonParserError::ValueExtractionFailure;
@@ -641,5 +645,56 @@ impl<I: Into<IonValue>, K: Into<String>> From<HashMap<K, I>> for IonValue {
 impl<I: Into<IonValue> + Clone> From<&I> for IonValue {
     fn from(value: &I) -> IonValue {
         value.clone().into()
+    }
+}
+
+impl TryFrom<serde_json::Value> for IonValue {
+    type Error = SerdeJsonParseError;
+
+    fn try_from(value: serde_json::Value) -> Result<IonValue, SerdeJsonParseError> {
+        match value {
+            serde_json::Value::Null => Ok(IonValue::Null(NullIonValue::Null)),
+            serde_json::Value::Bool(bool) => Ok(IonValue::Bool(bool)),
+            serde_json::Value::Number(number) => {
+                if number.is_f64() {
+                    number
+                        .as_f64()
+                        .ok_or(SerdeJsonParseError::WrongNumberType)
+                        .map(Into::into)
+                } else if number.is_i64() {
+                    number
+                        .as_i64()
+                        .ok_or(SerdeJsonParseError::WrongNumberType)
+                        .map(Into::into)
+                } else if number.is_u64() {
+                    number
+                        .as_u64()
+                        .ok_or(SerdeJsonParseError::WrongNumberType)
+                        .map(Into::into)
+                } else {
+                    Err(SerdeJsonParseError::NonExistentNumberType)
+                }
+            }
+            serde_json::Value::String(string) => Ok(IonValue::String(string)),
+            serde_json::Value::Array(array) => {
+                let list: Result<Vec<IonValue>, SerdeJsonParseError> = array
+                    .into_iter()
+                    .map(|element| element.try_into())
+                    .collect();
+                match list {
+                    Ok(list) => Ok(list.into()),
+                    Err(error) => Err(error),
+                }
+            }
+            serde_json::Value::Object(map) => {
+                let mut hash_map = HashMap::<String, IonValue>::new();
+                for (key, value) in map.into_iter() {
+                    // TODO: no unwraps
+                    let ion_value = value.try_into().unwrap();
+                    hash_map.insert(key.to_string(), ion_value);
+                }
+                Ok(hash_map.into())
+            }
+        }
     }
 }

@@ -75,6 +75,14 @@ pub enum IonParserError {
     ValueExtractionFailure(IonExtractionError),
 }
 
+#[derive(PartialEq, Debug, Error)]
+pub enum SerdeJsonParseError {
+    #[error("Library tells a wrong number type")]
+    WrongNumberType,
+    #[error("Non existent number type")]
+    NonExistentNumberType,
+}
+
 impl From<ParsingError> for IonParserError {
     fn from(err: ParsingError) -> Self {
         IonParserError::BinaryError(err)
