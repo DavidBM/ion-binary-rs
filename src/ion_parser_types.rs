@@ -95,6 +95,7 @@ impl PartialEq for IonExtractionError {
 
         match (self, other) {
             (NumericTransformationError(err_a), NumericTransformationError(err_b)) => {
+                //TODO: Find a better way to compare
                 format!("{}", err_a) == format!("{}", err_b)
             }
             _ => *self == *other,
