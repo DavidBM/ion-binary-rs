@@ -4,9 +4,8 @@ use crate::{
 };
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, FixedOffset, Utc};
-use core::num;
 use num_bigint::{BigInt, BigUint};
-use std::collections::{btree_map::Range, HashMap};
+use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 
 use IonParserError::ValueExtractionFailure;
@@ -689,8 +688,7 @@ impl TryFrom<serde_json::Value> for IonValue {
             serde_json::Value::Object(map) => {
                 let mut hash_map = HashMap::<String, IonValue>::new();
                 for (key, value) in map.into_iter() {
-                    // TODO: no unwraps
-                    let ion_value = value.try_into().unwrap();
+                    let ion_value = value.try_into()?;
                     hash_map.insert(key.to_string(), ion_value);
                 }
                 Ok(hash_map.into())
