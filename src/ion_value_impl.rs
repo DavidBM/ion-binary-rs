@@ -4,9 +4,8 @@ use crate::{
 };
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, FixedOffset, Utc};
-use core::num;
 use num_bigint::{BigInt, BigUint};
-use std::collections::{btree_map::Range, HashMap};
+use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 
 use IonParserError::ValueExtractionFailure;
