@@ -75,14 +75,6 @@ pub enum IonParserError {
     ValueExtractionFailure(IonExtractionError),
 }
 
-#[derive(PartialEq, Debug, Error)]
-pub enum SerdeJsonParseError {
-    #[error("Library tells a wrong number type")]
-    WrongNumberType,
-    #[error("Non existent number type")]
-    NonExistentNumberType,
-}
-
 impl From<ParsingError> for IonParserError {
     fn from(err: ParsingError) -> Self {
         IonParserError::BinaryError(err)
@@ -108,6 +100,14 @@ impl PartialEq for IonExtractionError {
             _ => *self == *other,
         }
     }
+}
+
+#[derive(PartialEq, Debug, Error)]
+pub enum SerdeJsonParseError {
+    #[error("Library tells a wrong number type")]
+    WrongNumberType,
+    #[error("Non existent number type")]
+    NonExistentNumberType,
 }
 
 /// The structure wrapping all possible return ion values by the IonParser.
