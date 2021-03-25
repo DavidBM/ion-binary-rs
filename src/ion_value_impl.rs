@@ -650,7 +650,7 @@ impl TryFrom<serde_json::Value> for IonValue {
     fn try_from(value: serde_json::Value) -> Result<IonValue, SerdeJsonParseError> {
         match value {
             serde_json::Value::Null => Ok(IonValue::Null(NullIonValue::Null)),
-            serde_json::Value::Bool(bool) => Ok(IonValue::Bool(bool)),
+            serde_json::Value::Bool(bool) => Ok(bool.into()),
             serde_json::Value::Number(number) => {
                 if number.is_f64() {
                     number
@@ -671,7 +671,7 @@ impl TryFrom<serde_json::Value> for IonValue {
                     Err(SerdeJsonParseError::NonExistentNumberType)
                 }
             }
-            serde_json::Value::String(string) => Ok(IonValue::String(string)),
+            serde_json::Value::String(string) => Ok(string.into()),
             serde_json::Value::Array(array) => {
                 let list: Result<Vec<IonValue>, SerdeJsonParseError> = array
                     .into_iter()
