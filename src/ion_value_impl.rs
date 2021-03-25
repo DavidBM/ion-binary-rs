@@ -1,7 +1,4 @@
-use crate::{
-    ion_parser_types::SerdeJsonParseError, IonExtractionError, IonParserError, IonValue,
-    NullIonValue,
-};
+use crate::{IonExtractionError, IonParserError, IonValue, NullIonValue, SerdeJsonParseError};
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, FixedOffset, Utc};
 use num_bigint::{BigInt, BigUint};
