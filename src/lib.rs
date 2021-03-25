@@ -145,5 +145,7 @@ pub use binary_parser_types::ParsingError;
 pub use ion_encoder::IonEncoder;
 pub use ion_hash::IonHash;
 pub use ion_parser::IonParser;
-pub use ion_parser_types::{IonExtractionError, IonParserError, IonValue, NullIonValue};
+pub use ion_parser_types::{
+    IonExtractionError, IonParserError, IonValue, NullIonValue, SerdeJsonParseError,
+};
 pub use symbol_table::{Symbol, SymbolContextError};

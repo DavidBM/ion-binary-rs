@@ -95,11 +95,20 @@ impl PartialEq for IonExtractionError {
 
         match (self, other) {
             (NumericTransformationError(err_a), NumericTransformationError(err_b)) => {
+                //TODO: Find a better way to compare
                 format!("{}", err_a) == format!("{}", err_b)
             }
             _ => *self == *other,
         }
     }
+}
+
+#[derive(PartialEq, Debug, Error)]
+pub enum SerdeJsonParseError {
+    #[error("Library tells a wrong number type")]
+    WrongNumberType,
+    #[error("Non existent number type")]
+    NonExistentNumberType,
 }
 
 /// The structure wrapping all possible return ion values by the IonParser.
