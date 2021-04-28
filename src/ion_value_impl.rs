@@ -5,6 +5,7 @@ use num_bigint::{BigInt, BigUint};
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 
+use serde_json::Value;
 use IonParserError::ValueExtractionFailure;
 
 impl TryFrom<IonValue> for std::collections::HashMap<String, IonValue> {
@@ -472,6 +473,67 @@ impl TryFrom<&IonValue> for Vec<u8> {
         match value {
             IonValue::Clob(value) => Ok(value.to_vec()),
             IonValue::Blob(value) => Ok(value.to_vec()),
+            _ => Err(ValueExtractionFailure(
+                IonExtractionError::TypeNotSupported(value.clone()),
+            )),
+        }
+    }
+}
+
+impl TryFrom<&IonValue> for serde_json::Value {
+    type Error = IonParserError;
+
+    fn try_from(value: &IonValue) -> Result<Self, IonParserError> {
+        match value {
+            IonValue::Null(_) => Ok(Default::default()),
+            IonValue::Bool(value) => Ok(Value::from(value.to_string())),
+            IonValue::Integer(value) => Ok(Value::from(*value as f32)),
+            IonValue::BigInteger(value) => i64::try_from(value)
+                .map_err(|e| {
+                    ValueExtractionFailure(IonExtractionError::NumericTransformationError(
+                        Box::new(e),
+                    ))
+                })
+                .map(|value| Value::from(value as f32)),
+            IonValue::Decimal(value) => Ok(Value::from(value.to_string())),
+            IonValue::Float(value) => Ok(Value::from(*value as f32)),
+            IonValue::String(value) => Ok(Value::from(value.to_string())),
+            IonValue::List(values) => {
+                let vec_strings: Vec<String> = values
+                    .iter()
+                    .map(|ion_value| match ion_value {
+                        IonValue::String(value) | IonValue::Symbol(value) => {
+                            value.clone()
+                        }
+                        _ => ("".to_string()),
+                        //return Err(ValueExtractionFailure(
+                        //    IonExtractionError::TypeNotSupported(value.clone()))),
+                    })
+                    .collect();
+
+                Ok(Value::from(vec_strings))
+            }
+            IonValue::Struct(values) => {
+                let mut result_map = serde_json::Map::new();
+                for (key, ion_value) in values {
+                    result_map.insert(
+                        key.to_string(),
+                        match ion_value {
+                            IonValue::String(value) | IonValue::Symbol(value) => {
+                                Value::String(value.clone().to_string())
+                            }
+                            _ => {
+                                return Err(ValueExtractionFailure(
+                                    IonExtractionError::TypeNotSupported(value.clone()),
+                                ))
+                            }
+                        },
+                    );
+                }
+
+                Ok(Value::from(result_map))
+            }
+            IonValue::Blob(value) => Ok(Value::from(value.to_vec())),
             _ => Err(ValueExtractionFailure(
                 IonExtractionError::TypeNotSupported(value.clone()),
             )),
