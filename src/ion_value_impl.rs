@@ -245,6 +245,68 @@ impl TryFrom<IonValue> for Vec<u8> {
     }
 }
 
+impl TryFrom<IonValue> for serde_json::Value {
+    type Error = IonParserError;
+
+    fn try_from(value: IonValue) -> Result<Self, IonParserError> {
+        match value {
+            IonValue::Null(_) => Ok(Default::default()),
+            IonValue::Bool(value) => Ok(Value::from(value.clone().to_string())),
+            IonValue::Integer(value) => Ok(Value::from(value as f32)),
+            IonValue::BigInteger(value) => i64::try_from(value)
+                .map_err(|e| {
+                    ValueExtractionFailure(IonExtractionError::NumericTransformationError(
+                        Box::new(e),
+                    ))
+                })
+                .map(|value| Value::from(value as f32)),
+            IonValue::Decimal(value) => Ok(Value::from(value.to_string())),
+            IonValue::Float(value) => Ok(Value::from(value as f32)),
+            IonValue::String(value) => Ok(Value::from(value.to_string())),
+            IonValue::List(values) => {
+                let vec_strings: Vec<String> = values
+                    .iter()
+                    .map(|ion_value| match ion_value {
+                        IonValue::String(value) | IonValue::Symbol(value) => {
+                            value.clone()
+                        }
+                        _ => ("".to_string()),
+                        //return Err(ValueExtractionFailure(
+                        //    IonExtractionError::TypeNotSupported(value.clone()))),
+                    })
+                    .collect();
+
+                Ok(Value::from(vec_strings))
+            }
+            IonValue::Struct(ref values) => {
+                let mut result_map = serde_json::Map::new();
+                for (key, ion_value) in values {
+                    result_map.insert(
+                        key.to_string(),
+                        match ion_value {
+                            IonValue::String(value) | IonValue::Symbol(value) => {
+                                Value::String(value.clone().to_string())
+                            }
+                            _ => {
+                                return Err(ValueExtractionFailure(
+                                    IonExtractionError::TypeNotSupported(value.clone()),
+                                ))
+                            }
+                        },
+                    );
+                }
+
+                Ok(Value::from(result_map))
+            }
+            IonValue::Blob(value) => Ok(Value::from(value.to_vec())),
+            _ => Err(ValueExtractionFailure(
+                IonExtractionError::TypeNotSupported(value.clone()),
+            )),
+        }
+    }
+}
+
+
 impl TryFrom<&IonValue> for Vec<IonValue> {
     type Error = IonParserError;
 
@@ -480,6 +542,57 @@ impl TryFrom<&IonValue> for Vec<u8> {
     }
 }
 
+impl TryFrom<serde_json::Value> for IonValue {
+    type Error = SerdeJsonParseError;
+
+    fn try_from(value: serde_json::Value) -> Result<IonValue, SerdeJsonParseError> {
+        match value {
+            serde_json::Value::Null => Ok(IonValue::Null(NullIonValue::Null)),
+            serde_json::Value::Bool(bool) => Ok(bool.into()),
+            serde_json::Value::Number(number) => {
+                if number.is_f64() {
+                    number
+                        .as_f64()
+                        .ok_or(SerdeJsonParseError::WrongNumberType)
+                        .map(Into::into)
+                } else if number.is_i64() {
+                    number
+                        .as_i64()
+                        .ok_or(SerdeJsonParseError::WrongNumberType)
+                        .map(Into::into)
+                } else if number.is_u64() {
+                    number
+                        .as_u64()
+                        .ok_or(SerdeJsonParseError::WrongNumberType)
+                        .map(Into::into)
+                } else {
+                    Err(SerdeJsonParseError::NonExistentNumberType)
+                }
+            }
+            serde_json::Value::String(string) => Ok(string.into()),
+            serde_json::Value::Array(array) => {
+                let list: Result<Vec<IonValue>, SerdeJsonParseError> = array
+                    .into_iter()
+                    .map(|element| element.try_into())
+                    .collect();
+                match list {
+                    Ok(list) => Ok(list.into()),
+                    Err(error) => Err(error),
+                }
+            }
+            serde_json::Value::Object(map) => {
+                let mut hash_map = HashMap::<String, IonValue>::new();
+                for (key, value) in map.into_iter() {
+                    let ion_value = value.try_into()?;
+                    hash_map.insert(key.to_string(), ion_value);
+                }
+                Ok(hash_map.into())
+            }
+        }
+    }
+}
+
+
 impl TryFrom<&IonValue> for serde_json::Value {
     type Error = IonParserError;
 
@@ -703,55 +816,5 @@ impl<I: Into<IonValue>, K: Into<String>> From<HashMap<K, I>> for IonValue {
 impl<I: Into<IonValue> + Clone> From<&I> for IonValue {
     fn from(value: &I) -> IonValue {
         value.clone().into()
-    }
-}
-
-impl TryFrom<serde_json::Value> for IonValue {
-    type Error = SerdeJsonParseError;
-
-    fn try_from(value: serde_json::Value) -> Result<IonValue, SerdeJsonParseError> {
-        match value {
-            serde_json::Value::Null => Ok(IonValue::Null(NullIonValue::Null)),
-            serde_json::Value::Bool(bool) => Ok(bool.into()),
-            serde_json::Value::Number(number) => {
-                if number.is_f64() {
-                    number
-                        .as_f64()
-                        .ok_or(SerdeJsonParseError::WrongNumberType)
-                        .map(Into::into)
-                } else if number.is_i64() {
-                    number
-                        .as_i64()
-                        .ok_or(SerdeJsonParseError::WrongNumberType)
-                        .map(Into::into)
-                } else if number.is_u64() {
-                    number
-                        .as_u64()
-                        .ok_or(SerdeJsonParseError::WrongNumberType)
-                        .map(Into::into)
-                } else {
-                    Err(SerdeJsonParseError::NonExistentNumberType)
-                }
-            }
-            serde_json::Value::String(string) => Ok(string.into()),
-            serde_json::Value::Array(array) => {
-                let list: Result<Vec<IonValue>, SerdeJsonParseError> = array
-                    .into_iter()
-                    .map(|element| element.try_into())
-                    .collect();
-                match list {
-                    Ok(list) => Ok(list.into()),
-                    Err(error) => Err(error),
-                }
-            }
-            serde_json::Value::Object(map) => {
-                let mut hash_map = HashMap::<String, IonValue>::new();
-                for (key, value) in map.into_iter() {
-                    let ion_value = value.try_into()?;
-                    hash_map.insert(key.to_string(), ion_value);
-                }
-                Ok(hash_map.into())
-            }
-        }
     }
 }
