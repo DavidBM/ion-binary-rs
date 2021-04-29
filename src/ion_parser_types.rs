@@ -73,6 +73,12 @@ pub enum IonParserError {
     EmptyOrderedStruct,
     #[error("Error transforming the IonValue to a rust type")]
     ValueExtractionFailure(IonExtractionError),
+    #[error("BigInt do not fit the destination numeric type")]
+    NumericValueDoNotFiti64(#[from] num_bigint::TryFromBigIntError<BigInt>),
+    #[error("The decimal value is not a numeric vale")]
+    DecimalNotANumericValue(f64),
+    #[error("The origin type is not supported in the destination type")]
+    TypeNotSupported(IonValue),
 }
 
 impl From<ParsingError> for IonParserError {
