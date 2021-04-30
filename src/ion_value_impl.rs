@@ -269,7 +269,7 @@ impl TryFrom<IonValue> for serde_json::Value {
             IonValue::Struct(ref values) => {
                 let mut result_map = serde_json::Map::new();
                 for (key, ion_value) in values {
-                    result_map.insert(key.to_string(), ion_value.try_into()?);
+                    result_map.insert(key.to_string(), Value::try_from(ion_value)?);
                 }
                 Ok(Value::from(result_map))
             }
@@ -509,6 +509,48 @@ impl TryFrom<&IonValue> for Vec<u8> {
             _ => Err(ValueExtractionFailure(
                 IonExtractionError::TypeNotSupported(value.clone()),
             )),
+        }
+    }
+}
+
+impl TryFrom<&IonValue> for serde_json::Value {
+    type Error = IonParserError;
+
+    fn try_from(value: &IonValue) -> Result<Self, IonParserError> {
+        match value {
+            IonValue::Null(_) => Ok(Value::Null),
+            IonValue::Bool(value) => Ok(Value::Bool(*value)),
+            IonValue::Integer(value) => Ok(Value::Number(value.clone().into())),
+            IonValue::BigInteger(value) => Ok(Value::Number(i64::try_from(value.clone())?.into())),
+            ion_value @ IonValue::Decimal(_) => {
+                let number = f64::try_from(ion_value)?;
+
+                let json_number = serde_json::Number::from_f64(number)
+                    .ok_or(IonParserError::DecimalNotANumericValue(number))?;
+
+                Ok(Value::Number(json_number))
+            }
+            IonValue::Float(value) => Ok(Value::from(*value)),
+            IonValue::String(value)
+            | IonValue::Symbol(value) => Ok(Value::from(value.to_string())),
+            IonValue::List(values) => {
+                let mut result_vec: Vec<Value> = vec![];
+
+                for value in values.iter() {
+                    result_vec.push(Value::try_from(value.clone())?)
+                }
+
+                Ok(Value::Array(result_vec))
+            }
+            IonValue::Struct(values) => {
+                let mut result_map = serde_json::Map::new();
+                for (key, ion_value) in values {
+                    result_map.insert(key.to_string(), serde_json::Value::try_from(ion_value.clone())?);
+                }
+
+                Ok(Value::from(result_map))
+            }
+            _ => Err(IonParserError::TypeNotSupported(value.clone())),
         }
     }
 }
