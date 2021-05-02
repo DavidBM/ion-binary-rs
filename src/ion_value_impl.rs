@@ -264,8 +264,8 @@ impl TryFrom<IonValue> for serde_json::Value {
             }
             IonValue::Float(value) => Ok(Value::from(value)),
             IonValue::String(value)
-            | IonValue::Symbol(value) => Ok(Value::from(value.to_string())),
-            IonValue::List(_) => return Ok(serde_json::Value::try_from(value.clone())?),
+            | IonValue::Symbol(value) => Ok(Value::from(value)),
+            IonValue::List(_) => Ok(serde_json::Value::try_from(value.clone())?),
             IonValue::Struct(ref values) => {
                 let mut result_map = serde_json::Map::new();
                 for (key, ion_value) in values {
