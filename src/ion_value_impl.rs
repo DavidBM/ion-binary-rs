@@ -271,7 +271,7 @@ impl TryFrom<IonValue> for serde_json::Value {
 
                 Ok(Value::from(json_number))
             }
-            IonValue::String(value) => Ok(Value::from(value)),
+            IonValue::String(value) => Ok(Value::String(value)),
             IonValue::List(vector) => Ok(Value::Array(
                 vector
                     .into_iter()
@@ -284,7 +284,7 @@ impl TryFrom<IonValue> for serde_json::Value {
                 for (key, ion_value) in values {
                     result_map.insert(key.to_string(), Value::try_from(ion_value)?);
                 }
-                Ok(Value::from(result_map))
+                Ok(Value::Object(result_map))
             }
             _ => Err(IonParserError::TypeNotSupported(value)),
         }
