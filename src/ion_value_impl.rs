@@ -252,7 +252,7 @@ impl TryFrom<IonValue> for serde_json::Value {
         match value {
             IonValue::Null(_) => Ok(Value::Null),
             IonValue::Bool(value) => Ok(Value::Bool(value)),
-            IonValue::Integer(value) => Ok(Value::Number(value.into())),
+            IonValue::Integer(value) => Ok(Value::from(value.into())),
             IonValue::BigInteger(value) => Ok(Value::Number(i64::try_from(value)?.into())),
             ion_value @ IonValue::Decimal(_) => {
                 let number = f64::try_from(ion_value)?;
@@ -520,7 +520,7 @@ impl TryFrom<&IonValue> for serde_json::Value {
         match value {
             IonValue::Null(_) => Ok(Value::Null),
             IonValue::Bool(value) => Ok(Value::Bool(*value)),
-            IonValue::Integer(value) => Ok(Value::Number(value.clone().into())),
+            IonValue::Integer(value) => Ok(Value::from(value.clone())),
             IonValue::BigInteger(value) => Ok(Value::Number(i64::try_from(value.clone())?.into())),
             ion_value @ IonValue::Decimal(_) => {
                 let number = f64::try_from(ion_value)?;
