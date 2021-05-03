@@ -111,6 +111,10 @@ We would be thrilled if you decide to check the library and/or contribute to it!
 Just open an issue or pull request and we can check what you would like to implement.
 Bug hunting and proposals are always welcomed. And of course, feel free to ask anything.
 
+## Benchmark
+
+We use criterion. You can run it with cargo bench. If you want nice flamegraphs you can use: CARGO_PROFILE_RELEASE_DEBUG=true cargo flamegraph --bench parser_benchmark -- --bench
+
 ## License
 
 <sup>

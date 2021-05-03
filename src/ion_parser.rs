@@ -230,7 +230,7 @@ impl<T: Read> IonParser<T> {
 
         let (length, _, total) = self.consume_value_len_for_struct(header)?;
         let mut consumed_bytes = 0;
-        let mut values: HashMap<String, IonValue> = HashMap::new();
+        let mut values: Vec<(String, IonValue)> = vec![];
 
         while length - consumed_bytes > 0 {
             let key = self.parser.consume_varuint()?;
@@ -264,7 +264,7 @@ impl<T: Read> IonParser<T> {
 
             trace!("Struct field -> Key: {:?}, Value: {:?}", key, value.0);
 
-            values.insert(key, value.0);
+            values.push((key, value.0));
         }
 
         if length.checked_sub(consumed_bytes).is_none() {
@@ -273,7 +273,13 @@ impl<T: Read> IonParser<T> {
 
         trace!("End consuming struct");
 
-        Ok((IonValue::Struct(values), total))
+        let mut hashmap = HashMap::with_capacity(values.len());
+
+        for (k, v) in values {
+            hashmap.insert(k, v);
+        }
+
+        Ok((IonValue::Struct(hashmap), total))
     }
 
     fn consume_list(&mut self, header: &ValueHeader) -> ConsumerResult {

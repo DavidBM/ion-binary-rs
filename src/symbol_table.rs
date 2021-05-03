@@ -31,8 +31,8 @@ impl LocalSymbolTable {
     }
 
     pub fn add_symbols(&mut self, slice: &[Symbol]) {
-        for symbol in slice {
-            self.add_symbol(symbol.clone());
+        for symbol in slice.to_vec() {
+            self.add_symbol(symbol);
         }
     }
 
@@ -284,9 +284,10 @@ impl SymbolContext {
 
     pub fn dump_all_local_symbols(&self) -> Vec<String> {
         self.current_table.list_all_symbols()[10..]
-            .iter()
+            .to_vec()
+            .into_iter()
             .map(|s| match s {
-                Symbol::Symbol(name) => name.clone(),
+                Symbol::Symbol(name) => name,
                 _ => "".to_string(),
             })
             .collect()

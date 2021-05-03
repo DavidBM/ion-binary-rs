@@ -30,3 +30,12 @@ serde_json = "1.0.64"
 
 [dev-dependencies]
 bytes = "0.5.6"
+criterion = "0.3"
+
+[[bench]]
+name = "parser_benchmark"
+harness = false
+
+[profile.bench]
+debug = true
+
