@@ -252,7 +252,10 @@ impl TryFrom<IonValue> for serde_json::Value {
         match value {
             IonValue::Null(_) => Ok(Value::Null),
             IonValue::Bool(value) => Ok(Value::Bool(value)),
-            IonValue::Integer(value) => Ok(Value::from(value)),
+            IonValue::Integer(value) => {
+                let json_number = serde_json::Number::from(value);
+                Ok(Value::from(json_number))
+            }
             IonValue::BigInteger(value) => Ok(Value::Number(i64::try_from(value)?.into())),
             ion_value @ IonValue::Decimal(_) => {
                 let number = f64::try_from(ion_value)?;
@@ -262,7 +265,12 @@ impl TryFrom<IonValue> for serde_json::Value {
 
                 Ok(Value::Number(json_number))
             }
-            IonValue::Float(value) => Ok(Value::from(value)),
+            IonValue::Float(value) => {
+                let json_number = serde_json::Number::from_f64(value)
+                    .ok_or(IonParserError::DecimalNotANumericValue(value))?;
+
+                Ok(Value::from(json_number))
+            }
             IonValue::String(value) | IonValue::Symbol(value) => Ok(Value::from(value)),
             IonValue::List(_) => Ok(serde_json::Value::try_from(value.clone())?),
             IonValue::Struct(ref values) => {
