@@ -281,8 +281,6 @@ impl TryFrom<IonValue> for serde_json::Value {
             IonValue::Struct(values) => {
                 let mut result_map = serde_json::Map::with_capacity(values.len());
 
-            IonValue::Struct(ref values) => {
-                let mut result_map = serde_json::Map::new();
                 for (key, ion_value) in values {
                     result_map.insert(key.to_string(), Value::try_from(ion_value)?);
                 }
