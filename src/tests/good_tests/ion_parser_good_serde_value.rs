@@ -54,7 +54,11 @@ fn serde_from_ion_string() {
 
 #[test]
 fn serde_from_ion_list() {
-    let vector = vec![IonValue::Bool(true), IonValue::Integer(2), IonValue::Float(3.2)];
+    let vector = vec![
+        IonValue::Bool(true),
+        IonValue::Integer(2),
+        IonValue::Float(3.2),
+    ];
     let ion_list = IonValue::List(vector);
     let serde_list: Value = ion_list.try_into().unwrap();
 
@@ -127,10 +131,29 @@ fn ion_from_serde_list() {
     let value_list = json!(vec!(true, false, true));
     let ion_list: IonValue = value_list.try_into().unwrap();
 
-    assert_eq!(ion_list, IonValue::List(vec!(IonValue::Bool(true), IonValue::Bool(false), IonValue::Bool(true))));
+    assert_eq!(
+        ion_list,
+        IonValue::List(vec!(
+            IonValue::Bool(true),
+            IonValue::Bool(false),
+            IonValue::Bool(true)
+        ))
+    );
 }
 
 #[test]
 fn ion_from_serde_struct() {
+    let mut hashmap = HashMap::<String, Value>::new();
+    hashmap.insert("bool".to_string(), json!(true));
+    hashmap.insert("int".to_string(), json!(2));
+    hashmap.insert("float".to_string(), json!(5.8));
+    let value_struct = json!(hashmap);
+    let ion_struct: IonValue = value_struct.try_into().unwrap();
 
+    let mut ion_hashmap = HashMap::<String, IonValue>::new();
+    ion_hashmap.insert("bool".to_string(), IonValue::Bool(true));
+    ion_hashmap.insert("int".to_string(), IonValue::Integer(2));
+    ion_hashmap.insert("float".to_string(), IonValue::Float(5.8));
+
+    assert_eq!(ion_struct, IonValue::Struct(ion_hashmap));
 }
