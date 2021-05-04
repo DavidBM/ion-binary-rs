@@ -123,7 +123,14 @@ fn ion_from_serde_string() {
 }
 
 #[test]
-fn ion_from_serde_list() {}
+fn ion_from_serde_list() {
+    let value_list = json!(vec!(true, false, true));
+    let ion_list: IonValue = value_list.try_into().unwrap();
+
+    assert_eq!(ion_list, IonValue::List(vec!(IonValue::Bool(true), IonValue::Bool(false), IonValue::Bool(true))));
+}
 
 #[test]
-fn ion_from_serde_struct() {}
+fn ion_from_serde_struct() {
+
+}
