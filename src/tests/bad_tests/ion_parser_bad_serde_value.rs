@@ -25,7 +25,19 @@ fn serde_from_ion_datetime() {
 }
 
 #[test]
-fn ion_from_bad_serde_1() {}
+fn serde_from_ion_annotation() {}
 
 #[test]
-fn ion_from_bad_serde_2() {}
+fn serde_from_ion_blob() {}
+
+#[test]
+fn serde_from_ion_clob() {}
+
+#[test]
+fn serde_from_ion_sexpr() {}
+
+#[test]
+fn ion_from_bad_serde_list() {}
+
+#[test]
+fn ion_from_bad_serde_struct() {}
