@@ -25,7 +25,13 @@ fn serde_from_ion_datetime() {
 }
 
 #[test]
-fn serde_from_ion_annotation() {}
+fn serde_from_ion_annotation() {
+    let bad_value = IonValue::Annotation(vec!["one".to_string()], Box::new(IonValue::Bool(true)));
+    let result: Result<Value, IonParserError> = bad_value.clone().try_into();
+    let error = result.unwrap_err();
+
+    assert_eq!(error, IonParserError::TypeNotSupported(bad_value));
+}
 
 #[test]
 fn serde_from_ion_blob() {}
