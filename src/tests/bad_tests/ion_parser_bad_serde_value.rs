@@ -35,7 +35,7 @@ fn serde_from_ion_annotation() {
 
 #[test]
 fn serde_from_ion_blob() {
-    let bad_value = IonValue::Blob(vec!(2));
+    let bad_value = IonValue::Blob(vec![2]);
     let result: Result<Value, IonParserError> = bad_value.clone().try_into();
     let error = result.unwrap_err();
 
@@ -44,7 +44,7 @@ fn serde_from_ion_blob() {
 
 #[test]
 fn serde_from_ion_clob() {
-    let bad_value = IonValue::Clob(vec!(3));
+    let bad_value = IonValue::Clob(vec![3]);
     let result: Result<Value, IonParserError> = bad_value.clone().try_into();
     let error = result.unwrap_err();
 
@@ -53,7 +53,7 @@ fn serde_from_ion_clob() {
 
 #[test]
 fn serde_from_ion_sexpr() {
-    let bad_value = IonValue::SExpr(vec!(IonValue::Bool(true)));
+    let bad_value = IonValue::SExpr(vec![IonValue::Bool(true)]);
     let result: Result<Value, IonParserError> = bad_value.clone().try_into();
     let error = result.unwrap_err();
 
