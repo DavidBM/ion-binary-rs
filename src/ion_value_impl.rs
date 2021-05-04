@@ -271,23 +271,20 @@ impl TryFrom<IonValue> for serde_json::Value {
 
                 Ok(Value::from(json_number))
             }
-            IonValue::String(value) => Ok(Value::from(value)),
-            IonValue::List(vector) => {
-                let list: Result<Vec<serde_json::Value>, IonParserError> = vector
+            IonValue::String(value) => Ok(Value::String(value)),
+            IonValue::List(vector) => Ok(Value::Array(
+                vector
                     .into_iter()
                     .map(|element| element.try_into())
-                    .collect();
-                match list {
-                    Ok(list) => Ok(list.into()),
-                    Err(error) => Err(error),
-                }
-            }
-            IonValue::Struct(ref values) => {
-                let mut result_map = serde_json::Map::new();
+                    .collect::<Result<Vec<Value>, _>>()?,
+            )),
+            IonValue::Struct(values) => {
+                let mut result_map = serde_json::Map::with_capacity(values.len());
+
                 for (key, ion_value) in values {
                     result_map.insert(key.to_string(), Value::try_from(ion_value)?);
                 }
-                Ok(Value::from(result_map))
+                Ok(Value::Object(result_map))
             }
             _ => Err(IonParserError::TypeNotSupported(value)),
         }
