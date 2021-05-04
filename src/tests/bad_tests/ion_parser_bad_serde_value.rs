@@ -6,10 +6,10 @@ fn serde_from_ion_symbol() {
 }
 
 #[test]
-fn serde_from_ion_list() {}
+fn serde_from_ion_datetime() {}
 
 #[test]
-fn ion_from_serde_symbol() {}
+fn ion_from_bad_serde_1() {}
 
 #[test]
-fn ion_from_serde_list() {}
+fn ion_from_bad_serde_2() {}
