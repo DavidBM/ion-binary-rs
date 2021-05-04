@@ -35,7 +35,7 @@ fn serde_from_ion_big_integer() {
     let big_int_ion = IonValue::BigInteger(big_int);
     let serde_big_int: Value = big_int_ion.try_into().unwrap();
     let number = -201545002204320 as i64;
-    
+
     assert_eq!(serde_big_int, Value::Number(number.into()));
 }
 
