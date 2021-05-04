@@ -34,6 +34,9 @@ fn serde_from_ion_big_integer() {
     let big_int = BigInt::from_str("-201545002204320").unwrap();
     let big_int_ion = IonValue::BigInteger(big_int);
     let serde_big_int: Value = big_int_ion.try_into().unwrap();
+    let number = -201545002204320 as i64;
+    
+    assert_eq!(serde_big_int, Value::Number(number.into()));
 }
 
 #[test]
@@ -107,7 +110,11 @@ fn ion_from_serde_integer() {
 
 #[test]
 fn ion_from_serde_big_integer() {
-    let big_int = BigInt::from_str("-201545000003000").unwrap();
+    let big_int = i64::max_value();
+    let big_int_value = json!(big_int);
+    let ion_big_int: IonValue = big_int_value.try_into().unwrap();
+
+    assert_eq!(ion_big_int, IonValue::Integer(big_int));
 }
 
 #[test]
