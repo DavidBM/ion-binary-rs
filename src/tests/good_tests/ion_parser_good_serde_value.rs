@@ -1,4 +1,4 @@
-use std::{convert::TryInto, str::FromStr};
+use std::{collections::HashMap, convert::TryInto, str::FromStr};
 
 use num_bigint::BigInt;
 use serde_json::{json, Value};
@@ -53,10 +53,29 @@ fn serde_from_ion_string() {
 }
 
 #[test]
-fn serde_from_ion_list() {}
+fn serde_from_ion_list() {
+    let vector = vec![IonValue::Bool(true), IonValue::Integer(2), IonValue::Float(3.2)];
+    let ion_list = IonValue::List(vector);
+    let serde_list: Value = ion_list.try_into().unwrap();
+
+    assert_eq!(serde_list[0], json!(true));
+    assert_eq!(serde_list[1], json!(2));
+    assert_eq!(serde_list[2], json!(3.2));
+}
 
 #[test]
-fn serde_from_ion_struct() {}
+fn serde_from_ion_struct() {
+    let mut hash_map = HashMap::<String, IonValue>::new();
+    hash_map.insert("bool".to_string(), IonValue::Bool(true));
+    hash_map.insert("int".to_string(), IonValue::Integer(3));
+    hash_map.insert("float".to_string(), IonValue::Float(12.3));
+    let ion_struct = IonValue::Struct(hash_map);
+    let serde_struct: Value = ion_struct.try_into().unwrap();
+
+    assert_eq!(serde_struct["bool"], json!(true));
+    assert_eq!(serde_struct["int"], json!(3));
+    assert_eq!(serde_struct["float"], json!(12.3));
+}
 
 #[test]
 fn ion_from_serde_null() {
