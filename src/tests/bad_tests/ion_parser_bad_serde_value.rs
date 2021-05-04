@@ -34,16 +34,28 @@ fn serde_from_ion_annotation() {
 }
 
 #[test]
-fn serde_from_ion_blob() {}
+fn serde_from_ion_blob() {
+    let bad_value = IonValue::Blob(vec!(2));
+    let result: Result<Value, IonParserError> = bad_value.clone().try_into();
+    let error = result.unwrap_err();
+
+    assert_eq!(error, IonParserError::TypeNotSupported(bad_value));
+}
 
 #[test]
-fn serde_from_ion_clob() {}
+fn serde_from_ion_clob() {
+    let bad_value = IonValue::Clob(vec!(3));
+    let result: Result<Value, IonParserError> = bad_value.clone().try_into();
+    let error = result.unwrap_err();
+
+    assert_eq!(error, IonParserError::TypeNotSupported(bad_value));
+}
 
 #[test]
-fn serde_from_ion_sexpr() {}
+fn serde_from_ion_sexpr() {
+    let bad_value = IonValue::SExpr(vec!(IonValue::Bool(true)));
+    let result: Result<Value, IonParserError> = bad_value.clone().try_into();
+    let error = result.unwrap_err();
 
-#[test]
-fn ion_from_bad_serde_list() {}
-
-#[test]
-fn ion_from_bad_serde_struct() {}
+    assert_eq!(error, IonParserError::TypeNotSupported(bad_value));
+}
