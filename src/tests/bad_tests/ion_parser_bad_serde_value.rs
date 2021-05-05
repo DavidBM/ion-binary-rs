@@ -59,3 +59,38 @@ fn serde_from_ion_sexpr() {
 
     assert_eq!(error, IonParserError::TypeNotSupported(bad_value));
 }
+
+#[test]
+fn serde_from_ion_nan() {
+    let bad_value = IonValue::Float(f64::NAN);
+    let result: Result<Value, IonParserError> = bad_value.try_into();
+    let error = result.unwrap_err();
+    match  error {
+        IonParserError::DecimalNotANumericValue(x) => {
+            assert_eq!(true, x.is_nan());
+        }
+        _ => {
+            assert_eq!(true, false);
+        }
+    }
+}
+
+#[test]
+fn serde_from_ion_infinity() {
+    let infinity = f64::INFINITY;
+    let bad_value = IonValue::Float(infinity);
+    let result: Result<Value, IonParserError> = bad_value.try_into();
+    let error = result.unwrap_err();
+
+    assert_eq!(error, IonParserError::DecimalNotANumericValue(infinity));
+}
+
+#[test]
+fn serde_from_ion_neg_infinity() {
+    let neg_infinity = f64::NEG_INFINITY;
+    let bad_value = IonValue::Float(neg_infinity);
+    let result: Result<Value, IonParserError> = bad_value.try_into();
+    let error = result.unwrap_err();
+
+    assert_eq!(error, IonParserError::DecimalNotANumericValue(neg_infinity));
+}
