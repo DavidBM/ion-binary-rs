@@ -65,7 +65,7 @@ fn serde_from_ion_nan() {
     let bad_value = IonValue::Float(f64::NAN);
     let result: Result<Value, IonParserError> = bad_value.try_into();
     let error = result.unwrap_err();
-    match  error {
+    match error {
         IonParserError::DecimalNotANumericValue(x) => {
             assert_eq!(true, x.is_nan());
         }

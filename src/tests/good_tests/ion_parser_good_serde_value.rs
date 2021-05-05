@@ -57,11 +57,11 @@ fn serde_from_ion_string() {
 
 #[test]
 fn serde_from_ion_list() {
-    let internal_vector = vec!(IonValue::Float(2.2), IonValue::Float(1.2));
+    let internal_vector = vec![IonValue::Float(2.2), IonValue::Float(1.2)];
 
     let mut internal_hashmap = HashMap::<String, IonValue>::new();
     internal_hashmap.insert("first".to_string(), IonValue::Bool(true));
-    
+
     let mut json_map = HashMap::<String, Value>::new();
     json_map.insert("first".to_string(), json!(true));
 
@@ -70,7 +70,7 @@ fn serde_from_ion_list() {
         IonValue::Integer(2),
         IonValue::Float(3.2),
         IonValue::List(internal_vector),
-        IonValue::Struct(internal_hashmap)
+        IonValue::Struct(internal_hashmap),
     ];
     let ion_list = IonValue::List(vector);
     let serde_list: Value = ion_list.try_into().unwrap();
@@ -88,8 +88,11 @@ fn serde_from_ion_struct() {
     hash_map.insert("bool".to_string(), IonValue::Bool(true));
     hash_map.insert("int".to_string(), IonValue::Integer(3));
     hash_map.insert("float".to_string(), IonValue::Float(12.3));
-    hash_map.insert("vector".to_string(), IonValue::List(vec!(IonValue::Integer(1), IonValue::Integer(2))));
-    
+    hash_map.insert(
+        "vector".to_string(),
+        IonValue::List(vec![IonValue::Integer(1), IonValue::Integer(2)]),
+    );
+
     let ion_struct = IonValue::Struct(hash_map);
     let serde_struct: Value = ion_struct.try_into().unwrap();
 
@@ -184,7 +187,10 @@ fn ion_from_serde_struct() {
     ion_hashmap.insert("bool".to_string(), IonValue::Bool(true));
     ion_hashmap.insert("int".to_string(), IonValue::Integer(2));
     ion_hashmap.insert("float".to_string(), IonValue::Float(5.8));
-    ion_hashmap.insert("vector".to_string(), IonValue::List(vec!(IonValue::Bool(true), IonValue::Bool(false))));
+    ion_hashmap.insert(
+        "vector".to_string(),
+        IonValue::List(vec![IonValue::Bool(true), IonValue::Bool(false)]),
+    );
     ion_hashmap.insert("map".to_string(), IonValue::Struct(ion_internal_hashmap));
 
     assert_eq!(ion_struct, IonValue::Struct(ion_hashmap));
