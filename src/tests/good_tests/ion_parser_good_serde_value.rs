@@ -57,10 +57,18 @@ fn serde_from_ion_string() {
 
 #[test]
 fn serde_from_ion_list() {
+    let internal_vector = vec!(IonValue::Float(2.2), IonValue::Float(1.2));
+    let mut internal_hashmap = HashMap::<String, IonValue>::new();
+    internal_hashmap.insert("first".to_string(), IonValue::Bool(true));
+    let mut json_map = HashMap::<String, Value>::new();
+    json_map.insert("first".to_string(), json!(true));
+
     let vector = vec![
         IonValue::Bool(true),
         IonValue::Integer(2),
         IonValue::Float(3.2),
+        IonValue::List(internal_vector),
+        IonValue::Struct(internal_hashmap)
     ];
     let ion_list = IonValue::List(vector);
     let serde_list: Value = ion_list.try_into().unwrap();
@@ -68,6 +76,8 @@ fn serde_from_ion_list() {
     assert_eq!(serde_list[0], json!(true));
     assert_eq!(serde_list[1], json!(2));
     assert_eq!(serde_list[2], json!(3.2));
+    assert_eq!(serde_list[3], json!(vec!(2.2, 1.2)));
+    assert_eq!(serde_list[4], json!(json_map));
 }
 
 #[test]
