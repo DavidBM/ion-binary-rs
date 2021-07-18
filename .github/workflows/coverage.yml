@@ -11,6 +11,9 @@ jobs:
     steps:
       - name:                   Checkout repository
         uses:                   actions/checkout@v2
+        
+      - name: Submodule Checkout
+        uses: jwsi/submodule-checkout@v1
 
       - name:                   Generate code coverage
         run: |
