@@ -131,12 +131,12 @@ impl IonEncoder {
             buffer.push(header);
             let mut id_bytes_len_bytes = encode_varuint(&id_bytes_len.to_be_bytes());
             buffer.append(&mut id_bytes_len_bytes);
-            buffer.append(&mut id_bytes);
         } else {
             header += u8::try_from(id_bytes_len).unwrap();
             buffer.push(header);
-            buffer.append(&mut id_bytes);
         };
+
+        buffer.append(&mut id_bytes);
 
         buffer
     }
@@ -209,12 +209,12 @@ impl IonEncoder {
             final_buffer.push(header);
             let mut len_bytes = encode_varuint(&len.to_be_bytes());
             final_buffer.append(&mut len_bytes);
-            final_buffer.append(&mut buffer);
         } else {
             header += u8::try_from(len).unwrap();
             final_buffer.push(header);
-            final_buffer.append(&mut buffer);
-        };
+        }
+
+        final_buffer.append(&mut buffer);
 
         final_buffer
     }
@@ -242,12 +242,12 @@ impl IonEncoder {
             buffer.push(header);
             let mut content_len_bytes = encode_varuint(&content_len.to_be_bytes());
             buffer.append(&mut content_len_bytes);
-            buffer.append(&mut content_buffer);
         } else {
             header += u8::try_from(content_len).unwrap();
             buffer.push(header);
-            buffer.append(&mut content_buffer);
-        };
+        }
+
+        buffer.append(&mut content_buffer);
 
         buffer
     }

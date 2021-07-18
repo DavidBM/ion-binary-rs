@@ -41,16 +41,17 @@ impl LocalSymbolTable {
     }
 
     pub fn get_id_by_symbol(&self, symbol: &str) -> Option<usize> {
-        match self.0.iter().enumerate().find(|(_, value)| {
-            if let Symbol::Symbol(value) = value {
-                *value == symbol
-            } else {
-                false
-            }
-        }) {
-            Some(value) => Some(value.0),
-            None => None,
-        }
+        self.0
+            .iter()
+            .enumerate()
+            .find(|(_, value)| {
+                if let Symbol::Symbol(value) = value {
+                    *value == symbol
+                } else {
+                    false
+                }
+            })
+            .map(|value| value.0)
     }
 
     pub fn insert_dummy_symbols(&mut self, max_len: usize) {
