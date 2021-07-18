@@ -14,6 +14,7 @@ jobs:
 
       - name:                   Generate code coverage
         run: |
+          tree -d .
           cargo +nightly tarpaulin --verbose --all-features --workspace --timeout 120 --out Lcov
       
       - name: upload to Coveralls
