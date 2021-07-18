@@ -533,6 +533,9 @@ impl<T: Read> IonParser<T> {
             .try_into()
             .map_err(|_| IonParserError::DecimalExponentTooBig)?;
 
+        let coefficient =
+            num_bigint_32::BigInt::from_signed_bytes_le(&coefficient.to_signed_bytes_le());
+
         Ok((
             IonValue::Decimal(BigDecimal::new(coefficient, -exponent)),
             total,

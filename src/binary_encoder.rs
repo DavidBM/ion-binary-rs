@@ -94,6 +94,8 @@ pub fn encode_datetime_representation(value: &DateTime<FixedOffset>) -> Vec<u8> 
 
     let (coefficient, exponent) = nanosecond.as_bigint_and_exponent();
 
+    let coefficient = BigInt::from_signed_bytes_le(&coefficient.to_signed_bytes_le());
+
     let exponent = -exponent;
 
     let (exponent_sign, exponent_bytes) = BigInt::from(exponent).to_bytes_be();
@@ -193,6 +195,7 @@ pub fn encode_decimal(value: &BigDecimal) -> Vec<u8> {
     }
 
     let (coefficient, exponent) = value.as_bigint_and_exponent();
+    let coefficient = BigInt::from_signed_bytes_le(&coefficient.to_signed_bytes_le());
     let exponent_bytes = filter_significant_bytes(&exponent.to_be_bytes());
     let mut exponent_bytes = encode_varint(&exponent_bytes, !exponent.is_negative());
     if exponent_bytes.is_empty() {

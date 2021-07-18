@@ -135,6 +135,47 @@ impl TryFrom<IonValue> for BigInt {
     }
 }
 
+impl TryFrom<IonValue> for num_bigint_32::BigUint {
+    type Error = IonParserError;
+
+    fn try_from(value: IonValue) -> Result<Self, IonParserError> {
+        match value {
+            IonValue::Integer(value) => value.try_into().map_err(|e| {
+                ValueExtractionFailure(IonExtractionError::NumericTransformationError(Box::new(e)))
+            }),
+            IonValue::BigInteger(value) => {
+                let value =
+                    num_bigint_32::BigInt::from_signed_bytes_le(&value.to_signed_bytes_le());
+
+                value.try_into().map_err(|e| {
+                    ValueExtractionFailure(IonExtractionError::NumericTransformationError(
+                        Box::new(e),
+                    ))
+                })
+            }
+            _ => Err(ValueExtractionFailure(
+                IonExtractionError::TypeNotSupported(value),
+            )),
+        }
+    }
+}
+
+impl TryFrom<IonValue> for num_bigint_32::BigInt {
+    type Error = IonParserError;
+
+    fn try_from(value: IonValue) -> Result<Self, IonParserError> {
+        match value {
+            IonValue::Integer(value) => Ok(num_bigint_32::BigInt::from(value)),
+            IonValue::BigInteger(value) => Ok(num_bigint_32::BigInt::from_signed_bytes_le(
+                &value.to_signed_bytes_le(),
+            )),
+            _ => Err(ValueExtractionFailure(
+                IonExtractionError::TypeNotSupported(value),
+            )),
+        }
+    }
+}
+
 impl TryFrom<IonValue> for BigDecimal {
     type Error = IonParserError;
 
@@ -142,7 +183,11 @@ impl TryFrom<IonValue> for BigDecimal {
         match value {
             IonValue::Decimal(value) => Ok(value),
             IonValue::Integer(value) => Ok(BigDecimal::from(value)),
-            IonValue::BigInteger(value) => Ok(BigDecimal::from(value)),
+            IonValue::BigInteger(value) => {
+                let value =
+                    num_bigint_32::BigInt::from_signed_bytes_le(&value.to_signed_bytes_le());
+                Ok(BigDecimal::from(value))
+            }
             _ => Err(ValueExtractionFailure(
                 IonExtractionError::TypeNotSupported(value),
             )),

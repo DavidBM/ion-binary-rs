@@ -20,7 +20,8 @@ maintenance = { status = "actively-developed" }
 chrono = "0.4.19"
 log = "0.4.14"
 bigdecimal = "0.2.0"
-num-bigint = "0.3.2"
+num-bigint = "0.4.0"
+num-bigint-32 = { package = "num-bigint", version = "0.3.2" }
 num-traits = "0.2.14"
 digest = "0.9.0"
 sha2 = "0.9.5"

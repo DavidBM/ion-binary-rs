@@ -128,6 +128,7 @@ fn encode_decimal_value(value: &BigDecimal) -> Vec<u8> {
     }
 
     let (coefficient, exponent) = value.as_bigint_and_exponent();
+    let coefficient = BigInt::from_signed_bytes_le(&coefficient.to_signed_bytes_le());
     let exponent = -exponent;
 
     let mut exponent = if exponent.is_zero() {
