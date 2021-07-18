@@ -1,6 +1,6 @@
 //! # Ion Binary parser/encoder & Ion Hash in Rust
 //!
-//! Ion binary is a library written in safe rust for parsing, encoding and hashing Amazon's Ion binary format.
+//! Ion binary is a production-ready library written in safe rust for parsing, encoding and hashing Amazon's Ion binary format.
 //!
 //! [![Coverage Status](https://coveralls.io/repos/github/Couragium/ion-binary-rs/badge.svg?branch=master)](https://coveralls.io/github/Couragium/ion-binary-rs?branch=master)
 //! [![Buils Status](https://github.com/Couragium/ion-binary-rs/workflows/Rust/badge.svg)](https://github.com/Couragium/ion-binary-rs/actions)
