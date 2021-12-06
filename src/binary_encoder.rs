@@ -251,10 +251,14 @@ pub fn encode_int(value: &BigInt) -> Vec<u8> {
     let (_, mut value_bytes) = value.to_bytes_be();
 
     if *value < BigInt::from(0) {
-        if value_bytes[0] & 0b_1000_0000 > 0 {
+        if value_bytes[0] & 0b_1000_0000 != 0 {
             value_bytes.insert(0, 0b_1000_0000);
         } else {
             value_bytes[0] |= 0b_1000_0000;
+        }
+    } else {
+        if value_bytes[0] & 0b_1000_0000 != 0 {
+            value_bytes.insert(0, 0);
         }
     }
 
