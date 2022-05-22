@@ -93,7 +93,7 @@ impl<T: Read> IonParser<T> {
 
     fn consume_value_body(&mut self, value_header: &ValueHeader) -> ConsumerResult {
         match value_header.r#type {
-            ValueType::Bool => Ok(self.consume_bool(&value_header)?),
+            ValueType::Bool => Ok(self.consume_bool(value_header)?),
             ValueType::Annotation => match self.consume_annotation(value_header)? {
                 (Some(annotation), consumed_bytes) => Ok((annotation, consumed_bytes)),
                 (None, consumed_bytes) => {
@@ -740,7 +740,7 @@ impl<T: Read> IonParser<T> {
 
         let table = self.get_parsed_struct_hashmap(&table)?;
 
-        let symbols = self.get_symbols_string(&table);
+        let symbols = self.get_symbols_string(table);
 
         let imports = table.get(self.get_symbol_name_by_type(SystemSymbolIds::Imports));
 
@@ -830,7 +830,7 @@ impl<T: Read> IonParser<T> {
             return Err(IonParserError::SharedTableDefinitionWithoutName);
         };
 
-        let symbols = self.get_symbols_string(&table);
+        let symbols = self.get_symbols_string(table);
 
         self.context
             .add_shared_table(name, version, &symbols)

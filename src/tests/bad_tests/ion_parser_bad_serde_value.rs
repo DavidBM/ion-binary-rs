@@ -67,7 +67,7 @@ fn serde_from_ion_nan() {
     let error = result.unwrap_err();
     match error {
         IonParserError::DecimalNotANumericValue(x) => {
-            assert_eq!(true, x.is_nan());
+            assert!(x.is_nan());
         }
         _ => panic!("Wrong error type"),
     }

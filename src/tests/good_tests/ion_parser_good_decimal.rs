@@ -13,7 +13,7 @@ fn decimal_negative_one_dot_zero() {
 
     assert_eq!(
         parser.consume_value().unwrap().0,
-        IonValue::Decimal(BigDecimal::from_str(&"-1.0").unwrap())
+        IonValue::Decimal(BigDecimal::from_str("-1.0").unwrap())
     );
 }
 
@@ -25,7 +25,7 @@ fn decimal_negative_zero_dot() {
 
     assert_eq!(
         parser.consume_value().unwrap().0,
-        IonValue::Decimal(BigDecimal::from_str(&"-0").unwrap())
+        IonValue::Decimal(BigDecimal::from_str("-0").unwrap())
     );
 }
 
@@ -37,7 +37,7 @@ fn decimal_negative_zero_dot_zero() {
 
     assert_eq!(
         parser.consume_value().unwrap().0,
-        IonValue::Decimal(BigDecimal::from_str(&"-0.0").unwrap())
+        IonValue::Decimal(BigDecimal::from_str("-0.0").unwrap())
     );
 }
 
@@ -49,7 +49,7 @@ fn decimal_one_dot_zero() {
 
     assert_eq!(
         parser.consume_value().unwrap().0,
-        IonValue::Decimal(BigDecimal::from_str(&"1.0").unwrap())
+        IonValue::Decimal(BigDecimal::from_str("1.0").unwrap())
     );
 }
 
@@ -61,6 +61,6 @@ fn decimal_zero_dot() {
 
     assert_eq!(
         parser.consume_value().unwrap().0,
-        IonValue::Decimal(BigDecimal::from_str(&"0.").unwrap())
+        IonValue::Decimal(BigDecimal::from_str("0.").unwrap())
     );
 }

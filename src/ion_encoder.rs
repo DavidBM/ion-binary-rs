@@ -77,8 +77,7 @@ impl IonEncoder {
 
         let mut values_buffer: Vec<u8> = values
             .into_iter()
-            .map(|value| self.encode_value(&value))
-            .flatten()
+            .flat_map(|value| self.encode_value(&value))
             .collect();
 
         let mut symbol_table = self.encode_current_symbol_table();

@@ -718,7 +718,7 @@ impl<I: Into<IonValue> + Clone> From<&[I]> for IonValue {
     fn from(values: &[I]) -> Self {
         let mut vec: Vec<IonValue> = vec![];
 
-        for value in values.to_vec() {
+        for value in values.iter().cloned() {
             vec.push(value.into())
         }
 

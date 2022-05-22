@@ -148,15 +148,15 @@ fn encode_integer_float64_nan() {
 #[test]
 fn encode_integer_decimal() {
     let values: Vec<BigDecimal> = vec![
-        BigDecimal::from_str(&"-0").unwrap(),
-        BigDecimal::from_str(&"0").unwrap(),
-        BigDecimal::from_str(&"1").unwrap(),
-        BigDecimal::from_str(&"-1").unwrap(),
-        BigDecimal::from_str(&"-0.0").unwrap(),
-        BigDecimal::from_str(&"0.0").unwrap(),
-        BigDecimal::from_str(&"0.").unwrap(),
-        BigDecimal::from_str(&"200").unwrap(),
-        BigDecimal::from_str(&"3297102945745762396524398765238765234876592134160293123875692584562347659243216549875569856324869856966985698696.32842368523654574562654544756435443456544435455432358454565748576554235445562514525565245").unwrap(),
+        BigDecimal::from_str("-0").unwrap(),
+        BigDecimal::from_str("0").unwrap(),
+        BigDecimal::from_str("1").unwrap(),
+        BigDecimal::from_str("-1").unwrap(),
+        BigDecimal::from_str("-0.0").unwrap(),
+        BigDecimal::from_str("0.0").unwrap(),
+        BigDecimal::from_str("0.").unwrap(),
+        BigDecimal::from_str("200").unwrap(),
+        BigDecimal::from_str("3297102945745762396524398765238765234876592134160293123875692584562347659243216549875569856324869856966985698696.32842368523654574562654544756435443456544435455432358454565748576554235445562514525565245").unwrap(),
     ];
 
     for ion_value in values {

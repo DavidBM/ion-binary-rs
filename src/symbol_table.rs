@@ -67,8 +67,8 @@ impl LocalSymbolTable {
 
 #[derive(Debug)]
 pub struct SharedSymbolTable {
-    name: String,
-    version: u32,
+    _name: String,
+    _version: u32,
     symbols: Vec<Symbol>,
 }
 
@@ -76,7 +76,7 @@ impl SharedSymbolTable {
     pub fn is_superset(&self, table: &SharedSymbolTable) -> bool {
         for (index, symbol) in table.symbols.iter().enumerate() {
             match self.symbols.get(index) {
-                Some(ref value) if *value == symbol => {}
+                Some(value) if value == symbol => {}
                 _ => {
                     return false;
                 }
@@ -143,8 +143,8 @@ impl SymbolContext {
         symbols: &[Symbol],
     ) -> Result<(), SymbolContextError> {
         let new_table = SharedSymbolTable {
-            name: name.clone(),
-            version,
+            _name: name.clone(),
+            _version: version,
             symbols: symbols.to_vec(),
         };
 

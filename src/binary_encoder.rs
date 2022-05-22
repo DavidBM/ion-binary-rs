@@ -256,10 +256,8 @@ pub fn encode_int(value: &BigInt) -> Vec<u8> {
         } else {
             value_bytes[0] |= 0b_1000_0000;
         }
-    } else {
-        if value_bytes[0] & 0b_1000_0000 != 0 {
-            value_bytes.insert(0, 0);
-        }
+    } else if value_bytes[0] & 0b_1000_0000 != 0 {
+        value_bytes.insert(0, 0);
     }
 
     value_bytes

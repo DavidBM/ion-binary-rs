@@ -63,7 +63,7 @@ fn decimal_exp_too_large() {
     let mut parser = IonParser::new(ion_element);
     let value = parser.consume_value().unwrap().0;
     let expected = crate::IonValue::Decimal(
-        BigDecimal::from_str(&"0.000000000000000000000000000000000000000000025149515645911129")
+        BigDecimal::from_str("0.000000000000000000000000000000000000000000025149515645911129")
             .unwrap(),
     );
     assert_eq!(expected, value);

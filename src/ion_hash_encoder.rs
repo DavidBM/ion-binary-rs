@@ -85,7 +85,7 @@ fn encode_list<D: Digest>(values: &[IonValue], header: u8) -> Vec<u8> {
 fn encode_blob(value: &[u8], header: u8) -> Vec<u8> {
     let mut buffer = vec![header];
 
-    buffer.append(&mut escape_buffer(&value.to_owned()));
+    buffer.append(&mut escape_buffer(value));
 
     buffer
 }
@@ -101,7 +101,7 @@ fn encode_symbol(value: &str) -> Vec<u8> {
 fn encode_string(value: &str, header: u8) -> Vec<u8> {
     let mut buffer = vec![header];
 
-    buffer.append(&mut escape_buffer(&value.as_bytes()));
+    buffer.append(&mut escape_buffer(value.as_bytes()));
 
     buffer
 }
@@ -185,7 +185,7 @@ fn encode_float_value(value: &f64) -> Vec<u8> {
         ]));
         return buffer;
     }
-    buffer.append(&mut escape_buffer(&value.to_be_bytes().to_vec()));
+    buffer.append(&mut escape_buffer(value.to_be_bytes().as_ref()));
 
     buffer
 }
