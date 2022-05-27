@@ -513,7 +513,7 @@ impl<T: Read> IonParser<T> {
         }
 
         if let ValueLength::ShortLength(0) = header.length {
-            return Ok((IonValue::Decimal(BigDecimal::from(0)), 0));
+            return Ok((IonValue::Decimal(BigDecimal::from(0u8)), 0));
         }
 
         let (length, _, total) = self.consume_value_len(header)?;
@@ -526,15 +526,14 @@ impl<T: Read> IonParser<T> {
         let coefficient = if coefficient_size > 0 {
             self.parser.consume_int(coefficient_size)?
         } else {
-            BigInt::from(0)
+            BigInt::from(0u8)
         };
 
         let exponent: i64 = exponent
             .try_into()
             .map_err(|_| IonParserError::DecimalExponentTooBig)?;
 
-        let coefficient =
-            num_bigint_32::BigInt::from_signed_bytes_le(&coefficient.to_signed_bytes_le());
+        let coefficient = BigInt::from_signed_bytes_le(&coefficient.to_signed_bytes_le());
 
         Ok((
             IonValue::Decimal(BigDecimal::new(coefficient, -exponent)),

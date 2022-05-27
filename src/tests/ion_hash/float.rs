@@ -71,7 +71,7 @@ fn ion_hash_float64_neg_zero() {
 
 /*
 // FLOAT 32
-// f32 disabled as JS implementation uses only float64 and 
+// f32 disabled as JS implementation uses only float64 and
 // thus hashing is incompatible with any impl that uses Float32
 
 #[test]
