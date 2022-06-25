@@ -7,8 +7,14 @@
 //! [![Documentation](https://docs.rs/ion-binary-rs/badge.svg)](https://docs.rs/ion-binary-rs)
 //! [![Crates.io](https://img.shields.io/crates/v/ion-binary-rs)](https://crates.io/crates/ion-binary-rs)
 //!
-//! It should be able to **parse**, **encode** and **hash** anything you throw at it. Any failure to do so
+//! It **parses**, **encodes** and **hashes** anything you throw at it. Any failure to do so
 //! is a bug that we will fix and we will be very happy if you report them.
+//! 
+//! The code is mature and way more tested than Amazon's alternatives, including their js
+//! library. Amazon, when implementing the "good tests" only check that it parses. We check
+//! that the value is the correct one too. Additionally, we seem to be implementing way 
+//! more of the ion protocol than Amazon's libraries, as we don't have huge skip lists in 
+//! the tests files. We test all their test suite, not only a few test.
 //!
 //! ## How to use the library
 //!
