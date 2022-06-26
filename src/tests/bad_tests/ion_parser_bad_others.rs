@@ -9,6 +9,7 @@ use std::str::FromStr;
 
 #[test]
 fn bad_magic_1015() {
+    // let ion_element = read_file_testsuite!("bad/badMagic1015");
     // Not implemented due to we don't want to fail if there's a file with no header.
 }
 
@@ -74,6 +75,7 @@ fn decimal_exp_too_large() {
 
 #[test]
 fn decimal_len_causes_64_bit_overflow() {
+    // let ion_element = read_file_testsuite!("bad/decimalLenCauses64BitOverflow");
     // Not needed due to use of Big Decimal.
 }
 
@@ -238,5 +240,61 @@ fn symbol_len_too_large() {
     let mut parser = IonParser::new(ion_element);
     let value = parser.consume_value().unwrap_err();
     let expected = IonParserError::BinaryError(ParsingError::NotEnoughtDataToRead(1));
+    assert_eq!(expected, value);
+}
+
+#[test]
+fn invalid_version_marker_in_list() {
+    let ion_element = read_file_testsuite!("bad/ivmInList");
+    let mut parser = IonParser::new(ion_element);
+    let value = parser.consume_value().unwrap_err();
+    let expected = IonParserError::BinaryError(ParsingError::NestedVersionMarker);
+    assert_eq!(expected, value);
+}
+
+#[test]
+fn invalid_version_marker_in_sexp() {
+    let ion_element = read_file_testsuite!("bad/ivmInSexp");
+    let mut parser = IonParser::new(ion_element);
+    let value = parser.consume_value().unwrap_err();
+    let expected = IonParserError::BinaryError(ParsingError::NestedVersionMarker);
+    assert_eq!(expected, value);
+}
+
+#[test]
+fn invalid_version_marker_in_struct() {
+    let ion_element = read_file_testsuite!("bad/ivmInStruct");
+    let mut parser = IonParser::new(ion_element);
+    let value = parser.consume_value().unwrap_err();
+    let expected = IonParserError::BinaryError(ParsingError::NestedVersionMarker);
+    assert_eq!(expected, value);
+}
+
+#[test]
+fn invalid_version_marker_in_symbol_table_import() {
+    let ion_element = read_file_testsuite!("bad/ivmInSymbolTableImport");
+    let mut parser = IonParser::new(ion_element);
+    let value = parser.consume_value().unwrap_err();
+    let expected = IonParserError::BinaryError(ParsingError::NestedVersionMarker);
+    assert_eq!(expected, value);
+}
+
+#[test]
+fn invalid_version_marker_in_annotation_wrapper() {
+    let ion_element = read_file_testsuite!("bad/ivmInAnnotationWrapper");
+    let mut parser = IonParser::new(ion_element);
+    let value = parser.consume_value().unwrap_err();
+    // Note, this error should be "NestedVersionMarker", but the binary file 
+    // provided by amazon has a wrong length. 
+    let expected = IonParserError::BinaryError(ParsingError::NoDataToRead);
+    assert_eq!(expected, value);
+}
+
+#[test]
+fn struct_ordered_empty_in_list() {
+    let ion_element = read_file_testsuite!("bad/structOrderedEmptyInList");
+    let mut parser = IonParser::new(ion_element);
+    let value = parser.consume_value().unwrap_err();
+    let expected = IonParserError::EmptyOrderedStruct;
     assert_eq!(expected, value);
 }

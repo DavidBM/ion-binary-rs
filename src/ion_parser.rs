@@ -81,9 +81,9 @@ impl<T: Read> IonParser<T> {
     /// NOP Padding, Shared Tables and Local Tables, automatically continuing in case
     /// that any of them are found.
     pub fn consume_value(&mut self) -> ConsumerResult {
-        let value_header = self.parser.consume_value_header()?;
+        let value_header = self.parser.consume_value_header(0)?;
 
-        let mut value = self.consume_value_body(&value_header)?;
+        let mut value = self.consume_value_body(&value_header, 0)?;
 
         let already_consumed_value_header = 1;
         value.1 += already_consumed_value_header;
@@ -91,7 +91,7 @@ impl<T: Read> IonParser<T> {
         Ok(value)
     }
 
-    fn consume_value_body(&mut self, value_header: &ValueHeader) -> ConsumerResult {
+    fn consume_value_body(&mut self, value_header: &ValueHeader, nested_level: u64) -> ConsumerResult {
         match value_header.r#type {
             ValueType::Bool => Ok(self.consume_bool(value_header)?),
             ValueType::Annotation => match self.consume_annotation(value_header)? {
@@ -101,8 +101,8 @@ impl<T: Read> IonParser<T> {
                     Ok((value.0, value.1 + consumed_bytes))
                 }
             },
-            ValueType::Struct => Ok(self.consume_struct(value_header)?),
-            ValueType::List => Ok(self.consume_list(value_header)?),
+            ValueType::Struct => Ok(self.consume_struct(value_header, nested_level)?),
+            ValueType::List => Ok(self.consume_list(value_header, nested_level)?),
             ValueType::Symbol => Ok(self.consume_symbol(value_header)?),
             ValueType::PositiveInt => Ok(self.consume_int(value_header, false)?),
             ValueType::NegativeInt => Ok(self.consume_int(value_header, true)?),
@@ -118,7 +118,7 @@ impl<T: Read> IonParser<T> {
             ValueType::Decimal => Ok(self.consume_decimal(value_header)?),
             ValueType::Clob => Ok(self.consume_clob(value_header)?),
             ValueType::Blob => Ok(self.consume_blob(value_header)?),
-            ValueType::SExpr => Ok(self.consume_sexpr(value_header)?),
+            ValueType::SExpr => Ok(self.consume_sexpr(value_header, nested_level)?),
             ValueType::Reserved => Err(IonParserError::InvalidReservedTypeDescriptor),
         }
     }
@@ -221,7 +221,7 @@ impl<T: Read> IonParser<T> {
         Ok((value, total))
     }
 
-    fn consume_struct(&mut self, header: &ValueHeader) -> ConsumerResult {
+    fn consume_struct(&mut self, header: &ValueHeader, nested_level: u64) -> ConsumerResult {
         trace!("Consuming Struct");
 
         if self.is_value_null(header) {
@@ -247,7 +247,7 @@ impl<T: Read> IonParser<T> {
 
             trace!("Struct key field: {:?}", key);
 
-            let value_header = self.parser.consume_value_header()?;
+            let value_header = self.parser.consume_value_header(nested_level.saturating_add(1))?;
 
             consumed_bytes += 1;
 
@@ -258,7 +258,7 @@ impl<T: Read> IonParser<T> {
                 continue;
             }
 
-            let value = self.consume_value_body(&value_header)?;
+            let value = self.consume_value_body(&value_header, nested_level.saturating_add(1))?;
 
             consumed_bytes += value.1;
 
@@ -276,7 +276,7 @@ impl<T: Read> IonParser<T> {
         Ok((IonValue::Struct(values), total))
     }
 
-    fn consume_list(&mut self, header: &ValueHeader) -> ConsumerResult {
+    fn consume_list(&mut self, header: &ValueHeader, nested_level: u64) -> ConsumerResult {
         trace!("Consuming List");
 
         if self.is_value_null(header) {
@@ -288,7 +288,7 @@ impl<T: Read> IonParser<T> {
         let mut values = vec![];
 
         while length - consumed_bytes > 0 {
-            let value_header = self.parser.consume_value_header()?;
+            let value_header = self.parser.consume_value_header(nested_level.saturating_add(1))?;
 
             consumed_bytes += 1;
 
@@ -299,7 +299,7 @@ impl<T: Read> IonParser<T> {
                 continue;
             }
 
-            let value = self.consume_value_body(&value_header)?;
+            let value = self.consume_value_body(&value_header, nested_level.saturating_add(1))?;
 
             consumed_bytes += value.1;
             values.push(value.0);
@@ -314,14 +314,14 @@ impl<T: Read> IonParser<T> {
         Ok((IonValue::List(values), total))
     }
 
-    fn consume_sexpr(&mut self, header: &ValueHeader) -> ConsumerResult {
+    fn consume_sexpr(&mut self, header: &ValueHeader, nested_level: u64) -> ConsumerResult {
         trace!("Consuming SExpr");
 
         if self.is_value_null(header) {
             return Ok((IonValue::Null(NullIonValue::SExpr), 0));
         }
 
-        let list_value = self.consume_list(header)?;
+        let list_value = self.consume_list(header, nested_level.saturating_add(1))?;
 
         if let (IonValue::List(list), len) = list_value {
             Ok((IonValue::SExpr(list), len))

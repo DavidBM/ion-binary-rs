@@ -16,6 +16,18 @@ fn clob_with_del() {
 }
 
 #[test]
+fn clob_with_null_character() {
+    let ion_blob = read_file_testsuite!("good/clobWithNullCharacter");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Clob(Vec::from([0]))
+    );
+}
+
+#[test]
 fn clob_with_non_ascii_character() {
     let ion_blob = read_file_testsuite!("good/clobWithNonAsciiCharacter");
 

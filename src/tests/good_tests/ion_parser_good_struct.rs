@@ -51,6 +51,20 @@ fn struct_empty() {
 }
 
 #[test]
+fn struct_len13() {
+    let ion_blob = read_file_testsuite!("good/structLen13");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::Struct(hashmap!(
+            "name".into() => IonValue::String("123456789AB".into())
+        ))
+    );
+}
+
+#[test]
 fn struct_len14() {
     let ion_blob = read_file_testsuite!("good/structLen14");
 
@@ -91,6 +105,24 @@ fn struct_ordered() {
             "imports".to_string() => IonValue::Bool(true),
             "name".to_string() => IonValue::Null(NullIonValue::Null)
         ))
+    );
+}
+
+#[test]
+fn struct_ordered_in_list() {
+    let ion_blob = read_file_testsuite!("good/structOrderedInList");
+
+    let mut parser = IonParser::new(ion_blob);
+
+    assert_eq!(
+        parser.consume_value().unwrap().0,
+        IonValue::List(vec![
+            IonValue::Struct(hashmap!(
+                "version".to_string() => IonValue::Bool(false),
+                "imports".to_string() => IonValue::Bool(true),
+                "name".to_string() => IonValue::Null(NullIonValue::Null)
+            ))
+        ])
     );
 }
 

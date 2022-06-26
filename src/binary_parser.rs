@@ -191,7 +191,7 @@ impl<T: Read> IonBinaryParser<T> {
     //  +---------+---------+
     //  |    T    |    L    |
     //  +---------+---------+
-    pub fn consume_value_header(&mut self) -> Result<ValueHeader, ParsingError> {
+    pub fn consume_value_header(&mut self, nested_level: u64) -> Result<ValueHeader, ParsingError> {
         let mut byte = [0u8; 1];
 
         let read_bytes = self.read(&mut byte);
@@ -206,9 +206,12 @@ impl<T: Read> IonBinaryParser<T> {
                 // it means that this is a ion version header, so we read it
                 // and set the decoder to the new version.
                 if byte == 0xE0 {
+                    if nested_level != 0 {
+                        return Err(ParsingError::NestedVersionMarker);
+                    }
                     let version = self.consume_ion_version_once_identified()?;
                     self.set_current_ion_version(version);
-                    return self.consume_value_header();
+                    return self.consume_value_header(nested_level);
                 }
 
                 let value_type = (byte & 0b1111_0000) >> 4;

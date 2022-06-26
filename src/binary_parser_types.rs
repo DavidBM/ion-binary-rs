@@ -82,6 +82,8 @@ pub enum ParsingError {
     ThisIsABugConsumingVarUInt,
     #[error("VaruInt returned a number so huge that doesn't fit in an BitInt")]
     ThisIsABugConsumingVarInt,
+    #[error("An Ion version markers was found in a nested structure")]
+    NestedVersionMarker,
 }
 
 //   7       4 3       0

@@ -9,7 +9,7 @@ fn decode_value_null() {
     let mut lexer = IonBinaryParser::new(&ion_test[..]);
 
     assert_eq!(
-        lexer.consume_value_header(),
+        lexer.consume_value_header(0),
         Ok(ValueHeader {
             r#type: ValueType::Null,
             length: ValueLength::NullValue,
@@ -352,7 +352,7 @@ fn decode_value_with_version_header() {
     let mut lexer = IonBinaryParser::new(&ion_test[..]);
 
     assert_eq!(
-        lexer.consume_value_header(),
+        lexer.consume_value_header(0),
         Ok(ValueHeader {
             r#type: ValueType::Annotation,
             length: ValueLength::LongLength,
