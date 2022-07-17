@@ -102,7 +102,7 @@ pub fn encode_datetime_representation(value: &DateTime<FixedOffset>) -> Vec<u8> 
 
     let offset = value.offset().local_minus_utc() / 60;
 
-    let unsigned_offset = (offset.abs() as u32).to_be_bytes();
+    let unsigned_offset = offset.unsigned_abs().to_be_bytes();
 
     let mut buffer: Vec<u8> = vec![];
 

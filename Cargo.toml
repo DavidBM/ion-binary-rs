@@ -1,8 +1,8 @@
 [package]
 name = "ion-binary-rs"
-version = "0.8.8"
+version = "0.8.9"
 authors = ["Couragium Solutions <info@couragium.com>"]
-edition = "2018"
+edition = "2021"
 description="Pure Rust parser, encoder and hasher for Amazon's Ion binary format."
 license = "Apache-2.0/MIT"
 readme = "README.md"
