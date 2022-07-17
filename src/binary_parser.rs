@@ -2,6 +2,7 @@ use crate::binary_parser_types::*;
 use num_bigint::{BigInt, BigUint, Sign};
 use std::fmt::Debug;
 use std::io::Read;
+use smallvec::{SmallVec, smallvec};
 
 pub struct IonBinaryParser<T: Read> {
     reader: T,
@@ -9,6 +10,7 @@ pub struct IonBinaryParser<T: Read> {
 }
 
 impl<T: Read> IonBinaryParser<T> {
+    #[inline]
     pub fn new(reader: T) -> IonBinaryParser<T> {
         IonBinaryParser {
             reader,
@@ -16,6 +18,7 @@ impl<T: Read> IonBinaryParser<T> {
         }
     }
 
+    #[inline]
     fn read(&mut self, buffer: &mut [u8]) -> Result<usize, std::io::Error> {
         self.reader.read(buffer)
     }
@@ -31,6 +34,7 @@ impl<T: Read> IonBinaryParser<T> {
     //            :          bits           :
     //            +=========================+
     //             n+7                     n
+    #[inline]
     pub fn consume_uint(&mut self, octets: usize) -> Result<BigUint, ParsingError> {
         if octets == 0 {
             return Err(ParsingError::CannotReadZeroBytes);
@@ -45,6 +49,7 @@ impl<T: Read> IonBinaryParser<T> {
         Ok(number)
     }
 
+    #[inline]
     pub fn read_bytes(&mut self, buffer: &mut [u8]) -> Result<(), ParsingError> {
         let read_bytes = self.read(buffer);
 
@@ -76,6 +81,7 @@ impl<T: Read> IonBinaryParser<T> {
     //            :          bits           :
     //            +=========================+
     //             n+7                     n
+    #[inline]
     pub fn consume_int(&mut self, octets: usize) -> Result<BigInt, ParsingError> {
         if octets == 0 {
             return Err(ParsingError::CannotReadZeroBytes);
@@ -102,13 +108,13 @@ impl<T: Read> IonBinaryParser<T> {
     //               +===+=====================+     +---+---------------------+
     // VarUInt field : 0 :         bits        :  …  | 1 |         bits        |
     //               +===+=====================+     +---+---------------------+
+    #[inline]
     pub fn consume_varuint(&mut self) -> Result<(BigUint, usize), ParsingError> {
-        let found_bytes = self.consume_var_number()?;
+        let mut bytes = self.consume_var_number()?;
 
-        let bytes: Vec<u8> = found_bytes
-            .into_iter()
-            .map(|byte| byte & 0b0111_1111)
-            .collect();
+        for byte in &mut bytes {
+            *byte &= 0b0111_1111;
+        }
 
         let number = match BigUint::from_radix_be(&bytes, 128) {
             Some(number) => number,
@@ -137,13 +143,13 @@ impl<T: Read> IonBinaryParser<T> {
     //                                 ^
     //                                 |
     //                                 +--sign
+    #[inline]
     pub fn consume_varint(&mut self) -> Result<(BigInt, usize), ParsingError> {
-        let found_bytes = self.consume_var_number()?;
+        let mut bytes = self.consume_var_number()?;
 
-        let mut bytes: Vec<u8> = found_bytes
-            .into_iter()
-            .map(|byte| byte & 0b0111_1111)
-            .collect();
+        for byte in &mut bytes {
+            *byte &= 0b0111_1111;
+        }
 
         let is_negative = bytes[0] & 0b0100_0000 > 0;
 
@@ -162,10 +168,11 @@ impl<T: Read> IonBinaryParser<T> {
     }
 
     // Note: Guarantees to return at least one byte if it succeed
-    fn consume_var_number(&mut self) -> Result<Vec<u8>, ParsingError> {
+    #[inline]
+    fn consume_var_number(&mut self) -> Result<SmallVec<[u8; 4]>, ParsingError> {
         let mut byte = [0u8; 1];
 
-        let mut found_bytes: Vec<u8> = vec![];
+        let mut found_bytes: SmallVec<[u8; 4]> = smallvec!{};
 
         loop {
             let read_bytes = self.read(&mut byte);
@@ -191,6 +198,7 @@ impl<T: Read> IonBinaryParser<T> {
     //  +---------+---------+
     //  |    T    |    L    |
     //  +---------+---------+
+    #[inline]
     pub fn consume_value_header(&mut self, nested_level: u64) -> Result<ValueHeader, ParsingError> {
         let mut byte = [0u8; 1];
 
@@ -221,10 +229,8 @@ impl<T: Read> IonBinaryParser<T> {
                 let value_type = self.get_field_type(value_type);
                 let value_length = self.get_field_length(value_length);
                 match (value_type, value_length) {
-                    (Ok(mut r#type), Ok(length)) => {
+                    (Ok(r#type), Ok(length)) => {
                         self.verify_header(&r#type, &length)?;
-
-                        self.if_nop_fill_nop_padding(&mut r#type, &length);
 
                         Ok(ValueHeader { r#type, length })
                     }
@@ -235,16 +241,7 @@ impl<T: Read> IonBinaryParser<T> {
         }
     }
 
-    fn if_nop_fill_nop_padding(&self, r#type: &mut ValueType, length: &ValueLength) {
-        match (&r#type, &length) {
-            (ValueType::Null, ValueLength::ShortLength(_))
-            | (ValueType::Null, ValueLength::LongLength) => {
-                *r#type = ValueType::Nop;
-            }
-            _ => {}
-        }
-    }
-
+    #[inline]
     fn verify_header(&self, valtype: &ValueType, length: &ValueLength) -> Result<(), ParsingError> {
         use ValueLength::*;
         use ValueType::*;
@@ -253,7 +250,7 @@ impl<T: Read> IonBinaryParser<T> {
             Annotation => {
                 if let ShortLength(len) = length {
                     if len < &3 {
-                        Err(ParsingError::InvalidAnnotationLength(length.clone()))
+                        Err(ParsingError::InvalidAnnotationLength(*length))
                     } else {
                         Ok(())
                     }
@@ -271,6 +268,7 @@ impl<T: Read> IonBinaryParser<T> {
     //                       +------+-------+-------+------+
     // When calling this function we have already consumed the first byte
     // (that is how we identify we need to call this function)
+    #[inline]
     fn consume_ion_version_once_identified(&mut self) -> Result<(u8, u8), ParsingError> {
         let mut byte = [0u8; 3];
 
@@ -289,32 +287,17 @@ impl<T: Read> IonBinaryParser<T> {
         }
     }
 
+    #[inline]
     fn set_current_ion_version(&mut self, version: (u8, u8)) {
         self.current_ion_version = Some(version);
     }
 
+    #[inline]
     fn get_field_type(&mut self, id: u8) -> Result<ValueType, ParsingError> {
-        match id {
-            0 => Ok(ValueType::Null),
-            1 => Ok(ValueType::Bool),
-            2 => Ok(ValueType::PositiveInt),
-            3 => Ok(ValueType::NegativeInt),
-            4 => Ok(ValueType::Float),
-            5 => Ok(ValueType::Decimal),
-            6 => Ok(ValueType::Timestamp),
-            7 => Ok(ValueType::Symbol),
-            8 => Ok(ValueType::String),
-            9 => Ok(ValueType::Clob),
-            10 => Ok(ValueType::Blob),
-            11 => Ok(ValueType::List),
-            12 => Ok(ValueType::SExpr),
-            13 => Ok(ValueType::Struct),
-            14 => Ok(ValueType::Annotation),
-            15 => Ok(ValueType::Reserved),
-            _ => Err(ParsingError::InvalidHeaderType),
-        }
+        id.try_into()
     }
 
+    #[inline]
     fn get_field_length(&mut self, id: u8) -> Result<ValueLength, ParsingError> {
         match id {
             14 => Ok(ValueLength::LongLength), // L = 14 real length is in this field's following field: "length [VarUInt]"

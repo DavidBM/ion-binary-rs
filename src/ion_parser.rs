@@ -38,6 +38,7 @@ pub type ConsumerResult = Result<(IonValue, usize), IonParserError>;
 impl<T: Read> IonParser<T> {
     /// Creates a new parser. It accepts anything that implements the trait
     /// [Read Trait](https://doc.rust-lang.org/stable/std/io/trait.Read.html)
+    #[inline]
     pub fn new(reader: T) -> IonParser<T> {
         IonParser {
             parser: IonBinaryParser::new(reader),
@@ -48,6 +49,7 @@ impl<T: Read> IonParser<T> {
     /// Allows to set up shared tables in order to define symbols that are not in the
     /// binary blob. This is useful when decoding binaries that depend of huge tables
     /// that are expected to exist in the client and not to be sent in the ion binary.
+    #[inline]
     pub fn with_shared_table(
         &mut self,
         name: String,
@@ -63,6 +65,7 @@ impl<T: Read> IonParser<T> {
     }
 
     /// Consumes all the IonValues in the binary blob and returns an array with them.
+    #[inline]
     pub fn consume_all(&mut self) -> Result<Vec<IonValue>, IonParserError> {
         let mut values = vec![];
 
@@ -80,6 +83,7 @@ impl<T: Read> IonParser<T> {
     /// Consumes **one** IonValue and stops. This function will automatically process
     /// NOP Padding, Shared Tables and Local Tables, automatically continuing in case
     /// that any of them are found.
+    #[inline]
     pub fn consume_value(&mut self) -> ConsumerResult {
         let value_header = self.parser.consume_value_header(0)?;
 
@@ -91,7 +95,14 @@ impl<T: Read> IonParser<T> {
         Ok(value)
     }
 
+    #[inline]
     fn consume_value_body(&mut self, value_header: &ValueHeader, nested_level: u64) -> ConsumerResult {
+        if value_header.is_nop() {
+            let consumed_bytes = self.consume_nop(value_header)?;
+            let value = self.consume_value()?;
+            return Ok((value.0, value.1 + consumed_bytes))
+        }
+
         match value_header.r#type {
             ValueType::Bool => Ok(self.consume_bool(value_header)?),
             ValueType::Annotation => match self.consume_annotation(value_header)? {
@@ -109,11 +120,6 @@ impl<T: Read> IonParser<T> {
             ValueType::String => Ok(self.consume_string(value_header)?),
             ValueType::Timestamp => Ok(self.consume_timestamp(value_header)?),
             ValueType::Null => Ok((IonValue::Null(NullIonValue::Null), 0)),
-            ValueType::Nop => {
-                let consumed_bytes = self.consume_nop(value_header)?;
-                let value = self.consume_value()?;
-                Ok((value.0, value.1 + consumed_bytes))
-            }
             ValueType::Float => Ok(self.consume_float(value_header)?),
             ValueType::Decimal => Ok(self.consume_decimal(value_header)?),
             ValueType::Clob => Ok(self.consume_clob(value_header)?),
@@ -123,6 +129,7 @@ impl<T: Read> IonParser<T> {
         }
     }
 
+    #[inline]
     fn consume_nop(&mut self, header: &ValueHeader) -> Result<usize, IonParserError> {
         trace!("Consuming Nop Padding");
         let (length, _, total) = self.consume_value_len(header)?;
@@ -137,15 +144,17 @@ impl<T: Read> IonParser<T> {
         Ok(total)
     }
 
+    #[inline]
     fn consume_bool(&mut self, header: &ValueHeader) -> ConsumerResult {
         Ok(match &header.length {
             ValueLength::NullValue => (IonValue::Null(NullIonValue::Bool), 0),
             ValueLength::ShortLength(1) => (IonValue::Bool(true), 0),
             ValueLength::ShortLength(0) => (IonValue::Bool(false), 0),
-            _ => return Err(IonParserError::InvalidBoolLength(header.length.clone())),
+            _ => return Err(IonParserError::InvalidBoolLength(header.length)),
         })
     }
 
+    #[inline]
     fn consume_string(&mut self, header: &ValueHeader) -> ConsumerResult {
         trace!("Consuming String");
 
@@ -169,6 +178,7 @@ impl<T: Read> IonParser<T> {
         Ok((IonValue::String(text), total))
     }
 
+    #[inline]
     fn consume_int(&mut self, header: &ValueHeader, negative: bool) -> ConsumerResult {
         trace!("Consuming Integer");
 
@@ -221,6 +231,7 @@ impl<T: Read> IonParser<T> {
         Ok((value, total))
     }
 
+    #[inline]
     fn consume_struct(&mut self, header: &ValueHeader, nested_level: u64) -> ConsumerResult {
         trace!("Consuming Struct");
 
@@ -251,7 +262,7 @@ impl<T: Read> IonParser<T> {
 
             consumed_bytes += 1;
 
-            if let ValueType::Nop = value_header.r#type {
+            if value_header.is_nop() {                
                 let consumed = self.consume_nop(&value_header)?;
                 trace!("Found NOP Padding in Struct of {:} bytes", consumed + 1);
                 consumed_bytes += consumed;
@@ -276,6 +287,7 @@ impl<T: Read> IonParser<T> {
         Ok((IonValue::Struct(values), total))
     }
 
+    #[inline]
     fn consume_list(&mut self, header: &ValueHeader, nested_level: u64) -> ConsumerResult {
         trace!("Consuming List");
 
@@ -292,7 +304,7 @@ impl<T: Read> IonParser<T> {
 
             consumed_bytes += 1;
 
-            if let ValueType::Nop = value_header.r#type {
+            if value_header.is_nop() {
                 let consumed = self.consume_nop(&value_header)?;
                 trace!("Found NOP Padding in List of {:} bytes", consumed + 1);
                 consumed_bytes += consumed;
@@ -314,6 +326,7 @@ impl<T: Read> IonParser<T> {
         Ok((IonValue::List(values), total))
     }
 
+    #[inline]
     fn consume_sexpr(&mut self, header: &ValueHeader, nested_level: u64) -> ConsumerResult {
         trace!("Consuming SExpr");
 
@@ -330,6 +343,7 @@ impl<T: Read> IonParser<T> {
         }
     }
 
+    #[inline]
     fn consume_symbol(&mut self, header: &ValueHeader) -> ConsumerResult {
         trace!("Consuming Symbol");
 
@@ -359,6 +373,7 @@ impl<T: Read> IonParser<T> {
         Ok((IonValue::Symbol(text), total_consumed_bytes))
     }
 
+    #[inline]
     fn consume_timestamp(&mut self, header: &ValueHeader) -> ConsumerResult {
         trace!("Consuming Timestamp");
 
@@ -472,6 +487,7 @@ impl<T: Read> IonParser<T> {
         Ok((IonValue::DateTime(datetime), consumed_bytes))
     }
 
+    #[inline]
     fn consume_float(&mut self, header: &ValueHeader) -> ConsumerResult {
         trace!("Consuming float");
 
@@ -505,6 +521,7 @@ impl<T: Read> IonParser<T> {
         })
     }
 
+    #[inline]
     fn consume_decimal(&mut self, header: &ValueHeader) -> ConsumerResult {
         trace!("Consuming decimal");
 
@@ -541,6 +558,7 @@ impl<T: Read> IonParser<T> {
         ))
     }
 
+    #[inline]
     fn consume_clob(&mut self, header: &ValueHeader) -> ConsumerResult {
         trace!("Consuming clob");
 
@@ -559,6 +577,7 @@ impl<T: Read> IonParser<T> {
         Ok((IonValue::Clob(buffer), total))
     }
 
+    #[inline]
     fn consume_blob(&mut self, header: &ValueHeader) -> ConsumerResult {
         trace!("Consuming blob");
 
@@ -577,6 +596,7 @@ impl<T: Read> IonParser<T> {
         Ok((IonValue::Blob(buffer), total))
     }
 
+    #[inline]
     fn consume_annotation(
         &mut self,
         header: &ValueHeader,
@@ -652,10 +672,12 @@ impl<T: Read> IonParser<T> {
         }
     }
 
+    #[inline]
     fn is_value_null(&self, header: &ValueHeader) -> bool {
         header.length == ValueLength::NullValue
     }
 
+    #[inline]
     fn consume_value_len(
         &mut self,
         header: &ValueHeader,
@@ -678,6 +700,7 @@ impl<T: Read> IonParser<T> {
         Ok((length, consumed_bytes, total))
     }
 
+    #[inline]
     fn consume_value_len_for_struct(
         &mut self,
         header: &ValueHeader,
@@ -703,6 +726,7 @@ impl<T: Read> IonParser<T> {
         Ok((length, consumed_bytes, total))
     }
 
+    #[inline]
     fn get_parsed_struct_hashmap<'a>(
         &self,
         table: &'a IonValue,
@@ -714,6 +738,7 @@ impl<T: Read> IonParser<T> {
         }
     }
 
+    #[inline]
     fn get_symbols_string(&self, table: &HashMap<String, IonValue>) -> Vec<Symbol> {
         let symbols = table.get(self.get_symbol_name_by_type(SystemSymbolIds::Symbols));
 
@@ -734,6 +759,7 @@ impl<T: Read> IonParser<T> {
         }
     }
 
+    #[inline]
     fn load_local_table(&mut self, table: IonValue) -> Result<(), IonParserError> {
         trace!("Loading Local Table");
 
@@ -762,6 +788,7 @@ impl<T: Read> IonParser<T> {
         Ok(())
     }
 
+    #[inline]
     fn decode_imports(&self, values: &[IonValue]) -> Result<Vec<Import>, IonParserError> {
         let mut imports = Vec::new();
 
@@ -804,6 +831,7 @@ impl<T: Read> IonParser<T> {
         Ok(imports)
     }
 
+    #[inline]
     fn load_shared_table(&mut self, table: IonValue) -> Result<(), IonParserError> {
         trace!("Loading Shared Table");
 
@@ -838,10 +866,12 @@ impl<T: Read> IonParser<T> {
         Ok(())
     }
 
+    #[inline]
     fn get_symbol_name_by_type(&self, symbol: SystemSymbolIds) -> &'static str {
         SYSTEM_SYMBOL_TABLE[symbol as usize]
     }
 
+    #[inline]
     fn construct_raw_annotation(
         &self,
         symbols: &[usize],
@@ -857,10 +887,12 @@ impl<T: Read> IonParser<T> {
         Ok(IonValue::Annotation(symbols_names, Box::new(value)))
     }
 
+    #[inline]
     fn contains_system_symbol(&self, symbols: &[usize], symbol: SystemSymbolIds) -> bool {
         symbols.iter().any(|&s| s == symbol as usize)
     }
 
+    #[inline]
     fn get_symbol_name(&self, symbol_id: usize) -> Result<String, IonParserError> {
         match self.context.get_symbol_by_id(symbol_id) {
             Some(Symbol::Symbol(name)) => Ok(name.clone()),

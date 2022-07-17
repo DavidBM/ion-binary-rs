@@ -138,7 +138,7 @@ pub fn encode_datetime(value: &DateTime<FixedOffset>) -> Vec<u8> {
     let mut buffer = encode_datetime_representation(value);
 
     let len = buffer.len();
-    let mut len_bytes = filter_significant_bytes(&len.to_be_bytes());
+    let mut len_bytes = filter_significant_bytes(len.to_be_bytes().to_vec());
 
     let has_length_field = len >= ION_LEN_ON_HEADER_WHEN_EXTRA_LEN_FIELD_REQUIRED.into();
 
@@ -196,7 +196,7 @@ pub fn encode_decimal(value: &BigDecimal) -> Vec<u8> {
 
     let (coefficient, exponent) = value.as_bigint_and_exponent();
     let coefficient = BigInt::from_signed_bytes_le(&coefficient.to_signed_bytes_le());
-    let exponent_bytes = filter_significant_bytes(&exponent.to_be_bytes());
+    let exponent_bytes = filter_significant_bytes(exponent.to_be_bytes().to_vec());
     let mut exponent_bytes = encode_varint(&exponent_bytes, !exponent.is_negative());
     if exponent_bytes.is_empty() {
         // 0x80 = 0 positive in VarInt 0x_1_0_00_0000
@@ -303,10 +303,10 @@ pub fn encode_integer(value: &BigInt) -> Vec<u8> {
         ion_type = 3;
     }
 
-    let bytes = filter_significant_bytes(&unsigned_value);
+    let bytes = filter_significant_bytes(unsigned_value);
     let bytes_len = bytes.len();
-    let bytes_len_bytes = bytes.len().to_be_bytes();
-    let bytes_len_bytes = filter_significant_bytes(&bytes_len_bytes);
+    let bytes_len_bytes = bytes.len().to_be_bytes().to_vec();
+    let bytes_len_bytes = filter_significant_bytes(bytes_len_bytes);
     let bytes_len_bytes = encode_varuint(&bytes_len_bytes);
     let bytes_len_bytes_len = bytes_len_bytes.len();
     let has_len_field = bytes_len >= ION_LEN_ON_HEADER_WHEN_EXTRA_LEN_FIELD_REQUIRED.into();
@@ -345,22 +345,29 @@ pub fn encode_integer(value: &BigInt) -> Vec<u8> {
     result_buffer
 }
 
-pub fn filter_significant_bytes(bytes: &[u8]) -> Vec<u8> {
-    let mut buffer = vec![];
+pub fn filter_significant_bytes(mut buffer: Vec<u8>) -> Vec<u8> {
+    buffer.reverse();
 
-    let mut found_not_zero = false;
+    filter_significant_bytes_reversed_buffer(&mut buffer);
 
-    for byte in bytes {
-        if *byte != 0u8 {
-            found_not_zero = true;
-        }
-
-        if found_not_zero {
-            buffer.push(*byte);
-        }
-    }
+    buffer.reverse();
 
     buffer
+}
+
+pub fn filter_significant_bytes_reversed_buffer(buffer: &mut Vec<u8>) {
+
+    let mut zeros_count = 0usize;
+
+    for byte in buffer.iter().rev() {
+        if *byte != 0u8 {
+            break
+        }
+
+        zeros_count += 1;
+    }
+
+    buffer.resize(buffer.len() - zeros_count, 0);
 }
 
 pub fn encode_varuint(value: &[u8]) -> Vec<u8> {
@@ -368,7 +375,7 @@ pub fn encode_varuint(value: &[u8]) -> Vec<u8> {
         return vec![];
     }
 
-    consume_var(value)
+    encode_var(value)
 }
 
 pub fn encode_varint(value: &[u8], is_negative: bool) -> Vec<u8> {
@@ -376,7 +383,7 @@ pub fn encode_varint(value: &[u8], is_negative: bool) -> Vec<u8> {
         return vec![];
     }
 
-    let mut buffer = consume_var(value);
+    let mut buffer = encode_var(value);
 
     if (buffer[0] & 0b_0100_0000) == 0 {
         if is_negative {
@@ -389,14 +396,14 @@ pub fn encode_varint(value: &[u8], is_negative: bool) -> Vec<u8> {
     buffer
 }
 
-pub fn consume_var(value: &[u8]) -> Vec<u8> {
+pub fn encode_var(value: &[u8]) -> Vec<u8> {
     if value.is_empty() {
         return vec![];
     }
 
     const RESULTING_BYTE_WIDTH: u8 = 7;
 
-    let mut buffer: Vec<u8> = Vec::new();
+    let mut buffer: Vec<u8> = Vec::with_capacity(value.len()*2);
 
     let value_len = value.len();
     let mut value_index = value_len - 1;
@@ -406,12 +413,12 @@ pub fn consume_var(value: &[u8]) -> Vec<u8> {
         match remaining_bits {
             7 => {
                 let bits = value[value_index] >> 1;
-                buffer.insert(0, bits);
+                buffer.push(bits);
                 remaining_bits = 0;
             }
             8 => {
                 let bits = value[value_index] << 1 >> 1;
-                buffer.insert(0, bits);
+                buffer.push(bits);
                 remaining_bits = 1;
             }
             0 => {
@@ -427,7 +434,7 @@ pub fn consume_var(value: &[u8]) -> Vec<u8> {
                 let mut buffer_item = value[value_index] >> shift;
 
                 if value_index == 0 {
-                    buffer.insert(0, buffer_item);
+                    buffer.push(buffer_item);
                     break;
                 }
 
@@ -440,7 +447,7 @@ pub fn consume_var(value: &[u8]) -> Vec<u8> {
 
                 buffer_item += bits;
 
-                buffer.insert(0, buffer_item);
+                buffer.push(buffer_item);
 
                 remaining_bits = BITS_IN_BYTE - bits_to_take;
             }
@@ -448,9 +455,13 @@ pub fn consume_var(value: &[u8]) -> Vec<u8> {
         }
     }
 
-    if let Some(value) = buffer.last_mut() {
+    if let Some(value) = buffer.first_mut() {
         *value += 0b1000_0000;
     }
 
-    filter_significant_bytes(&buffer)
+    filter_significant_bytes_reversed_buffer(&mut buffer);
+    
+    buffer.reverse();
+
+    buffer
 }
