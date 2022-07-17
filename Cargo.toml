@@ -26,3 +26,11 @@ digest = "0.10"
 sha2 = "0.10"
 thiserror = "1"
 serde_json = "1"
+
+[dev-dependencies]
+criterion = "0.3"
+bson = "2.3.0"
+
+[[bench]]
+name = "my_benchmark"
+harness = false
