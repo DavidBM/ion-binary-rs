@@ -222,43 +222,8 @@ impl<T: Read> IonBinaryParser<T> {
                     return self.consume_value_header(nested_level);
                 }
 
-                let value_type = (byte & 0b1111_0000) >> 4;
-
-                let value_length = byte & 0b0000_1111;
-
-                let value_type = self.get_field_type(value_type);
-                let value_length = self.get_field_length(value_length);
-                match (value_type, value_length) {
-                    (Ok(r#type), Ok(length)) => {
-                        self.verify_header(&r#type, &length)?;
-
-                        Ok(ValueHeader { r#type, length })
-                    }
-                    (Err(e), _) => Err(e),
-                    (_, Err(e)) => Err(e),
-                }
+                ValueHeader::new(byte)
             }
-        }
-    }
-
-    #[inline]
-    fn verify_header(&self, valtype: &ValueType, length: &ValueLength) -> Result<(), ParsingError> {
-        use ValueLength::*;
-        use ValueType::*;
-
-        match valtype {
-            Annotation => {
-                if let ShortLength(len) = length {
-                    if len < &3 {
-                        Err(ParsingError::InvalidAnnotationLength(*length))
-                    } else {
-                        Ok(())
-                    }
-                } else {
-                    Ok(())
-                }
-            }
-            _ => Ok(()),
         }
     }
 
@@ -290,21 +255,6 @@ impl<T: Read> IonBinaryParser<T> {
     #[inline]
     fn set_current_ion_version(&mut self, version: (u8, u8)) {
         self.current_ion_version = Some(version);
-    }
-
-    #[inline]
-    fn get_field_type(&mut self, id: u8) -> Result<ValueType, ParsingError> {
-        id.try_into()
-    }
-
-    #[inline]
-    fn get_field_length(&mut self, id: u8) -> Result<ValueLength, ParsingError> {
-        match id {
-            14 => Ok(ValueLength::LongLength), // L = 14 real length is in this field's following field: "length [VarUInt]"
-            15 => Ok(ValueLength::NullValue),  // L = 15
-            0..=13 => Ok(ValueLength::ShortLength(id)), // 0 <= L <= 13 and we omit the "length [VarUInt]" field,
-            _ => Err(ParsingError::InvalidHeaderLength),
-        }
     }
 }
 

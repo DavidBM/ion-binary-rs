@@ -31,6 +31,7 @@ use std::{collections::HashMap, io::Read};
 pub struct IonParser<T: Read> {
     parser: IonBinaryParser<T>,
     context: SymbolContext,
+    temp_buffer: Vec<u8>,
 }
 
 pub type ConsumerResult = Result<(IonValue, usize), IonParserError>;
@@ -43,6 +44,7 @@ impl<T: Read> IonParser<T> {
         IonParser {
             parser: IonBinaryParser::new(reader),
             context: SymbolContext::new(),
+            temp_buffer: Vec::with_capacity(256),
         }
     }
 
@@ -67,7 +69,7 @@ impl<T: Read> IonParser<T> {
     /// Consumes all the IonValues in the binary blob and returns an array with them.
     #[inline]
     pub fn consume_all(&mut self) -> Result<Vec<IonValue>, IonParserError> {
-        let mut values = vec![];
+        let mut values = Vec::with_capacity(1);
 
         loop {
             match self.consume_value() {
@@ -103,7 +105,7 @@ impl<T: Read> IonParser<T> {
             return Ok((value.0, value.1 + consumed_bytes))
         }
 
-        match value_header.r#type {
+        match value_header.get_type() {
             ValueType::Bool => Ok(self.consume_bool(value_header)?),
             ValueType::Annotation => match self.consume_annotation(value_header)? {
                 (Some(annotation), consumed_bytes) => Ok((annotation, consumed_bytes)),
@@ -137,8 +139,8 @@ impl<T: Read> IonParser<T> {
         trace!("Nop Padding with length {}", length);
 
         if length > 0 {
-            let mut buffer = vec![0; length as usize];
-            self.parser.read_bytes(&mut buffer)?;
+            self.temp_buffer.resize(length, 0);
+            self.parser.read_bytes(&mut self.temp_buffer)?;
         }
 
         Ok(total)
@@ -146,12 +148,21 @@ impl<T: Read> IonParser<T> {
 
     #[inline]
     fn consume_bool(&mut self, header: &ValueHeader) -> ConsumerResult {
-        Ok(match &header.length {
-            ValueLength::NullValue => (IonValue::Null(NullIonValue::Bool), 0),
-            ValueLength::ShortLength(1) => (IonValue::Bool(true), 0),
-            ValueLength::ShortLength(0) => (IonValue::Bool(false), 0),
-            _ => return Err(IonParserError::InvalidBoolLength(header.length)),
-        })
+        if header.is_len_null_value() {
+            return Ok((IonValue::Null(NullIonValue::Bool), 0));
+        }
+
+        let len = header.get_len();
+
+        if len == 1 {
+            return Ok((IonValue::Bool(true), 0));
+        }
+
+        if len == 0 {
+            return Ok((IonValue::Bool(false), 0));
+        }
+
+        Err(IonParserError::InvalidBoolLength(len))
     }
 
     #[inline]
@@ -162,11 +173,14 @@ impl<T: Read> IonParser<T> {
             return Ok((IonValue::Null(NullIonValue::String), 0));
         }
 
-        if let ValueLength::ShortLength(0) = header.length {
+        if header.get_len() == 0 {
             return Ok((IonValue::String("".into()), 0));
         }
 
         let (length, _, total) = self.consume_value_len(header)?;
+        // Not using the temp buffer because from_utf8 consumes the 
+        // arguments and it would require a clone of a buffer that
+        // might be bigger than required.
         let mut buffer = vec![0; length as usize];
         self.parser.read_bytes(&mut buffer)?;
 
@@ -186,7 +200,7 @@ impl<T: Read> IonParser<T> {
             return Ok((IonValue::Null(NullIonValue::Integer), 0));
         }
 
-        if let ValueLength::ShortLength(0) = header.length {
+        if header.get_len() == 0 {
             if negative {
                 return Err(IonParserError::InvalidNegativeInt);
             } else {
@@ -498,26 +512,32 @@ impl<T: Read> IonParser<T> {
         const FOUR_BYTES: usize = 4;
         const EIGHT_BYTES: usize = 8;
 
-        Ok(match header.length {
-            ValueLength::ShortLength(len) => match len {
-                0 => (IonValue::Float(0f64), 0),
-                4 => {
-                    let mut buffer = [0u8; FOUR_BYTES];
-                    self.parser.read_bytes(&mut buffer)?;
-                    (
-                        IonValue::Float(f32::from_be_bytes(buffer).into()),
-                        FOUR_BYTES,
-                    )
-                }
-                8 => {
-                    let mut buffer = [0u8; EIGHT_BYTES];
-                    self.parser.read_bytes(&mut buffer)?;
-                    (IonValue::Float(f64::from_be_bytes(buffer)), EIGHT_BYTES)
-                }
-                _ => return Err(IonParserError::NotValidLengthFloat),
-            },
-            ValueLength::NullValue => return Ok((IonValue::Null(NullIonValue::Float), 1)),
-            ValueLength::LongLength => return Err(IonParserError::NotValidLengthFloat),
+        if header.is_len_null_value() {
+            return Ok((IonValue::Null(NullIonValue::Float), 1));
+        }
+
+        if header.is_len_long_len() {
+            return Err(IonParserError::NotValidLengthFloat);
+        }
+
+        let len = header.get_len();
+
+        Ok(match len {
+            0 => (IonValue::Float(0f64), 0),
+            4 => {
+                let mut buffer = [0u8; FOUR_BYTES];
+                self.parser.read_bytes(&mut buffer)?;
+                (
+                    IonValue::Float(f32::from_be_bytes(buffer).into()),
+                    FOUR_BYTES,
+                )
+            }
+            8 => {
+                let mut buffer = [0u8; EIGHT_BYTES];
+                self.parser.read_bytes(&mut buffer)?;
+                (IonValue::Float(f64::from_be_bytes(buffer)), EIGHT_BYTES)
+            }
+            _ => return Err(IonParserError::NotValidLengthFloat),
         })
     }
 
@@ -529,7 +549,7 @@ impl<T: Read> IonParser<T> {
             return Ok((IonValue::Null(NullIonValue::Decimal), 0));
         }
 
-        if let ValueLength::ShortLength(0) = header.length {
+        if header.get_len() == 0 {
             return Ok((IonValue::Decimal(BigDecimal::from(0u8)), 0));
         }
 
@@ -566,7 +586,7 @@ impl<T: Read> IonParser<T> {
             return Ok((IonValue::Null(NullIonValue::Clob), 0));
         }
 
-        if let ValueLength::ShortLength(0) = header.length {
+        if header.get_len() == 0 {
             return Ok((IonValue::Clob(Vec::new()), 0));
         }
 
@@ -585,7 +605,7 @@ impl<T: Read> IonParser<T> {
             return Ok((IonValue::Null(NullIonValue::Blob), 0));
         }
 
-        if let ValueLength::ShortLength(0) = header.length {
+        if header.get_len() == 0 {
             return Ok((IonValue::Blob(Vec::new()), 0));
         }
 
@@ -674,7 +694,7 @@ impl<T: Read> IonParser<T> {
 
     #[inline]
     fn is_value_null(&self, header: &ValueHeader) -> bool {
-        header.length == ValueLength::NullValue
+        header.is_len_null_value()
     }
 
     #[inline]
@@ -685,14 +705,14 @@ impl<T: Read> IonParser<T> {
         let mut consumed_bytes: usize = 0;
         let null_length = 15;
 
-        let length: usize = match header.length {
-            ValueLength::LongLength => {
-                let len = self.parser.consume_varuint()?;
-                consumed_bytes += len.1;
-                usize::try_from(len.0).map_err(|_| IonParserError::ValueLenTooBig)?
-            }
-            ValueLength::ShortLength(len) => len.into(),
-            ValueLength::NullValue => null_length,
+        let length: usize = if header.is_len_long_len() {
+            let len = self.parser.consume_varuint()?;
+            consumed_bytes += len.1;
+            usize::try_from(len.0).map_err(|_| IonParserError::ValueLenTooBig)?
+        } else if header.is_len_null_value() {
+            null_length
+        } else {
+            header.get_len().into()
         };
 
         let total = consumed_bytes + length;
@@ -708,18 +728,21 @@ impl<T: Read> IonParser<T> {
         let mut consumed_bytes: usize = 0;
         let null_length = 15;
 
-        let length: usize = match header.length {
-            ValueLength::LongLength | ValueLength::ShortLength(1) => {
-                let len = self.parser.consume_varuint()?;
-                if header.length == ValueLength::ShortLength(1) && len.0 == BigUint::from(0u8) {
-                    return Err(IonParserError::EmptyOrderedStruct);
-                }
-                consumed_bytes += len.1;
-                usize::try_from(len.0).map_err(|_| IonParserError::ValueLenTooBig)?
+        let header_len = header.get_len();
+
+        let length: usize = if header.is_len_long_len() || header_len == 1 {
+            let len = self.parser.consume_varuint()?;
+            if header_len == 1 && len.0 == BigUint::from(0u8) {
+                return Err(IonParserError::EmptyOrderedStruct);
             }
-            ValueLength::ShortLength(len) => len.into(),
-            ValueLength::NullValue => null_length,
+            consumed_bytes += len.1;
+            usize::try_from(len.0).map_err(|_| IonParserError::ValueLenTooBig)?
+        } else if header.is_len_null_value() {
+            null_length
+        } else {
+            header.get_len().into()
         };
+
 
         let total = consumed_bytes + length;
 

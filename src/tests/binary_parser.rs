@@ -10,10 +10,7 @@ fn decode_value_null() {
 
     assert_eq!(
         lexer.consume_value_header(0),
-        Ok(ValueHeader {
-            r#type: ValueType::Null,
-            length: ValueLength::NullValue,
-        })
+        Ok(ValueHeader::new(0/*Null Value*/ + 15/*Len for null Value*/).unwrap())
     );
 }
 
@@ -353,9 +350,8 @@ fn decode_value_with_version_header() {
 
     assert_eq!(
         lexer.consume_value_header(0),
-        Ok(ValueHeader {
-            r#type: ValueType::Annotation,
-            length: ValueLength::LongLength,
-        })
+        Ok(ValueHeader::new(
+            (0xe << 4) /*Annotation*/ + 14 /*Long len*/
+        ).unwrap())
     );
 }

@@ -1,7 +1,7 @@
 use crate::read_file_testsuite;
 use crate::IonParserError;
 use crate::ParsingError;
-use crate::{binary_parser_types::ValueLength, ion_parser::IonParser};
+use crate::{ion_parser::IonParser, binary_parser_types::ValueLength};
 use bigdecimal::BigDecimal;
 use std::fs::File;
 use std::io::BufReader;
@@ -36,7 +36,7 @@ fn bool_with_invalid_length_1() {
     let ion_element = read_file_testsuite!("bad/boolWithInvalidLength_1");
     let mut parser = IonParser::new(ion_element);
     let value = parser.consume_value().unwrap_err();
-    let expected = IonParserError::InvalidBoolLength(ValueLength::ShortLength(3));
+    let expected = IonParserError::InvalidBoolLength(ValueLength::ShortLength(3).into());
     assert_eq!(expected, value);
 }
 
@@ -45,7 +45,7 @@ fn bool_with_invalid_length_2() {
     let ion_element = read_file_testsuite!("bad/boolWithInvalidLength_2");
     let mut parser = IonParser::new(ion_element);
     let value = parser.consume_value().unwrap_err();
-    let expected = IonParserError::InvalidBoolLength(ValueLength::LongLength);
+    let expected = IonParserError::InvalidBoolLength(ValueLength::LongLength.into());
     assert_eq!(expected, value);
 }
 

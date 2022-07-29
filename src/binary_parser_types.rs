@@ -35,6 +35,16 @@ pub enum ValueLength {
     NullValue,       // L = 15
 }
 
+impl From<ValueLength> for u8 {
+    fn from(input: ValueLength) -> u8 {
+        match input {
+            ValueLength::ShortLength(len) => len,
+            ValueLength::LongLength => 14,
+            ValueLength::NullValue => 15,
+        }
+    }
+}
+
 #[derive(Eq, PartialEq, Debug, Clone, Copy)]
 pub enum ValueType {
     Null = 0x0,        // T = 0   : 0000 || NOP -> T = 0   : 0000 (with length < 15)
@@ -101,9 +111,9 @@ pub enum ParsingError {
     #[error("Ion Stream Header is wrong")]
     BadFormedVersionHeader,
     #[error("Null cannot have len")]
-    InvalidNullLength(ValueLength),
+    InvalidNullLength(u8),
     #[error("Annotation cannot be shorter than 3 bytes")]
-    InvalidAnnotationLength(ValueLength),
+    InvalidAnnotationLength(u8),
     #[error("VaruInt returned a number so huge that doesn't fit in an BitUInt")]
     ThisIsABugConsumingVarUInt,
     #[error("VaruInt returned a number so huge that doesn't fit in an BitInt")]
@@ -117,17 +127,65 @@ pub enum ParsingError {
 //  |    T    |    L    |
 //  +---------+---------+
 #[derive(Eq, PartialEq, Debug)]
-pub struct ValueHeader {
-    pub r#type: ValueType,   // T
-    pub length: ValueLength, // L
-}
+pub struct ValueHeader(u8);
 
 impl ValueHeader {
+    #[inline]
+    pub fn new(byte: u8) -> Result<ValueHeader, ParsingError> {
+        let header = ValueHeader(byte);
+
+        if header.get_type() == ValueType::Annotation && header.get_len() < 3 {
+            Err(ParsingError::InvalidAnnotationLength(header.get_len()))
+        } else {
+            Ok(header)
+        }
+    }
+
     pub fn is_nop(&self) -> bool {
-        matches!(
-            (&self.r#type, &self.length),
-            (ValueType::Null, ValueLength::ShortLength(_))
-                | (ValueType::Null, ValueLength::LongLength)
-        )
+        let ion_type = self.get_type();
+        
+        ion_type == ValueType::Null && self.get_len() < 15
+    }
+
+    pub fn get_type(&self) -> ValueType {
+        ValueHeader::from_safe_u8(self.0 >> 4)
+    }
+
+    pub fn get_len(&self) -> u8 {
+        self.0 & 0b0000_1111
+    }
+
+    pub fn is_len_null_value(&self) -> bool {
+        (self.0 & 0b0000_1111) == 15
+    }
+
+    pub fn is_len_long_len(&self) -> bool {
+        (self.0 & 0b0000_1111) == 14
+    }
+
+    // pub fn is_len_short_len(&self) -> bool {
+    //     (self.0 & 0b0000_1111) < 14
+    // }
+
+    fn from_safe_u8(id: u8) -> ValueType {
+        match id {
+            0 => ValueType::Null,
+            1 => ValueType::Bool,
+            2 => ValueType::PositiveInt,
+            3 => ValueType::NegativeInt,
+            4 => ValueType::Float,
+            5 => ValueType::Decimal,
+            6 => ValueType::Timestamp,
+            7 => ValueType::Symbol,
+            8 => ValueType::String,
+            9 => ValueType::Clob,
+            10 => ValueType::Blob,
+            11 => ValueType::List,
+            12 => ValueType::SExpr,
+            13 => ValueType::Struct,
+            14 => ValueType::Annotation,
+            15 => ValueType::Reserved,
+            _ => panic!("Internal library bug")
+        }
     }
 }

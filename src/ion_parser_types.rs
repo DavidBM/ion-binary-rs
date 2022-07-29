@@ -62,7 +62,7 @@ pub enum IonParserError {
     #[error("Exponent for the decimal value is too big (greater than i64)")]
     DecimalExponentTooBig,
     #[error("Bool cannot have len")]
-    InvalidBoolLength(ValueLength),
+    InvalidBoolLength(u8),
     #[error("The date is not valid")]
     InvalidDate(i32, u32, u32, u32, u32, u32, u32),
     #[error("Ion type 15 doesn't exist in Ion 1.0")]
