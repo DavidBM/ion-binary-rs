@@ -94,7 +94,7 @@ impl TryFrom<u8> for ValueType {
 
 /// This errors indicate a problem in a primitive parsing. It comes always
 /// wrapped by the "BinaryError" of the error type "IonParserError".
-#[derive(Eq, PartialEq, Debug, Error)]
+#[derive(Debug, Error)]
 pub enum ParsingError {
     #[error("Header type not valid")]
     InvalidHeaderType,
@@ -105,7 +105,7 @@ pub enum ParsingError {
     #[error("There is not enough data to read, provably a premature ion stream end")]
     NotEnoughtDataToRead(usize),
     #[error("The read method returned an error which mean that the ion stream provider may have a problem")]
-    ErrorReadingData(String),
+    ErrorReadingData(#[from] std::io::Error),
     #[error("Trying to read 0 bytes")]
     CannotReadZeroBytes,
     #[error("Ion Stream Header is wrong")]
@@ -120,6 +120,26 @@ pub enum ParsingError {
     ThisIsABugConsumingVarInt,
     #[error("An Ion version markers was found in a nested structure")]
     NestedVersionMarker,
+}
+
+impl PartialEq for ParsingError {
+    fn eq(&self, input: &ParsingError) -> bool {
+        match (self, input) {
+            (&ParsingError::InvalidHeaderType, &ParsingError::InvalidHeaderType) => true,
+            (&ParsingError::InvalidHeaderLength, &ParsingError::InvalidHeaderLength) => true,
+            (&ParsingError::NoDataToRead, &ParsingError::NoDataToRead) => true,
+            (&ParsingError::NotEnoughtDataToRead(ref a), &ParsingError::NotEnoughtDataToRead(ref b)) if *a == *b => true,
+            (&ParsingError::InvalidNullLength(ref a), &ParsingError::InvalidNullLength(ref b)) if *a == *b => true,
+            (&ParsingError::InvalidAnnotationLength(ref a), &ParsingError::InvalidAnnotationLength(ref b)) if *a == *b => true,
+            (&ParsingError::ErrorReadingData(ref a), &ParsingError::ErrorReadingData(ref b)) if a.kind() == b.kind() => true,
+            (&ParsingError::CannotReadZeroBytes, &ParsingError::CannotReadZeroBytes) => true,
+            (&ParsingError::BadFormedVersionHeader, &ParsingError::BadFormedVersionHeader) => true,
+            (&ParsingError::ThisIsABugConsumingVarUInt, &ParsingError::ThisIsABugConsumingVarUInt) => true,
+            (&ParsingError::ThisIsABugConsumingVarInt, &ParsingError::ThisIsABugConsumingVarInt) => true,
+            (&ParsingError::NestedVersionMarker, &ParsingError::NestedVersionMarker) => true,
+            _ => false
+        }
+    }
 }
 
 //   7       4 3       0

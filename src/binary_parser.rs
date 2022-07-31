@@ -2,11 +2,11 @@ use crate::binary_parser_types::*;
 use num_bigint::{BigInt, BigUint, Sign};
 use std::fmt::Debug;
 use std::io::Read;
-use smallvec::{SmallVec, smallvec};
 
 pub struct IonBinaryParser<T: Read> {
     reader: T,
     current_ion_version: Option<(u8, u8)>,
+    temp_buffer: Vec<u8>,
 }
 
 impl<T: Read> IonBinaryParser<T> {
@@ -15,12 +15,18 @@ impl<T: Read> IonBinaryParser<T> {
         IonBinaryParser {
             reader,
             current_ion_version: None,
+            temp_buffer: Vec::with_capacity(256),
         }
     }
 
     #[inline]
     fn read(&mut self, buffer: &mut [u8]) -> Result<usize, std::io::Error> {
-        self.reader.read(buffer)
+        IonBinaryParser::read_no_self(&mut self.reader, buffer)
+    }
+
+    #[inline]
+    fn read_no_self(reader: &mut T, buffer: &mut [u8]) -> Result<usize, std::io::Error> {
+        reader.read(buffer)
     }
 
     //             7                       0
@@ -40,22 +46,27 @@ impl<T: Read> IonBinaryParser<T> {
             return Err(ParsingError::CannotReadZeroBytes);
         }
 
-        let mut buffer = vec![0u8; octets];
+        self.temp_buffer.resize(octets, 0);
 
-        self.read_bytes(&mut buffer)?;
+        IonBinaryParser::read_bytes_no_self(&mut self.reader, &mut self.temp_buffer)?;
 
-        let number = BigUint::from_bytes_be(&buffer);
+        let number = BigUint::from_bytes_be(&self.temp_buffer);
 
         Ok(number)
     }
 
     #[inline]
     pub fn read_bytes(&mut self, buffer: &mut [u8]) -> Result<(), ParsingError> {
-        let read_bytes = self.read(buffer);
+        IonBinaryParser::read_bytes_no_self(&mut self.reader, buffer)
+    }
+
+    #[inline]
+    pub fn read_bytes_no_self(reader: &mut T, buffer: &mut [u8]) -> Result<(), ParsingError> {
+        let read_bytes = IonBinaryParser::<T>::read_no_self(reader, buffer);
 
         match read_bytes {
             Ok(0) => Err(ParsingError::NoDataToRead),
-            Err(e) => Err(ParsingError::ErrorReadingData(e.to_string())),
+            Err(e) => Err(ParsingError::ErrorReadingData(e)),
             Ok(len) => {
                 if len < buffer.len() {
                     return Err(ParsingError::NotEnoughtDataToRead(len));
@@ -87,15 +98,15 @@ impl<T: Read> IonBinaryParser<T> {
             return Err(ParsingError::CannotReadZeroBytes);
         }
 
-        let mut buffer = vec![0u8; octets];
+        self.temp_buffer.resize(octets, 0);
 
-        self.read_bytes(&mut buffer)?;
+        IonBinaryParser::read_bytes_no_self(&mut self.reader, &mut self.temp_buffer)?;
 
-        let is_negative = (buffer[0] & 0b1000_0000) > 0;
+        let is_negative = (self.temp_buffer[0] & 0b1000_0000) > 0;
 
-        buffer[0] &= 0b0111_1111;
+        self.temp_buffer[0] &= 0b0111_1111;
 
-        let mut number = BigInt::from_bytes_be(Sign::Plus, &buffer);
+        let mut number = BigInt::from_bytes_be(Sign::Plus, &self.temp_buffer);
 
         if is_negative {
             number = -number;
@@ -110,13 +121,13 @@ impl<T: Read> IonBinaryParser<T> {
     //               +===+=====================+     +---+---------------------+
     #[inline]
     pub fn consume_varuint(&mut self) -> Result<(BigUint, usize), ParsingError> {
-        let mut bytes = self.consume_var_number()?;
+        let bytes = self.consume_var_number()?;
 
-        for byte in &mut bytes {
+        for byte in bytes.iter_mut() {
             *byte &= 0b0111_1111;
         }
 
-        let number = match BigUint::from_radix_be(&bytes, 128) {
+        let number = match BigUint::from_radix_be(bytes, 128) {
             Some(number) => number,
             None => return Err(ParsingError::ThisIsABugConsumingVarUInt),
         };
@@ -145,9 +156,9 @@ impl<T: Read> IonBinaryParser<T> {
     //                                 +--sign
     #[inline]
     pub fn consume_varint(&mut self) -> Result<(BigInt, usize), ParsingError> {
-        let mut bytes = self.consume_var_number()?;
+        let bytes = self.consume_var_number()?;
 
-        for byte in &mut bytes {
+        for byte in bytes.iter_mut() {
             *byte &= 0b0111_1111;
         }
 
@@ -155,7 +166,7 @@ impl<T: Read> IonBinaryParser<T> {
 
         bytes[0] &= 0b0011_1111;
 
-        let mut number = match BigInt::from_radix_be(Sign::Plus, &bytes, 128) {
+        let mut number = match BigInt::from_radix_be(Sign::Plus, bytes, 128) {
             Some(number) => number,
             None => return Err(ParsingError::ThisIsABugConsumingVarInt),
         };
@@ -169,19 +180,19 @@ impl<T: Read> IonBinaryParser<T> {
 
     // Note: Guarantees to return at least one byte if it succeed
     #[inline]
-    fn consume_var_number(&mut self) -> Result<SmallVec<[u8; 4]>, ParsingError> {
+    fn consume_var_number(&mut self) -> Result<&mut Vec<u8>, ParsingError> {
         let mut byte = [0u8; 1];
 
-        let mut found_bytes: SmallVec<[u8; 4]> = smallvec!{};
+        self.temp_buffer.clear();
 
         loop {
             let read_bytes = self.read(&mut byte);
 
             match read_bytes {
                 Ok(0) => return Err(ParsingError::NoDataToRead),
-                Err(e) => return Err(ParsingError::ErrorReadingData(e.to_string())),
+                Err(e) => return Err(ParsingError::ErrorReadingData(e)),
                 Ok(_) => {
-                    found_bytes.push(byte[0]);
+                    self.temp_buffer.push(byte[0]);
 
                     // Last byte is marked with a 1 in the highest bite
                     if 0b1000_0000 & byte[0] == 0b1000_0000 {
@@ -191,7 +202,7 @@ impl<T: Read> IonBinaryParser<T> {
             }
         }
 
-        Ok(found_bytes)
+        Ok(&mut self.temp_buffer)
     }
 
     //   7       4 3       0
@@ -206,7 +217,7 @@ impl<T: Read> IonBinaryParser<T> {
 
         match read_bytes {
             Ok(0) => Err(ParsingError::NoDataToRead),
-            Err(e) => Err(ParsingError::ErrorReadingData(e.to_string())),
+            Err(e) => Err(ParsingError::ErrorReadingData(e)),
             Ok(_) => {
                 let byte = byte[0];
 
@@ -241,7 +252,7 @@ impl<T: Read> IonBinaryParser<T> {
 
         match read_bytes {
             Ok(0) => Err(ParsingError::NoDataToRead),
-            Err(e) => Err(ParsingError::ErrorReadingData(e.to_string())),
+            Err(e) => Err(ParsingError::ErrorReadingData(e)),
             Ok(_) => {
                 if byte[2] != 0xEA {
                     return Err(ParsingError::BadFormedVersionHeader);

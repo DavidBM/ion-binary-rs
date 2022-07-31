@@ -28,33 +28,55 @@ pub fn encode_ion_value(value: &IonValue) -> Vec<u8> {
 }
 
 pub fn encode_bool(value: &bool) -> Vec<u8> {
+    let mut buffer = vec![];
+
+    encode_bool_buffer(&mut buffer, value).to_vec()
+}
+
+pub fn encode_bool_buffer<'a>(buffer: &'a mut Vec<u8>, value: &bool) -> &'a mut Vec<u8> {
     if *value {
-        [0x11].to_vec()
+        buffer.push(0x11)
     } else {
-        [0x10].to_vec()
+        buffer.push(0x10)
     }
+
+    buffer
 }
 
 pub fn encode_null(value: &NullIonValue) -> Vec<u8> {
+    let mut buffer = vec![];
+
+    encode_null_buffer(&mut buffer, value).to_vec()
+}
+
+pub fn encode_null_buffer<'a>(buffer: &'a mut Vec<u8>, value: &NullIonValue) -> &'a mut Vec<u8> {
     match value {
-        NullIonValue::Null => [0x0F].to_vec(),
-        NullIonValue::Bool => [0x1F].to_vec(),
-        NullIonValue::Integer => [0x2F].to_vec(),
-        NullIonValue::Float => [0x4F].to_vec(),
-        NullIonValue::Decimal => [0x5F].to_vec(),
-        NullIonValue::DateTime => [0x6F].to_vec(),
-        NullIonValue::Symbol => [0x7F].to_vec(),
-        NullIonValue::String => [0x8F].to_vec(),
-        NullIonValue::Clob => [0x9F].to_vec(),
-        NullIonValue::Blob => [0xAF].to_vec(),
-        NullIonValue::List => [0xBF].to_vec(),
-        NullIonValue::SExpr => [0xCF].to_vec(),
-        NullIonValue::Struct => [0xDF].to_vec(),
-        NullIonValue::Annotation => [0xEF].to_vec(),
+        NullIonValue::Null => buffer.push(0x0F),
+        NullIonValue::Bool => buffer.push(0x1F),
+        NullIonValue::Integer => buffer.push(0x2F),
+        NullIonValue::Float => buffer.push(0x4F),
+        NullIonValue::Decimal => buffer.push(0x5F),
+        NullIonValue::DateTime => buffer.push(0x6F),
+        NullIonValue::Symbol => buffer.push(0x7F),
+        NullIonValue::String => buffer.push(0x8F),
+        NullIonValue::Clob => buffer.push(0x9F),
+        NullIonValue::Blob => buffer.push(0xAF),
+        NullIonValue::List => buffer.push(0xBF),
+        NullIonValue::SExpr => buffer.push(0xCF),
+        NullIonValue::Struct => buffer.push(0xDF),
+        NullIonValue::Annotation => buffer.push(0xEF),
     }
+
+    buffer
 }
 
 pub fn encode_datetime_representation(value: &DateTime<FixedOffset>) -> Vec<u8> {
+    let mut buffer = vec![];
+
+    encode_datetime_representation_buffer(&mut buffer, value).to_vec()
+}
+
+pub fn encode_datetime_representation_buffer<'a>(buffer: &'a mut Vec<u8>, value: &DateTime<FixedOffset>) -> &'a mut Vec<u8> {
     let datetime = value.naive_utc();
 
     let year = datetime.year();
@@ -98,13 +120,12 @@ pub fn encode_datetime_representation(value: &DateTime<FixedOffset>) -> Vec<u8> 
 
     let exponent = -exponent;
 
-    let (exponent_sign, exponent_bytes) = BigInt::from(exponent).to_bytes_be();
+    let exponent_bytes = exponent.abs().to_be_bytes();
+    let exponent_bytes = filter_significant_bytes_slice(&exponent_bytes);
 
     let offset = value.offset().local_minus_utc() / 60;
 
     let unsigned_offset = offset.unsigned_abs().to_be_bytes();
-
-    let mut buffer: Vec<u8> = vec![];
 
     buffer.append(&mut encode_varint(&unsigned_offset, offset.is_negative()));
     buffer.append(&mut encode_varuint(&year.to_be_bytes()));
@@ -123,8 +144,8 @@ pub fn encode_datetime_representation(value: &DateTime<FixedOffset>) -> Vec<u8> 
     // or fractional seconds.
     if !exponent.is_zero() && !coefficient.is_zero() {
         buffer.append(&mut encode_varint(
-            &exponent_bytes,
-            exponent_sign == Sign::Minus,
+            exponent_bytes,
+            exponent.is_negative(),
         ));
         if !coefficient.is_zero() {
             buffer.append(&mut encode_int(&coefficient));
@@ -154,6 +175,12 @@ pub fn encode_datetime(value: &DateTime<FixedOffset>) -> Vec<u8> {
 }
 
 pub fn encode_blob(header: u8, value: &[u8]) -> Vec<u8> {
+    let mut buffer = vec![];
+
+    encode_blob_buffer(&mut buffer, header, value).to_vec()
+}
+
+pub fn encode_blob_buffer<'a>(buffer: &'a mut Vec<u8>, header: u8, value: &[u8]) -> &'a mut Vec<u8> {
     let len = value.len();
 
     let header = header << 4;
@@ -161,29 +188,23 @@ pub fn encode_blob(header: u8, value: &[u8]) -> Vec<u8> {
     let has_len_field = len >= ION_LEN_ON_HEADER_WHEN_EXTRA_LEN_FIELD_REQUIRED.into();
 
     let len_bytes = encode_varuint(&len.to_be_bytes());
-    let len_bytes_len = len_bytes.len();
 
-    let mut buffer: Vec<u8> = if has_len_field {
-        let mut buffer = vec![0; 1 + len_bytes_len + len];
-        buffer[0] = header + ION_LEN_ON_HEADER_WHEN_EXTRA_LEN_FIELD_REQUIRED;
-        buffer
+    if has_len_field {
+        buffer.push(header + ION_LEN_ON_HEADER_WHEN_EXTRA_LEN_FIELD_REQUIRED);
     } else {
-        let mut buffer = vec![0; 1 + len];
-        buffer[0] = header + u8::try_from(len).expect("Impossible error");
-        buffer
+        // Impossible error due to the check of len with 
+        // ION_LEN_ON_HEADER_WHEN_EXTRA_LEN_FIELD_REQUIRED
+        buffer.push(header + u8::try_from(len).expect("Impossible error"));
     };
 
-    let copy_offset = if has_len_field {
-        for (index, value) in len_bytes.into_iter().enumerate() {
-            buffer[index + 1] = value;
+    if has_len_field {
+        for value in len_bytes {
+            buffer.push(value);
         }
-        1 + len_bytes_len
-    } else {
-        1
-    };
+    }
 
-    for (index, value) in value.iter().enumerate() {
-        buffer[index + copy_offset] = *value;
+    for value in value {
+        buffer.push(*value);
     }
 
     buffer
@@ -345,14 +366,8 @@ pub fn encode_integer(value: &BigInt) -> Vec<u8> {
     result_buffer
 }
 
-pub fn filter_significant_bytes(mut buffer: Vec<u8>) -> Vec<u8> {
-    buffer.reverse();
-
-    filter_significant_bytes_reversed_buffer(&mut buffer);
-
-    buffer.reverse();
-
-    buffer
+pub fn filter_significant_bytes(buffer: Vec<u8>) -> Vec<u8> {
+    filter_significant_bytes_slice(&buffer).to_vec()
 }
 
 pub fn filter_significant_bytes_reversed_buffer(buffer: &mut Vec<u8>) {
@@ -368,6 +383,22 @@ pub fn filter_significant_bytes_reversed_buffer(buffer: &mut Vec<u8>) {
     }
 
     buffer.resize(buffer.len() - zeros_count, 0);
+}
+
+pub fn filter_significant_bytes_slice<'b, 'a: 'b>(buffer: &'a [u8]) -> &'b [u8] {
+    let mut zeros_count = 0usize;
+
+    for byte in buffer.iter() {
+        if *byte != 0u8 {
+            break
+        }
+
+        zeros_count += 1;
+    }
+
+    let len = buffer.len();
+
+    &buffer[zeros_count..len]
 }
 
 pub fn encode_varuint(value: &[u8]) -> Vec<u8> {
