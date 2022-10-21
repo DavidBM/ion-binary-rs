@@ -50,7 +50,6 @@ use std::convert::TryFrom;
 pub struct IonEncoder {
     current_buffer: Vec<IonValue>,
     symbol_table: SymbolContext,
-    temp_buffer: Vec<u8>,
 }
 
 impl Default for IonEncoder {
@@ -64,7 +63,6 @@ impl IonEncoder {
         IonEncoder {
             current_buffer: vec![],
             symbol_table: SymbolContext::new(),
-            temp_buffer: Vec::with_capacity(256),
         }
     }
 

@@ -76,7 +76,10 @@ pub fn encode_datetime_representation(value: &DateTime<FixedOffset>) -> Vec<u8> 
     encode_datetime_representation_buffer(&mut buffer, value).to_vec()
 }
 
-pub fn encode_datetime_representation_buffer<'a>(buffer: &'a mut Vec<u8>, value: &DateTime<FixedOffset>) -> &'a mut Vec<u8> {
+pub fn encode_datetime_representation_buffer<'a>(
+    buffer: &'a mut Vec<u8>,
+    value: &DateTime<FixedOffset>,
+) -> &'a mut Vec<u8> {
     let datetime = value.naive_utc();
 
     let year = datetime.year();
@@ -143,10 +146,7 @@ pub fn encode_datetime_representation_buffer<'a>(buffer: &'a mut Vec<u8>, value:
     // We don't know the original represented precision, so we use seconds
     // or fractional seconds.
     if !exponent.is_zero() && !coefficient.is_zero() {
-        buffer.append(&mut encode_varint(
-            exponent_bytes,
-            exponent.is_negative(),
-        ));
+        buffer.append(&mut encode_varint(exponent_bytes, exponent.is_negative()));
         if !coefficient.is_zero() {
             buffer.append(&mut encode_int(&coefficient));
         }
@@ -159,7 +159,7 @@ pub fn encode_datetime(value: &DateTime<FixedOffset>) -> Vec<u8> {
     let mut buffer = encode_datetime_representation(value);
 
     let len = buffer.len();
-    let mut len_bytes = filter_significant_bytes(len.to_be_bytes().to_vec());
+    let mut len_bytes = filter_significant_bytes_slice(&len.to_be_bytes()).to_vec();
 
     let has_length_field = len >= ION_LEN_ON_HEADER_WHEN_EXTRA_LEN_FIELD_REQUIRED.into();
 
@@ -180,7 +180,11 @@ pub fn encode_blob(header: u8, value: &[u8]) -> Vec<u8> {
     encode_blob_buffer(&mut buffer, header, value).to_vec()
 }
 
-pub fn encode_blob_buffer<'a>(buffer: &'a mut Vec<u8>, header: u8, value: &[u8]) -> &'a mut Vec<u8> {
+pub fn encode_blob_buffer<'a>(
+    buffer: &'a mut Vec<u8>,
+    header: u8,
+    value: &[u8],
+) -> &'a mut Vec<u8> {
     let len = value.len();
 
     let header = header << 4;
@@ -192,7 +196,7 @@ pub fn encode_blob_buffer<'a>(buffer: &'a mut Vec<u8>, header: u8, value: &[u8])
     if has_len_field {
         buffer.push(header + ION_LEN_ON_HEADER_WHEN_EXTRA_LEN_FIELD_REQUIRED);
     } else {
-        // Impossible error due to the check of len with 
+        // Impossible error due to the check of len with
         // ION_LEN_ON_HEADER_WHEN_EXTRA_LEN_FIELD_REQUIRED
         buffer.push(header + u8::try_from(len).expect("Impossible error"));
     };
@@ -217,8 +221,9 @@ pub fn encode_decimal(value: &BigDecimal) -> Vec<u8> {
 
     let (coefficient, exponent) = value.as_bigint_and_exponent();
     let coefficient = BigInt::from_signed_bytes_le(&coefficient.to_signed_bytes_le());
-    let exponent_bytes = filter_significant_bytes(exponent.to_be_bytes().to_vec());
-    let mut exponent_bytes = encode_varint(&exponent_bytes, !exponent.is_negative());
+    let exponent_bytes = exponent.to_be_bytes();
+    let exponent_bytes = filter_significant_bytes_slice(&exponent_bytes);
+    let mut exponent_bytes = encode_varint(exponent_bytes, !exponent.is_negative());
     if exponent_bytes.is_empty() {
         // 0x80 = 0 positive in VarInt 0x_1_0_00_0000
         exponent_bytes = vec![0x80];
@@ -324,11 +329,11 @@ pub fn encode_integer(value: &BigInt) -> Vec<u8> {
         ion_type = 3;
     }
 
-    let bytes = filter_significant_bytes(unsigned_value);
+    let bytes = filter_significant_bytes_slice(&unsigned_value);
     let bytes_len = bytes.len();
-    let bytes_len_bytes = bytes.len().to_be_bytes().to_vec();
-    let bytes_len_bytes = filter_significant_bytes(bytes_len_bytes);
-    let bytes_len_bytes = encode_varuint(&bytes_len_bytes);
+    let bytes_len_bytes = bytes.len().to_be_bytes();
+    let bytes_len_bytes = filter_significant_bytes_slice(&bytes_len_bytes);
+    let bytes_len_bytes = encode_varuint(bytes_len_bytes);
     let bytes_len_bytes_len = bytes_len_bytes.len();
     let has_len_field = bytes_len >= ION_LEN_ON_HEADER_WHEN_EXTRA_LEN_FIELD_REQUIRED.into();
 
@@ -359,30 +364,25 @@ pub fn encode_integer(value: &BigInt) -> Vec<u8> {
         1
     };
 
-    for (index, value) in bytes.into_iter().enumerate() {
-        result_buffer[index + index_offset] = value;
+    for (index, value) in bytes.iter().enumerate() {
+        result_buffer[index + index_offset] = *value;
     }
 
     result_buffer
 }
 
-pub fn filter_significant_bytes(buffer: Vec<u8>) -> Vec<u8> {
-    filter_significant_bytes_slice(&buffer).to_vec()
-}
-
-pub fn filter_significant_bytes_reversed_buffer(buffer: &mut Vec<u8>) {
-
+pub fn count_non_significant_bytes(buffer: &[u8]) -> usize {
     let mut zeros_count = 0usize;
 
-    for byte in buffer.iter().rev() {
+    for byte in buffer.iter() {
         if *byte != 0u8 {
-            break
+            break;
         }
 
         zeros_count += 1;
     }
 
-    buffer.resize(buffer.len() - zeros_count, 0);
+    zeros_count
 }
 
 pub fn filter_significant_bytes_slice<'b, 'a: 'b>(buffer: &'a [u8]) -> &'b [u8] {
@@ -390,7 +390,7 @@ pub fn filter_significant_bytes_slice<'b, 'a: 'b>(buffer: &'a [u8]) -> &'b [u8] 
 
     for byte in buffer.iter() {
         if *byte != 0u8 {
-            break
+            break;
         }
 
         zeros_count += 1;
@@ -427,58 +427,109 @@ pub fn encode_varint(value: &[u8], is_negative: bool) -> Vec<u8> {
     buffer
 }
 
-pub fn encode_var(value: &[u8]) -> Vec<u8> {
-    if value.is_empty() {
+pub fn encode_var(input: &[u8]) -> Vec<u8> {
+
+    if input.is_empty() {
         return vec![];
     }
 
     const RESULTING_BYTE_WIDTH: u8 = 7;
 
-    let mut buffer: Vec<u8> = Vec::with_capacity(value.len()*2);
+    // No need to go through non significant bytes
+    let non_significant_bytes_count = count_non_significant_bytes(input);
 
-    let value_len = value.len();
-    let mut value_index = value_len - 1;
+    // If all bytes are non significant, we have a 0x0
+    if non_significant_bytes_count == input.len() {
+        return vec![0b1000_0000];
+    }
+
+    // Get the slice of input with significant bytes
+    let input = &input[non_significant_bytes_count..];
+
+    // Get the count of significant bytes we are going to actually process
+    let input_len = input.len();
+
+    // If input_len is 0 that means that it was a set of 0x0s
+    if input_len == 0 {
+        return vec![0b1000_0000];
+    }
+
+    // Get the count of significant bits in first byte
+    let significant_bits_in_first_byte: usize = SIGNIFICANT_BITS_IN_BYTE[input[0] as usize];
+
+    let output_len = div_ceil(
+        // Calculate the total amount of significant bits
+        input_len * 8 - (8 - significant_bits_in_first_byte),
+        // Get the number of 7 bit bytes needed
+        RESULTING_BYTE_WIDTH.into(),
+    );
+
+    // Store just the amount of memory we need.
+    let mut buffer_output: Vec<u8> = Vec::with_capacity(output_len);
+
+    // We get raw access to the memory of the vector in order to avoid
+    // the vector initialization overhead
+    let buffer = buffer_output.spare_capacity_mut();
+
+    // We start storing values by the end
+    let mut output_index = output_len - 1;
+    let mut input_index = input_len - 1;
+
+    // We start the loop marking to copy all 8 bits, as nothing was
+    // already copied
     let mut remaining_bits = 8;
 
     loop {
         match remaining_bits {
             7 => {
-                let bits = value[value_index] >> 1;
-                buffer.push(bits);
+                let bits = input[input_index] >> 1;
+                buffer[output_index].write(bits);
+                if output_index == 0 {
+                    break;
+                }
+                output_index -= 1;
                 remaining_bits = 0;
             }
             8 => {
-                let bits = value[value_index] << 1 >> 1;
-                buffer.push(bits);
+                let bits = input[input_index] << 1 >> 1;
+                buffer[output_index].write(bits);
+                if output_index == 0 {
+                    break;
+                }
+                output_index -= 1;
                 remaining_bits = 1;
             }
             0 => {
-                if value_index == 0 {
+                if input_index == 0 {
                     break;
                 }
 
-                value_index -= 1;
+                input_index -= 1;
                 remaining_bits = BITS_IN_BYTE;
             }
             1..=6 => {
                 let shift = BITS_IN_BYTE - remaining_bits;
-                let mut buffer_item = value[value_index] >> shift;
+                let mut buffer_item = input[input_index] >> shift;
 
-                if value_index == 0 {
-                    buffer.push(buffer_item);
+                if input_index == 0 {
+                    buffer[output_index].write(buffer_item);
                     break;
                 }
 
-                value_index -= 1;
+                input_index -= 1;
 
                 let bits_to_take = RESULTING_BYTE_WIDTH - remaining_bits;
                 let shift = BITS_IN_BYTE - bits_to_take;
 
-                let bits = value[value_index] << shift >> shift << remaining_bits;
+                let bits = input[input_index] << shift >> shift << remaining_bits;
 
-                buffer_item += bits;
+                buffer_item |= bits;
 
-                buffer.push(buffer_item);
+                buffer[output_index].write(buffer_item);
+                if output_index == 0 {
+                    break;
+                }
+                output_index -= 1;
 
                 remaining_bits = BITS_IN_BYTE - bits_to_take;
             }
@@ -486,13 +537,49 @@ pub fn encode_var(value: &[u8]) -> Vec<u8> {
         }
     }
 
-    if let Some(value) = buffer.first_mut() {
+    // Output len was all iterated as the loop breaks on 
+    // output_index == 0 and it started as output_len - 1
+    unsafe {
+        buffer_output.set_len(output_len);
+    }
+
+    if let Some(value) = buffer_output.last_mut() {
         *value += 0b1000_0000;
     }
 
-    filter_significant_bytes_reversed_buffer(&mut buffer);
-    
-    buffer.reverse();
-
-    buffer
+    buffer_output
 }
+
+pub const fn div_ceil(this: usize, rhs: usize) -> usize {
+    let d = this / rhs;
+    let r = this % rhs;
+    if r > 0 && rhs > 0 {
+        d + 1
+    } else {
+        d
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn encode_var_1() {
+        assert_eq!(encode_var(&[0x00]), &[0b1000_0000]);
+        assert_eq!(encode_var(&[0x00, 0x00]), &[0b1000_0000]);
+        assert_eq!(encode_var(&[0x00, 0x01]), &[0b1000_0001]);
+        assert_eq!(encode_var(&[0x00, 0x00, 0x01]), &[0b1000_0001]);
+    }
+}
+
+static SIGNIFICANT_BITS_IN_BYTE: [usize; 255] = [
+    0, 1, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+    6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
+    7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+    7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+    8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+    8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+    8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+    8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+];

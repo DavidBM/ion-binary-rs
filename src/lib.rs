@@ -104,10 +104,10 @@
 //! println!("{:X?}", hash);
 //! ```
 //!
-//! ## Safe Rust
+//! ## Safety
 //!
-//! No unsafe code was directly used in this crate. You can check in lib.rs
-//! the `#![deny(unsafe_code)]` line.
+//! In order to speed up the encoding of data, we use Uninit vector buffers, as otherwise
+//! it would require for the buffer to be set to zeroes and then to the correct values.
 //!
 //! ## Contributing
 //!
@@ -130,8 +130,6 @@
 //! be dual licensed as above, without any additional terms or conditions.
 //! </sub>
 //!
-
-#![deny(unsafe_code)]
 
 pub(crate) mod binary_encoder;
 pub(crate) mod binary_parser;
