@@ -620,7 +620,7 @@ impl From<DateTime<FixedOffset>> for IonValue {
 
 impl From<DateTime<Utc>> for IonValue {
     fn from(value: DateTime<Utc>) -> IonValue {
-        IonValue::DateTime(value.with_timezone(&FixedOffset::east(0)))
+        IonValue::DateTime(value.into())
     }
 }
 
