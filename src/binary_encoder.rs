@@ -428,7 +428,6 @@ pub fn encode_varint(value: &[u8], is_negative: bool) -> Vec<u8> {
 }
 
 pub fn encode_var(input: &[u8]) -> Vec<u8> {
-
     if input.is_empty() {
         return vec![];
     }
@@ -537,7 +536,7 @@ pub fn encode_var(input: &[u8]) -> Vec<u8> {
         }
     }
 
-    // Output len was all iterated as the loop breaks on 
+    // Output len was all iterated as the loop breaks on
     // output_index == 0 and it started as output_len - 1
     unsafe {
         buffer_output.set_len(output_len);

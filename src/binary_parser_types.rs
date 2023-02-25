@@ -66,7 +66,6 @@ pub enum ValueType {
 }
 
 impl TryFrom<u8> for ValueType {
-
     type Error = ParsingError;
 
     fn try_from(id: u8) -> Result<Self, ParsingError> {
@@ -125,8 +124,12 @@ pub enum ParsingError {
 impl PartialEq for ParsingError {
     fn eq(&self, input: &ParsingError) -> bool {
         match (self, input) {
-            (ParsingError::ErrorReadingData(a), ParsingError::ErrorReadingData(b)) if a.kind() == b.kind() => true,
-            (a, b) => a == b
+            (ParsingError::ErrorReadingData(a), ParsingError::ErrorReadingData(b))
+                if a.kind() == b.kind() =>
+            {
+                true
+            }
+            (a, b) => a == b,
         }
     }
 }
@@ -152,7 +155,7 @@ impl ValueHeader {
 
     pub fn is_nop(&self) -> bool {
         let ion_type = self.get_type();
-        
+
         ion_type == ValueType::Null && self.get_len() < 15
     }
 
@@ -194,7 +197,7 @@ impl ValueHeader {
             13 => ValueType::Struct,
             14 => ValueType::Annotation,
             15 => ValueType::Reserved,
-            _ => panic!("Internal library bug")
+            _ => panic!("Internal library bug"),
         }
     }
 }

@@ -98,11 +98,15 @@ impl<T: Read> IonParser<T> {
     }
 
     #[inline]
-    fn consume_value_body(&mut self, value_header: &ValueHeader, nested_level: u64) -> ConsumerResult {
+    fn consume_value_body(
+        &mut self,
+        value_header: &ValueHeader,
+        nested_level: u64,
+    ) -> ConsumerResult {
         if value_header.is_nop() {
             let consumed_bytes = self.consume_nop(value_header)?;
             let value = self.consume_value()?;
-            return Ok((value.0, value.1 + consumed_bytes))
+            return Ok((value.0, value.1 + consumed_bytes));
         }
 
         match value_header.get_type() {
@@ -178,7 +182,7 @@ impl<T: Read> IonParser<T> {
         }
 
         let (length, _, total) = self.consume_value_len(header)?;
-        // Not using the temp buffer because from_utf8 consumes the 
+        // Not using the temp buffer because from_utf8 consumes the
         // arguments and it would require a clone of a buffer that
         // might be bigger than required.
         let mut buffer = vec![0; length];
@@ -272,11 +276,13 @@ impl<T: Read> IonParser<T> {
 
             trace!("Struct key field: {:?}", key);
 
-            let value_header = self.parser.consume_value_header(nested_level.saturating_add(1))?;
+            let value_header = self
+                .parser
+                .consume_value_header(nested_level.saturating_add(1))?;
 
             consumed_bytes += 1;
 
-            if value_header.is_nop() {                
+            if value_header.is_nop() {
                 let consumed = self.consume_nop(&value_header)?;
                 trace!("Found NOP Padding in Struct of {:} bytes", consumed + 1);
                 consumed_bytes += consumed;
@@ -314,7 +320,9 @@ impl<T: Read> IonParser<T> {
         let mut values = vec![];
 
         while length - consumed_bytes > 0 {
-            let value_header = self.parser.consume_value_header(nested_level.saturating_add(1))?;
+            let value_header = self
+                .parser
+                .consume_value_header(nested_level.saturating_add(1))?;
 
             consumed_bytes += 1;
 
@@ -742,7 +750,6 @@ impl<T: Read> IonParser<T> {
         } else {
             header.get_len().into()
         };
-
 
         let total = consumed_bytes + length;
 

@@ -116,13 +116,11 @@ fn struct_ordered_in_list() {
 
     assert_eq!(
         parser.consume_value().unwrap().0,
-        IonValue::List(vec![
-            IonValue::Struct(hashmap!(
-                "version".to_string() => IonValue::Bool(false),
-                "imports".to_string() => IonValue::Bool(true),
-                "name".to_string() => IonValue::Null(NullIonValue::Null)
-            ))
-        ])
+        IonValue::List(vec![IonValue::Struct(hashmap!(
+            "version".to_string() => IonValue::Bool(false),
+            "imports".to_string() => IonValue::Bool(true),
+            "name".to_string() => IonValue::Null(NullIonValue::Null)
+        ))])
     );
 }
 

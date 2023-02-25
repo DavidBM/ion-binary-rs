@@ -1,5 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use ion_binary_rs::{IonParser, IonEncoder};
+use ion_binary_rs::{IonEncoder, IonParser};
 
 fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("ion decode simple", |b| {
@@ -41,7 +41,9 @@ fn criterion_benchmark(c: &mut Criterion) {
         };
 
         b.iter(|| {
-            bson::raw::RawDocumentBuf::from_document(&doc.clone()).unwrap().into_bytes()
+            bson::raw::RawDocumentBuf::from_document(&doc.clone())
+                .unwrap()
+                .into_bytes()
         })
     });
 }

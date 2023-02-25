@@ -1,7 +1,7 @@
 use crate::read_file_testsuite;
 use crate::IonParserError;
 use crate::ParsingError;
-use crate::{ion_parser::IonParser, binary_parser_types::ValueLength};
+use crate::{binary_parser_types::ValueLength, ion_parser::IonParser};
 use bigdecimal::BigDecimal;
 use std::fs::File;
 use std::io::BufReader;
@@ -284,8 +284,8 @@ fn invalid_version_marker_in_annotation_wrapper() {
     let ion_element = read_file_testsuite!("bad/ivmInAnnotationWrapper");
     let mut parser = IonParser::new(ion_element);
     let value = parser.consume_value().unwrap_err();
-    // Note, this error should be "NestedVersionMarker", but the binary file 
-    // provided by amazon has a wrong length. 
+    // Note, this error should be "NestedVersionMarker", but the binary file
+    // provided by amazon has a wrong length.
     let expected = IonParserError::BinaryError(ParsingError::NoDataToRead);
     assert_eq!(expected, value);
 }
