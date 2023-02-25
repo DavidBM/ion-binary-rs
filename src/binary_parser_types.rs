@@ -125,19 +125,8 @@ pub enum ParsingError {
 impl PartialEq for ParsingError {
     fn eq(&self, input: &ParsingError) -> bool {
         match (self, input) {
-            (&ParsingError::InvalidHeaderType, &ParsingError::InvalidHeaderType) => true,
-            (&ParsingError::InvalidHeaderLength, &ParsingError::InvalidHeaderLength) => true,
-            (&ParsingError::NoDataToRead, &ParsingError::NoDataToRead) => true,
-            (&ParsingError::NotEnoughtDataToRead(ref a), &ParsingError::NotEnoughtDataToRead(ref b)) if *a == *b => true,
-            (&ParsingError::InvalidNullLength(ref a), &ParsingError::InvalidNullLength(ref b)) if *a == *b => true,
-            (&ParsingError::InvalidAnnotationLength(ref a), &ParsingError::InvalidAnnotationLength(ref b)) if *a == *b => true,
-            (&ParsingError::ErrorReadingData(ref a), &ParsingError::ErrorReadingData(ref b)) if a.kind() == b.kind() => true,
-            (&ParsingError::CannotReadZeroBytes, &ParsingError::CannotReadZeroBytes) => true,
-            (&ParsingError::BadFormedVersionHeader, &ParsingError::BadFormedVersionHeader) => true,
-            (&ParsingError::ThisIsABugConsumingVarUInt, &ParsingError::ThisIsABugConsumingVarUInt) => true,
-            (&ParsingError::ThisIsABugConsumingVarInt, &ParsingError::ThisIsABugConsumingVarInt) => true,
-            (&ParsingError::NestedVersionMarker, &ParsingError::NestedVersionMarker) => true,
-            _ => false
+            (ParsingError::ErrorReadingData(a), ParsingError::ErrorReadingData(b)) if a.kind() == b.kind() => true,
+            (a, b) => a == b
         }
     }
 }

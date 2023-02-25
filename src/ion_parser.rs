@@ -181,7 +181,7 @@ impl<T: Read> IonParser<T> {
         // Not using the temp buffer because from_utf8 consumes the 
         // arguments and it would require a clone of a buffer that
         // might be bigger than required.
-        let mut buffer = vec![0; length as usize];
+        let mut buffer = vec![0; length];
         self.parser.read_bytes(&mut buffer)?;
 
         let text = match String::from_utf8(buffer) {
@@ -591,7 +591,7 @@ impl<T: Read> IonParser<T> {
         }
 
         let (length, _, total) = self.consume_value_len(header)?;
-        let mut buffer = vec![0; length as usize];
+        let mut buffer = vec![0; length];
         self.parser.read_bytes(&mut buffer)?;
 
         Ok((IonValue::Clob(buffer), total))
@@ -610,7 +610,7 @@ impl<T: Read> IonParser<T> {
         }
 
         let (length, _, total) = self.consume_value_len(header)?;
-        let mut buffer = vec![0; length as usize];
+        let mut buffer = vec![0; length];
         self.parser.read_bytes(&mut buffer)?;
 
         Ok((IonValue::Blob(buffer), total))
