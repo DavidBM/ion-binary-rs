@@ -123,13 +123,22 @@ pub enum ParsingError {
 
 impl PartialEq for ParsingError {
     fn eq(&self, input: &ParsingError) -> bool {
+        use ParsingError::*;
         match (self, input) {
-            (ParsingError::ErrorReadingData(a), ParsingError::ErrorReadingData(b))
-                if a.kind() == b.kind() =>
-            {
-                true
-            }
-            (a, b) => a == b,
+            (InvalidHeaderType, InvalidHeaderType) => true,
+            (InvalidHeaderLength, InvalidHeaderLength) => true,
+            (NoDataToRead, NoDataToRead) => true,
+            (CannotReadZeroBytes, CannotReadZeroBytes) => true,
+            (BadFormedVersionHeader, BadFormedVersionHeader) => true,
+            (ThisIsABugConsumingVarUInt, ThisIsABugConsumingVarUInt) => true,
+            (ThisIsABugConsumingVarInt, ThisIsABugConsumingVarInt) => true,
+            (NestedVersionMarker, NestedVersionMarker) => true,
+            (NotEnoughtDataToRead(a), NotEnoughtDataToRead(b)) => a == b,
+            (ErrorReadingData(a), ErrorReadingData(b)) => a.kind() == b.kind(),
+            (InvalidNullLength(a), InvalidNullLength(b)) => a == b,
+            (InvalidAnnotationLength(a), InvalidAnnotationLength(b)) => a == b,
+            _ => false
+            
         }
     }
 }
