@@ -16,7 +16,7 @@ fn ion_hash_float64_1() {
 
 #[test]
 fn ion_hash_float64_2() {
-    let value = IonValue::Float(std::f64::INFINITY);
+    let value = IonValue::Float(f64::INFINITY);
 
     let hash = IonHash::digest::<Sha256>(&value);
 
@@ -27,7 +27,7 @@ fn ion_hash_float64_2() {
 
 #[test]
 fn ion_hash_float64_3() {
-    let value = IonValue::Float(std::f64::NEG_INFINITY);
+    let value = IonValue::Float(f64::NEG_INFINITY);
 
     let hash = IonHash::digest::<Sha256>(&value);
 
@@ -38,7 +38,7 @@ fn ion_hash_float64_3() {
 
 #[test]
 fn ion_hash_float64_4() {
-    let value = IonValue::Float(std::f64::NAN);
+    let value = IonValue::Float(f64::NAN);
 
     let hash = IonHash::digest::<Sha256>(&value);
 

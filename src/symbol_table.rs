@@ -11,57 +11,65 @@ pub enum Symbol {
 }
 
 #[derive(Eq, PartialEq, Debug)]
-pub struct LocalSymbolTable(Vec<Symbol>);
+pub struct LocalSymbolTable {
+    entries: Vec<(usize, Symbol)>,
+    next_id: usize,
+}
 
 impl LocalSymbolTable {
     pub fn new() -> LocalSymbolTable {
-        LocalSymbolTable(
-            SYSTEM_SYMBOL_TABLE
-                .to_vec()
-                .iter()
-                .map(|s| Symbol::Symbol(s.to_string()))
-                .collect(),
-        )
-    }
-
-    pub fn add_symbol(&mut self, symbol: Symbol) -> usize {
-        let id = self.0.len();
-        self.0.push(symbol);
-        id
-    }
-
-    pub fn add_symbols(&mut self, slice: &[Symbol]) {
-        for symbol in slice {
-            self.add_symbol(symbol.clone());
+        let entries = SYSTEM_SYMBOL_TABLE
+            .iter()
+            .enumerate()
+            .map(|(id, text)| (id, Symbol::Symbol((*text).to_owned())))
+            .collect();
+        LocalSymbolTable {
+            entries,
+            next_id: SYSTEM_SYMBOL_TABLE.len(),
         }
+    }
+
+    pub fn append_symbols(
+        &mut self,
+        symbols: impl IntoIterator<Item = Symbol>,
+        count: usize,
+    ) -> Result<(), SymbolContextError> {
+        let start = self.next_id;
+        self.next_id = start
+            .checked_add(count)
+            .ok_or(SymbolContextError::SymbolTableTooLarge)?;
+        self.entries.extend(
+            symbols
+                .into_iter()
+                .take(count)
+                .enumerate()
+                .map(|(index, symbol)| (start + index, symbol)),
+        );
+        Ok(())
     }
 
     pub fn get_symbol_by_id(&self, id: usize) -> Option<&Symbol> {
-        self.0.get(id)
-    }
-
-    pub fn get_id_by_symbol(&self, symbol: &str) -> Option<usize> {
-        self.0
-            .iter()
-            .enumerate()
-            .find(|(_, value)| {
-                if let Symbol::Symbol(value) = value {
-                    *value == symbol
-                } else {
-                    false
-                }
-            })
-            .map(|value| value.0)
-    }
-
-    pub fn insert_dummy_symbols(&mut self, max_len: usize) {
-        for _ in 0..max_len {
-            self.add_symbol(Symbol::Dummy);
+        if self.entries.len() == self.next_id {
+            return self.entries.get(id).map(|(_, symbol)| symbol);
+        }
+        if id >= self.next_id {
+            return None;
+        }
+        // Import padding occupies symbol addresses without allocating one entry per address.
+        match self
+            .entries
+            .binary_search_by_key(&id, |(address, _)| *address)
+        {
+            Ok(index) => Some(&self.entries[index].1),
+            Err(_) => Some(&Symbol::Dummy),
         }
     }
 
-    pub fn list_all_symbols(&self) -> &[Symbol] {
-        &self.0
+    pub fn get_id_by_symbol(&self, symbol: &str) -> Option<usize> {
+        self.entries.iter().find_map(|(id, value)| match value {
+            Symbol::Symbol(text) if text == symbol => Some(*id),
+            _ => None,
+        })
     }
 }
 
@@ -86,14 +94,6 @@ impl SharedSymbolTable {
         true
     }
 
-    pub fn get_symbols_max_len(&self, max_len: usize) -> &[Symbol] {
-        if max_len > self.symbols.len() {
-            return &self.symbols;
-        }
-
-        self.symbols.split_at(max_len).0
-    }
-
     pub fn get_all_symbols(&self) -> &[Symbol] {
         &self.symbols
     }
@@ -114,6 +114,7 @@ pub enum SymbolContextError {
     MaxIdNeededWhenImportingANotFoundSharedTable,
     InternalParserErrorThisIsABug,
     NewTableIsNotSuperSetOfPrevious,
+    SymbolTableTooLarge,
 }
 
 #[derive(Debug)]
@@ -130,10 +131,16 @@ impl SymbolContext {
         }
     }
 
-    pub fn set_new_table_from_current(&mut self, symbols: Vec<Symbol>) {
-        for symbol in symbols.into_iter() {
-            self.current_table.add_symbol(symbol);
-        }
+    pub fn reset_local_table(&mut self) {
+        self.current_table = LocalSymbolTable::new();
+    }
+
+    pub fn set_new_table_from_current(
+        &mut self,
+        symbols: Vec<Symbol>,
+    ) -> Result<(), SymbolContextError> {
+        let count = symbols.len();
+        self.current_table.append_symbols(symbols, count)
     }
 
     pub fn add_shared_table(
@@ -186,13 +193,14 @@ impl SymbolContext {
         version: &u32,
         tables: &HashMap<u32, SharedSymbolTable>,
     ) -> Result<(), SymbolContextError> {
-        for index in (*version - 1)..=0 {
-            if let Some(existing_table) = tables.get(&index) {
-                if !table.is_superset(existing_table) {
-                    return Err(SymbolContextError::NewTableIsNotSuperSetOfPrevious);
-                } else {
-                    return Ok(());
-                }
+        for (existing_version, existing_table) in tables {
+            let (older, newer) = if existing_version < version {
+                (existing_table, table)
+            } else {
+                (table, existing_table)
+            };
+            if !newer.is_superset(older) {
+                return Err(SymbolContextError::NewTableIsNotSuperSetOfPrevious);
             }
         }
 
@@ -206,58 +214,35 @@ impl SymbolContext {
     ) -> Result<(), SymbolContextError> {
         let mut new_table = LocalSymbolTable::new();
 
-        let symbols: Vec<Symbol> = symbols.to_vec();
-
         for import in imports {
             if import.name == "$ion" {
                 continue;
             }
 
-            let version = if let Some(version) = import.version {
-                std::cmp::max(1, version)
-            } else {
-                1
-            };
-
-            match self.shared_tables.get(&import.name) {
-                Some(table_collection) => match table_collection.1.get(&version) {
-                    Some(table) => {
-                        let symbols = match import.max_len {
-                            Some(len) => table.get_symbols_max_len(len),
-                            None => table.get_all_symbols(),
-                        };
-
-                        new_table.add_symbols(symbols);
-                    }
-                    None => {
-                        if let Some(max_len) = import.max_len {
-                            let table = match table_collection.1.get(&table_collection.0) {
-                                Some(table) => table,
-                                None => {
-                                    return Err(SymbolContextError::InternalParserErrorThisIsABug)
-                                }
-                            };
-
-                            let symbols = table.get_symbols_max_len(max_len);
-                            new_table.add_symbols(symbols);
-                        } else {
-                            return Err(SymbolContextError::MaxIdNeededWhenImportingASharedTableWhereVersionIsNotAvailable);
-                        }
-                    }
-                },
-                None => {
-                    if let Some(len) = import.max_len {
-                        new_table.insert_dummy_symbols(len);
-                    } else {
-                        return Err(
-                            SymbolContextError::MaxIdNeededWhenImportingANotFoundSharedTable,
-                        );
-                    }
+            let version = import.version.unwrap_or(1).max(1);
+            let available = self.shared_tables.get(&import.name);
+            let exact = available.and_then(|(_, tables)| tables.get(&version));
+            let (known, count) = match (exact, import.max_len) {
+                (Some(table), count) => {
+                    let known = table.get_all_symbols();
+                    (known, count.unwrap_or(known.len()))
                 }
-            }
+                (None, Some(count)) => {
+                    let substitute = available.and_then(|(latest, tables)| tables.get(latest));
+                    let known = substitute.map_or(&[][..], SharedSymbolTable::get_all_symbols);
+                    (known, count)
+                }
+                (None, None) if available.is_some() => {
+                    return Err(SymbolContextError::MaxIdNeededWhenImportingASharedTableWhereVersionIsNotAvailable);
+                }
+                (None, None) => {
+                    return Err(SymbolContextError::MaxIdNeededWhenImportingANotFoundSharedTable);
+                }
+            };
+            new_table.append_symbols(known.iter().cloned(), count)?;
         }
 
-        new_table.add_symbols(&symbols);
+        new_table.append_symbols(symbols.iter().cloned(), symbols.len())?;
 
         trace!(
             "New local table importing {:?} resulting in: {:?}",
@@ -275,18 +260,20 @@ impl SymbolContext {
     }
 
     pub fn insert_symbol(&mut self, symbol: &str) -> usize {
-        match self.current_table.get_id_by_symbol(symbol) {
-            Some(id) => id,
-            None => self
-                .current_table
-                .add_symbol(Symbol::Symbol(symbol.to_string())),
+        if let Some(id) = self.current_table.get_id_by_symbol(symbol) {
+            return id;
         }
+        let id = self.current_table.next_id;
+        self.current_table
+            .append_symbols([Symbol::Symbol(symbol.to_owned())], 1)
+            .expect("encoder symbol count fits in memory");
+        id
     }
 
     pub fn dump_all_local_symbols(&self) -> Vec<String> {
-        self.current_table.list_all_symbols()[10..]
+        self.current_table.entries[SYSTEM_SYMBOL_TABLE.len()..]
             .iter()
-            .map(|s| match s {
+            .map(|(_, symbol)| match symbol {
                 Symbol::Symbol(name) => name.clone(),
                 _ => "".to_string(),
             })

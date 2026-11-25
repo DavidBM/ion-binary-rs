@@ -120,7 +120,7 @@ fn local_symbol_table_with_multiple_imports_fields() {
     let ion_element = read_file_testsuite!("bad/localSymbolTableWithMultipleImportsFields");
     let mut parser = IonParser::new(ion_element);
     let value = parser.consume_value().unwrap_err();
-    let expected = IonParserError::BinaryError(ParsingError::NoDataToRead);
+    let expected = IonParserError::DuplicateLocalSymbolTableField("imports".into());
     assert_eq!(expected, value);
 }
 
@@ -130,7 +130,7 @@ fn local_symbol_table_with_multiple_symbols_and_imports_fields() {
         read_file_testsuite!("bad/localSymbolTableWithMultipleSymbolsAndImportsFields");
     let mut parser = IonParser::new(ion_element);
     let value = parser.consume_value().unwrap_err();
-    let expected = IonParserError::BinaryError(ParsingError::NoDataToRead);
+    let expected = IonParserError::DuplicateLocalSymbolTableField("imports".into());
     assert_eq!(expected, value);
 }
 
@@ -139,7 +139,7 @@ fn local_symbol_table_with_multiple_symbols_fields() {
     let ion_element = read_file_testsuite!("bad/localSymbolTableWithMultipleSymbolsFields");
     let mut parser = IonParser::new(ion_element);
     let value = parser.consume_value().unwrap_err();
-    let expected = IonParserError::BinaryError(ParsingError::NoDataToRead);
+    let expected = IonParserError::DuplicateLocalSymbolTableField("symbols".into());
     assert_eq!(expected, value);
 }
 
@@ -194,7 +194,7 @@ fn nop_pad_with_annotations() {
     let ion_element = read_file_testsuite!("bad/nopPadWithAnnotations");
     let mut parser = IonParser::new(ion_element);
     let value = parser.consume_value().unwrap_err();
-    let expected = IonParserError::BinaryError(ParsingError::NoDataToRead);
+    let expected = IonParserError::BadAnnotationLength;
     assert_eq!(expected, value);
 }
 
@@ -286,7 +286,7 @@ fn invalid_version_marker_in_annotation_wrapper() {
     let value = parser.consume_value().unwrap_err();
     // Note, this error should be "NestedVersionMarker", but the binary file
     // provided by amazon has a wrong length.
-    let expected = IonParserError::BinaryError(ParsingError::NoDataToRead);
+    let expected = IonParserError::BinaryError(ParsingError::NestedVersionMarker);
     assert_eq!(expected, value);
 }
 

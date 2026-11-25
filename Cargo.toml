@@ -4,17 +4,21 @@ version = "0.8.13"
 authors = ["Couragium Solutions <info@couragium.com>"]
 edition = "2021"
 description="Pure Rust parser, encoder and hasher for Amazon's Ion binary format."
-license = "Apache-2.0/MIT"
+license = "MIT OR Apache-2.0"
 readme = "README.md"
+exclude = ["src/tests/test-suite/benchmark-data/"]
 keywords = ["ion", "binary", "amazon", "encode", "parse"]
 categories = ["network-programming"]
 documentation = "https://docs.rs/ion-binary-rs"
 homepage = "https://crates.io/crates/ion-binary-rs"
-repository = "https://github.com/Couragium/ion-binary-rs"
+repository = "https://github.com/DavidBM/ion-binary-rs"
 
 
 [badges]
 maintenance = { status = "actively-developed" }
+
+[features]
+ion-data = ["dep:ion-rs"]
 
 [dependencies]
 chrono = "0.4"
@@ -26,6 +30,7 @@ digest = "0.10"
 sha2 = "0.10"
 thiserror = "1"
 serde_json = "1"
+ion-rs = { version = "1.2", optional = true }
 
 [dev-dependencies]
 criterion = "0.5"

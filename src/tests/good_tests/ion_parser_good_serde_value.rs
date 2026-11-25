@@ -128,7 +128,7 @@ fn ion_from_serde_integer() {
 
 #[test]
 fn ion_from_serde_big_integer() {
-    let big_int = i64::max_value();
+    let big_int = i64::MAX;
     let big_int_value = json!(big_int);
     let ion_big_int: IonValue = big_int_value.try_into().unwrap();
 

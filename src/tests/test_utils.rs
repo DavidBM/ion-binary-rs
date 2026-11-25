@@ -25,3 +25,12 @@ macro_rules! hashmap(
         }
      };
 );
+
+pub(super) fn add_item1_symbol_tables(parser: &mut crate::IonParser<impl std::io::Read>) {
+    for (name, range) in [("iopc", 1..=10), ("iopg", 11..=14_277)] {
+        let symbols = range
+            .map(|index| format!("{name}{index}"))
+            .collect::<Vec<_>>();
+        parser.with_shared_table(name.into(), 1, &symbols).unwrap();
+    }
+}

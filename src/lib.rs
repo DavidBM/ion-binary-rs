@@ -1,33 +1,12 @@
 //! # Ion Binary parser/encoder & Ion Hash in Rust
 //!
-//! Ion binary is a production-ready library written in safe rust for parsing, encoding and hashing Amazon's Ion binary format.
+//! Parse, encode, and hash Amazon Ion 1.0 binary data in Rust.
 //!
-//! [![Coverage Status](https://coveralls.io/repos/github/Couragium/ion-binary-rs/badge.svg?branch=master)](https://coveralls.io/github/Couragium/ion-binary-rs?branch=master)
-//! [![Buils Status](https://github.com/Couragium/ion-binary-rs/workflows/Rust/badge.svg)](https://github.com/Couragium/ion-binary-rs/actions)
-//! [![Documentation](https://docs.rs/ion-binary-rs/badge.svg)](https://docs.rs/ion-binary-rs)
-//! [![Crates.io](https://img.shields.io/crates/v/ion-binary-rs)](https://crates.io/crates/ion-binary-rs)
-//!
-//! It **parses**, **encodes** and **hashes** anything you throw at it. Any failure to do so
-//! is a bug that we will fix and we will be very happy if you report them.
-//!
-//! The code is mature and way more tested than Amazon's alternatives, including their js
-//! library. Amazon, when implementing the "good tests" only check that it parses. We check
-//! that the value is the correct one too. Additionally, we seem to be implementing way
-//! more of the ion protocol than Amazon's libraries, as we don't have huge skip lists in
-//! the tests files. We test all their test suite, not only a few test.
-//!
-//! ## How to use the library
-//!
-//! First of all, you need to be aware of the trade offs that we took for this library:
-//!
-//! - The API returns strings instead of Symbols. If needed we can add symbol, but we
-//! think string is the the most ergonomic way.
-//! - When parsing/decoding you can add shared tables for binary blobs that doesn't have
-//! all the required symbols.
-//!
-//! We have implemented the whole amazon ion test-suite for parsing.
-//! Encoding and Hashing fully tested. We are working in expading the coverage.
-//! We would appreciate any bug you can report. You can check all the test for examples.
+//! [`IonParser`], [`IonEncoder`], and [`IonHash`] use the native [`IonValue`]
+//! API with string symbols, Rust maps for structs, and Chrono timestamps.
+//! Enable `ion-data` for the official `ion-rs` data model and Ion 1.0 text
+//! parsing. The feature preserves repeated fields, symbol text availability,
+//! signed decimal zero, and timestamp precision in its own value types.
 //!
 //! ## Example
 //!
@@ -144,6 +123,9 @@ pub(crate) mod symbol_table;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(feature = "ion-data")]
+pub mod ion_data;
 
 pub use binary_parser_types::ParsingError;
 pub use ion_encoder::IonEncoder;

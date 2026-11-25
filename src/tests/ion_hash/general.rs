@@ -79,7 +79,7 @@ fn build_big_struct() -> IonValue {
         "012i".into() => IonValue::Integer(9),
         "01d".into() => IonValue::Integer(4),
         "01h".into() => IonValue::Integer(8),
-        "11n".into() => IonValue::Float(std::f64::NAN),
+        "11n".into() => IonValue::Float(f64::NAN),
         "12l".into() => IonValue::Integer(12),
         "1d".into() => IonValue::Integer(4),
         "21l".into() => IonValue::Integer(12),

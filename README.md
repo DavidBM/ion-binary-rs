@@ -2,33 +2,39 @@
 
 # Ion Binary parser/encoder & Ion Hash in Rust
 
-Ion binary is a library written in safe rust for parsing, encoding and hashing Amazon's Ion binary format.
+Parse, encode, and hash Amazon Ion 1.0 binary data in Rust.
 
-[![Coverage Status](https://coveralls.io/repos/github/Couragium/ion-binary-rs/badge.svg?branch=master)](https://coveralls.io/github/Couragium/ion-binary-rs?branch=master)
 [![Documentation](https://docs.rs/ion-binary-rs/badge.svg)](https://docs.rs/ion-binary-rs)
 [![Crates.io](https://img.shields.io/crates/v/ion-binary-rs)](https://crates.io/crates/ion-binary-rs)
 
-It **parses**, **encodes** and **hashes** anything you throw at it. Any failure to do so
-is a bug that we will fix and we will be very happy if you report them.
+`IonParser`, `IonEncoder`, and `IonHash` use the native `IonValue` API. `IonValue`
+uses string symbols, Rust maps for structs, and Chrono timestamps. Configure
+shared symbol imports with `IonParser::with_shared_table`.
 
-The code is mature and way more tested than Amazon's alternatives, including their js
-library. Amazon, when implementing the "good tests" only check that it parses. We check
-that the value is the correct one too. Additionally, we seem to be implementing way 
-more of the ion protocol than Amazon's libraries, as we don't have huge skip lists in 
-the tests files. We test all their test suite, not only a few test.
+## Ion data model
 
-## How to use the library
+Enable the `ion-data` Cargo feature to use the official `ion-rs` value model.
+It supports Ion 1.0 text and binary, repeated field names, unknown symbol text,
+signed decimal zero, timestamp precision, and Ion equivalence. These values
+stay in the `ion_data` API so those distinctions survive binary round trips.
 
-First of all, you need to be aware of the trade offs that we took for this library:
+```rust
+use ion_binary_rs::ion_data::{from_binary, to_binary, Element, IonData, IonResult};
 
-- The API returns strings instead of Symbols. If needed we can add symbol, but we
-think string is the the most ergonomic way.
-- When parsing/decoding you can add shared tables for binary blobs that doesn't have
-all the required symbols.
+fn main() -> IonResult<()> {
+    let values = Element::read_all("{item: 2024T, item: -0.00}")?;
+    let bytes = to_binary(&values)?;
+    assert_eq!(IonData::from(from_binary(&bytes)?), IonData::from(values));
+    Ok(())
+}
+```
 
-We have implemented the whole amazon ion test-suite for parsing.
-Encoding and Hashing fully tested. We are working in expading the coverage.
-We would appreciate any bug you can report. You can check all the test for examples.
+The `ion_data` binary reader supports up to 18 fractional timestamp digits.
+It uses the stable upstream reader API, which provides no catalog injection.
+The released `ion-rs` 1.2.0 text parser splits unquoted `$1$2` and `$1a` into
+multiple tokens. Single-quote them to preserve the symbol text. The correction
+is on main. [Upstream fix](https://github.com/amazon-ion/ion-rust/pull/1087)
+The crate supports Ion 1.0. Ion 1.1 version markers return an error.
 
 ## Example
 
@@ -111,6 +117,14 @@ No unsafe code was directly used in this crate. You can check in lib.rs
 the `#![deny(unsafe_code)]` line.
 
 ## Contributing
+
+Run `git submodule update --init` and `cargo test --all-features` from a Git
+checkout. The test suite discovers `.10n` files in the official binary fixture
+corpus, with value assertions in the dedicated tests. The `ion-data` feature
+also runs official text symbol-equivalence fixtures, the embedded-NUL field
+fixture, and binary boolean cases from the upstream conformance DSL. The
+optional reader's three upstream fixture exceptions are recorded in
+`src/tests/upstream_binary.rs`.
 
 We would be thrilled if you decide to check the library and/or contribute to it!
 Just open an issue or pull request and we can check what you would like to implement.
