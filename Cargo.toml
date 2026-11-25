@@ -6,6 +6,7 @@ edition = "2021"
 description="Pure Rust parser, encoder and hasher for Amazon's Ion binary format."
 license = "MIT OR Apache-2.0"
 readme = "README.md"
+exclude = ["src/tests/test-suite/benchmark-data/"]
 keywords = ["ion", "binary", "amazon", "encode", "parse"]
 categories = ["network-programming"]
 documentation = "https://docs.rs/ion-binary-rs"

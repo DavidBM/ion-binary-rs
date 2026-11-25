@@ -32,8 +32,8 @@ fn main() -> IonResult<()> {
 The `ion_data` binary reader supports up to 18 fractional timestamp digits.
 It uses the stable upstream reader API, which provides no catalog injection.
 The released `ion-rs` 1.2.0 text parser splits unquoted `$1$2` and `$1a` into
-multiple tokens. Single-quote them to preserve the symbol text. [The upstream fix](https://github.com/amazon-ion/ion-rust/pull/1087)
-is on main.
+multiple tokens. Single-quote them to preserve the symbol text. The correction
+is on main. [Upstream fix](https://github.com/amazon-ion/ion-rust/pull/1087)
 The crate supports Ion 1.0. Ion 1.1 version markers return an error.
 
 ## Example
