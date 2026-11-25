@@ -25,6 +25,8 @@ pub enum IonParserError {
     SymbolIdNotDefined,
     #[error("Local table structure definition is not correct")]
     LocalTableWithoutInternalStruct,
+    #[error("Duplicate `{0}` field in a local symbol table")]
+    DuplicateLocalSymbolTableField(String),
     #[error("The shared table is missing it's name")]
     SharedTableDefinitionWithoutName,
     #[error("Error adding the shared table into the context")]

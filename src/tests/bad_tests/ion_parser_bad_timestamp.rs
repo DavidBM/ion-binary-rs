@@ -1,6 +1,6 @@
 use crate::ion_parser::IonParser;
 use crate::read_file_testsuite;
-use crate::IonParserError;
+use crate::{IonParserError, ParsingError};
 use std::fs::File;
 use std::io::BufReader;
 
@@ -63,7 +63,7 @@ fn timestamp_len_too_large() {
     let ion_timestamp = read_file_testsuite!("bad/timestamp/timestampLenTooLarge");
     let mut parser = IonParser::new(ion_timestamp);
     let value = parser.consume_value().unwrap_err();
-    let expected = IonParserError::DateValueTooBig;
+    let expected = IonParserError::BinaryError(ParsingError::NotEnoughtDataToRead(14));
     assert_eq!(expected, value);
 }
 

@@ -16,6 +16,9 @@ repository = "https://github.com/DavidBM/ion-binary-rs"
 [badges]
 maintenance = { status = "actively-developed" }
 
+[features]
+ion-data = ["dep:ion-rs"]
+
 [dependencies]
 chrono = "0.4"
 log = "0.4"
@@ -26,6 +29,7 @@ digest = "0.10"
 sha2 = "0.10"
 thiserror = "1"
 serde_json = "1"
+ion-rs = { version = "1.2", optional = true }
 
 [dev-dependencies]
 criterion = "0.5"

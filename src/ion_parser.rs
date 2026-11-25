@@ -5,7 +5,7 @@ use crate::symbol_table::*;
 use bigdecimal::BigDecimal;
 use chrono::{naive::NaiveDate, FixedOffset, TimeZone, Utc};
 use log::trace;
-use num_bigint::{BigInt, BigUint};
+use num_bigint::{BigInt, BigUint, Sign};
 use num_traits::ops::checked::CheckedSub;
 use std::convert::{TryFrom, TryInto};
 use std::{collections::HashMap, io::Read};
@@ -31,7 +31,6 @@ use std::{collections::HashMap, io::Read};
 pub struct IonParser<T: Read> {
     parser: IonBinaryParser<T>,
     context: SymbolContext,
-    temp_buffer: Vec<u8>,
 }
 
 pub type ConsumerResult = Result<(IonValue, usize), IonParserError>;
@@ -44,7 +43,6 @@ impl<T: Read> IonParser<T> {
         IonParser {
             parser: IonBinaryParser::new(reader),
             context: SymbolContext::new(),
-            temp_buffer: Vec::with_capacity(256),
         }
     }
 
@@ -69,32 +67,68 @@ impl<T: Read> IonParser<T> {
     /// Consumes all the IonValues in the binary blob and returns an array with them.
     #[inline]
     pub fn consume_all(&mut self) -> Result<Vec<IonValue>, IonParserError> {
-        let mut values = Vec::with_capacity(1);
-
-        loop {
-            match self.consume_value() {
-                Err(IonParserError::BinaryError(ParsingError::NoDataToRead)) => break,
-                Ok((value, _)) => values.push(value),
-                Err(e) => return Err(e),
-            }
+        let mut values = Vec::new();
+        while let Some((value, _)) = self.next_value()? {
+            values.push(value);
         }
-
         Ok(values)
     }
 
-    /// Consumes **one** IonValue and stops. This function will automatically process
-    /// NOP Padding, Shared Tables and Local Tables, automatically continuing in case
-    /// that any of them are found.
+    /// Consumes one Ion value. Version markers, NOP padding, and top-level
+    /// symbol tables are processed without yielding a value.
     #[inline]
     pub fn consume_value(&mut self) -> ConsumerResult {
-        let value_header = self.parser.consume_value_header(0)?;
+        self.next_value()?.ok_or(ParsingError::NoDataToRead.into())
+    }
 
-        let mut value = self.consume_value_body(&value_header, 0)?;
+    fn next_value(&mut self) -> Result<Option<(IonValue, usize)>, IonParserError> {
+        let mut skipped = 0usize;
+        loop {
+            let header = match self.parser.consume_value_header(0) {
+                Ok(header) => header,
+                Err(ParsingError::NoDataToRead) => return Ok(None),
+                Err(error) => return Err(error.into()),
+            };
+            if self.parser.take_symbol_reset() {
+                self.context.reset_local_table();
+            }
 
-        let already_consumed_value_header = 1;
-        value.1 += already_consumed_value_header;
+            let consumed = if header.is_nop() {
+                self.consume_nop(&header)?
+            } else if header.get_type() == ValueType::Annotation {
+                let (symbols, value, consumed) = self.consume_annotation(&header, 0)?;
+                match (symbols[0], value) {
+                    (id, value @ IonValue::Struct(_))
+                        if id == SystemSymbolIds::IonSymbolTable as usize =>
+                    {
+                        self.load_local_table(value)?;
+                    }
+                    (id, IonValue::Null(NullIonValue::Struct))
+                        if id == SystemSymbolIds::IonSymbolTable as usize => {}
+                    (id, value @ IonValue::Struct(_))
+                        if id == SystemSymbolIds::IonSharedSymbolTable as usize =>
+                    {
+                        self.load_shared_table(value)?;
+                    }
+                    (_, value) => {
+                        let annotated = self.construct_raw_annotation(&symbols, value)?;
+                        return Ok(Some((annotated, Self::with_header(skipped, consumed)?)));
+                    }
+                }
+                consumed
+            } else {
+                let (value, consumed) = self.consume_value_body(&header, 0)?;
+                return Ok(Some((value, Self::with_header(skipped, consumed)?)));
+            };
+            skipped = Self::with_header(skipped, consumed)?;
+        }
+    }
 
-        Ok(value)
+    fn with_header(skipped: usize, consumed: usize) -> Result<usize, IonParserError> {
+        skipped
+            .checked_add(consumed)
+            .and_then(|length| length.checked_add(1))
+            .ok_or(IonParserError::ValueLenTooBig)
     }
 
     #[inline]
@@ -103,34 +137,26 @@ impl<T: Read> IonParser<T> {
         value_header: &ValueHeader,
         nested_level: u64,
     ) -> ConsumerResult {
-        if value_header.is_nop() {
-            let consumed_bytes = self.consume_nop(value_header)?;
-            let value = self.consume_value()?;
-            return Ok((value.0, value.1 + consumed_bytes));
-        }
-
         match value_header.get_type() {
-            ValueType::Bool => Ok(self.consume_bool(value_header)?),
-            ValueType::Annotation => match self.consume_annotation(value_header)? {
-                (Some(annotation), consumed_bytes) => Ok((annotation, consumed_bytes)),
-                (None, consumed_bytes) => {
-                    let value = self.consume_value()?;
-                    Ok((value.0, value.1 + consumed_bytes))
-                }
-            },
-            ValueType::Struct => Ok(self.consume_struct(value_header, nested_level)?),
-            ValueType::List => Ok(self.consume_list(value_header, nested_level)?),
-            ValueType::Symbol => Ok(self.consume_symbol(value_header)?),
-            ValueType::PositiveInt => Ok(self.consume_int(value_header, false)?),
-            ValueType::NegativeInt => Ok(self.consume_int(value_header, true)?),
-            ValueType::String => Ok(self.consume_string(value_header)?),
-            ValueType::Timestamp => Ok(self.consume_timestamp(value_header)?),
+            ValueType::Bool => self.consume_bool(value_header),
+            ValueType::Annotation => {
+                let (symbols, value, consumed) =
+                    self.consume_annotation(value_header, nested_level)?;
+                Ok((self.construct_raw_annotation(&symbols, value)?, consumed))
+            }
+            ValueType::Struct => self.consume_struct(value_header, nested_level, false),
+            ValueType::List => self.consume_list(value_header, nested_level),
+            ValueType::Symbol => self.consume_symbol(value_header),
+            ValueType::PositiveInt => self.consume_int(value_header, false),
+            ValueType::NegativeInt => self.consume_int(value_header, true),
+            ValueType::String => self.consume_string(value_header),
+            ValueType::Timestamp => self.consume_timestamp(value_header),
             ValueType::Null => Ok((IonValue::Null(NullIonValue::Null), 0)),
-            ValueType::Float => Ok(self.consume_float(value_header)?),
-            ValueType::Decimal => Ok(self.consume_decimal(value_header)?),
-            ValueType::Clob => Ok(self.consume_clob(value_header)?),
-            ValueType::Blob => Ok(self.consume_blob(value_header)?),
-            ValueType::SExpr => Ok(self.consume_sexpr(value_header, nested_level)?),
+            ValueType::Float => self.consume_float(value_header),
+            ValueType::Decimal => self.consume_decimal(value_header),
+            ValueType::Clob => self.consume_clob(value_header),
+            ValueType::Blob => self.consume_blob(value_header),
+            ValueType::SExpr => self.consume_sexpr(value_header, nested_level),
             ValueType::Reserved => Err(IonParserError::InvalidReservedTypeDescriptor),
         }
     }
@@ -142,10 +168,7 @@ impl<T: Read> IonParser<T> {
 
         trace!("Nop Padding with length {}", length);
 
-        if length > 0 {
-            self.temp_buffer.resize(length, 0);
-            self.parser.read_bytes(&mut self.temp_buffer)?;
-        }
+        self.parser.skip_bytes(length)?;
 
         Ok(total)
     }
@@ -182,11 +205,7 @@ impl<T: Read> IonParser<T> {
         }
 
         let (length, _, total) = self.consume_value_len(header)?;
-        // Not using the temp buffer because from_utf8 consumes the
-        // arguments and it would require a clone of a buffer that
-        // might be bigger than required.
-        let mut buffer = vec![0; length];
-        self.parser.read_bytes(&mut buffer)?;
+        let buffer = self.parser.read_value_bytes(length)?;
 
         let text = match String::from_utf8(buffer) {
             Ok(text) => text,
@@ -250,7 +269,12 @@ impl<T: Read> IonParser<T> {
     }
 
     #[inline]
-    fn consume_struct(&mut self, header: &ValueHeader, nested_level: u64) -> ConsumerResult {
+    fn consume_struct(
+        &mut self,
+        header: &ValueHeader,
+        nested_level: u64,
+        local_symbol_table: bool,
+    ) -> ConsumerResult {
         trace!("Consuming Struct");
 
         if self.is_value_null(header) {
@@ -261,45 +285,41 @@ impl<T: Read> IonParser<T> {
         let mut consumed_bytes = 0;
         let mut values: HashMap<String, IonValue> = HashMap::new();
 
-        while length - consumed_bytes > 0 {
-            let key = self.parser.consume_varuint()?;
-            consumed_bytes += key.1;
-
-            let key = match self.context.get_symbol_by_id(
-                key.0
-                    .try_into()
-                    .map_err(|_| IonParserError::SymbolIdTooBig)?,
-            ) {
-                Some(Symbol::Symbol(text)) => text.clone(),
-                _ => return Err(IonParserError::SymbolNotFoundInTable),
-            };
-
-            trace!("Struct key field: {:?}", key);
-
-            let value_header = self
-                .parser
-                .consume_value_header(nested_level.saturating_add(1))?;
-
-            consumed_bytes += 1;
-
-            if value_header.is_nop() {
-                let consumed = self.consume_nop(&value_header)?;
-                trace!("Found NOP Padding in Struct of {:} bytes", consumed + 1);
-                consumed_bytes += consumed;
-                continue;
+        while consumed_bytes < length {
+            let (key_id, key_bytes) = self.parser.consume_varuint()?;
+            consumed_bytes += key_bytes;
+            if consumed_bytes >= length {
+                return Err(IonParserError::ListLengthWasTooShort);
             }
 
-            let value = self.consume_value_body(&value_header, nested_level.saturating_add(1))?;
-
-            consumed_bytes += value.1;
-
-            trace!("Struct field -> Key: {:?}, Value: {:?}", key, value.0);
-
-            values.insert(key, value.0);
-        }
-
-        if length.checked_sub(consumed_bytes).is_none() {
-            return Err(IonParserError::ListLengthWasTooShort);
+            let value_header = self.parser.consume_value_header(nested_level + 1)?;
+            let (key, value_len) = if value_header.is_nop() {
+                (None, self.consume_nop(&value_header)?)
+            } else {
+                let key_id = key_id
+                    .try_into()
+                    .map_err(|_| IonParserError::SymbolIdTooBig)?;
+                let key = match self.context.get_symbol_by_id(key_id) {
+                    Some(Symbol::Symbol(text)) => text.clone(),
+                    _ => return Err(IonParserError::SymbolNotFoundInTable),
+                };
+                if local_symbol_table
+                    && matches!(key.as_str(), "imports" | "symbols")
+                    && values.contains_key(&key)
+                {
+                    return Err(IonParserError::DuplicateLocalSymbolTableField(key));
+                }
+                let (value, value_len) =
+                    self.consume_value_body(&value_header, nested_level + 1)?;
+                (Some((key, value)), value_len)
+            };
+            consumed_bytes = Self::with_header(consumed_bytes, value_len)?;
+            if consumed_bytes > length {
+                return Err(IonParserError::ListLengthWasTooShort);
+            }
+            if let Some((key, value)) = key {
+                values.insert(key, value);
+            }
         }
 
         trace!("End consuming struct");
@@ -319,25 +339,17 @@ impl<T: Read> IonParser<T> {
         let mut consumed_bytes = 0;
         let mut values = vec![];
 
-        while length - consumed_bytes > 0 {
-            let value_header = self
-                .parser
-                .consume_value_header(nested_level.saturating_add(1))?;
-
-            consumed_bytes += 1;
-
-            if value_header.is_nop() {
-                let consumed = self.consume_nop(&value_header)?;
-                trace!("Found NOP Padding in List of {:} bytes", consumed + 1);
-                consumed_bytes += consumed;
-                continue;
-            }
-
-            let value = self.consume_value_body(&value_header, nested_level.saturating_add(1))?;
-
-            consumed_bytes += value.1;
-            values.push(value.0);
-
+        while consumed_bytes < length {
+            let value_header = self.parser.consume_value_header(nested_level + 1)?;
+            let value_len = if value_header.is_nop() {
+                self.consume_nop(&value_header)?
+            } else {
+                let (value, value_len) =
+                    self.consume_value_body(&value_header, nested_level + 1)?;
+                values.push(value);
+                value_len
+            };
+            consumed_bytes = Self::with_header(consumed_bytes, value_len)?;
             if consumed_bytes > length {
                 return Err(IonParserError::ListLengthWasTooShort);
             }
@@ -356,7 +368,7 @@ impl<T: Read> IonParser<T> {
             return Ok((IonValue::Null(NullIonValue::SExpr), 0));
         }
 
-        let list_value = self.consume_list(header, nested_level.saturating_add(1))?;
+        let list_value = self.consume_list(header, nested_level)?;
 
         if let (IonValue::List(list), len) = list_value {
             Ok((IonValue::SExpr(list), len))
@@ -403,10 +415,9 @@ impl<T: Read> IonParser<T> {
             return Ok((IonValue::Null(NullIonValue::DateTime), 0));
         }
 
-        let (length, mut consumed_bytes, _) = self.consume_value_len(header)?;
+        let (length, _, total) = self.consume_value_len(header)?;
 
-        let (offset, consumed) = self.parser.consume_varint()?;
-        consumed_bytes += consumed;
+        let (offset, mut consumed_bytes) = self.parser.consume_varint()?;
         let (year, consumed) = self.parser.consume_varuint()?;
         consumed_bytes += consumed;
 
@@ -436,42 +447,26 @@ impl<T: Read> IonParser<T> {
 
         let [month, day, hour, minute, second] = components;
 
-        let fraction_exponent: i32 = if consumed_bytes < length {
-            let value = self.parser.consume_varint()?;
-            consumed_bytes += value.1;
-            value
-                .0
+        if consumed_bytes > length {
+            return Err(IonParserError::DateValueTooBig);
+        }
+        let second_fraction = if consumed_bytes < length {
+            let (exponent, exponent_len) = self.parser.consume_varint()?;
+            let exponent: i64 = exponent
                 .try_into()
-                .map_err(|_| IonParserError::DateValueTooBig)?
+                .map_err(|_| IonParserError::DateValueTooBig)?;
+            let coefficient_len = (length - consumed_bytes)
+                .checked_sub(exponent_len)
+                .ok_or(IonParserError::DateValueTooBig)?;
+            if coefficient_len == 0 {
+                0
+            } else {
+                let coefficient = self.parser.consume_int(coefficient_len)?;
+                Self::fraction_to_nanoseconds(coefficient, exponent)?
+            }
         } else {
             0
         };
-
-        let fraction_coefficient: i64 = if (consumed_bytes) < length {
-            let remaining_bytes = length - consumed_bytes;
-            let value = self.parser.consume_int(remaining_bytes)?;
-            consumed_bytes += remaining_bytes;
-            value
-                .try_into()
-                .map_err(|_| IonParserError::DateValueTooBig)?
-        } else {
-            0
-        };
-
-        let second_fraction: f64 =
-            ((10f64.powi(fraction_exponent)) * fraction_coefficient as f64) * 1e9;
-
-        if second_fraction < 0.0 {
-            return Err(IonParserError::DateNegativeSecondFraction);
-        }
-
-        let second_fraction =
-            u32::try_from(second_fraction as i64).map_err(|_| IonParserError::DateValueTooBig)?;
-
-        let upper_fraction_limit = 1_000_000_000;
-        if second_fraction >= upper_fraction_limit {
-            return Err(IonParserError::DateSecondFractionOverflow);
-        }
 
         let datetime = NaiveDate::from_ymd_opt(year, month, day)
             .ok_or(IonParserError::InvalidDate(
@@ -498,15 +493,51 @@ impl<T: Read> IonParser<T> {
             .try_into()
             .map_err(|_| IonParserError::DateValueTooBig)?;
 
-        let offset = FixedOffset::east_opt(offset * 60).ok_or({
-            IonParserError::InvalidDate(year, month, day, hour, minute, second, second_fraction)
-        })?;
+        let offset = offset
+            .checked_mul(60)
+            .and_then(FixedOffset::east_opt)
+            .ok_or(IonParserError::InvalidDate(
+                year,
+                month,
+                day,
+                hour,
+                minute,
+                second,
+                second_fraction,
+            ))?;
 
         let datetime = Utc.from_utc_datetime(&datetime);
 
         let datetime = datetime.with_timezone(&offset);
 
-        Ok((IonValue::DateTime(datetime), consumed_bytes))
+        Ok((IonValue::DateTime(datetime), total))
+    }
+
+    fn fraction_to_nanoseconds(coefficient: BigInt, exponent: i64) -> Result<u32, IonParserError> {
+        match coefficient.sign() {
+            Sign::NoSign => return Ok(0),
+            Sign::Minus => return Err(IonParserError::DateNegativeSecondFraction),
+            Sign::Plus => {}
+        }
+        if exponent >= 0 {
+            return Err(IonParserError::DateSecondFractionOverflow);
+        }
+        let scale = exponent.unsigned_abs();
+        let digits = coefficient.magnitude().to_radix_be(10);
+        let leading_zeroes = scale
+            .checked_sub(digits.len() as u64)
+            .ok_or(IonParserError::DateSecondFractionOverflow)?;
+        if leading_zeroes >= 9 {
+            return Ok(0);
+        }
+        let significant_places = (9 - leading_zeroes) as usize;
+        // The native value model uses Chrono. Keep its nine places exactly,
+        // truncating any remaining digits without floating-point rounding.
+        Ok(digits
+            .into_iter()
+            .chain(std::iter::repeat(0))
+            .take(significant_places)
+            .fold(0, |value, digit| value * 10 + u32::from(digit)))
     }
 
     #[inline]
@@ -577,11 +608,12 @@ impl<T: Read> IonParser<T> {
         let exponent: i64 = exponent
             .try_into()
             .map_err(|_| IonParserError::DecimalExponentTooBig)?;
-
-        let coefficient = BigInt::from_signed_bytes_le(&coefficient.to_signed_bytes_le());
+        let scale = exponent
+            .checked_neg()
+            .ok_or(IonParserError::DecimalExponentTooBig)?;
 
         Ok((
-            IonValue::Decimal(BigDecimal::new(coefficient, -exponent)),
+            IonValue::Decimal(BigDecimal::new(coefficient, scale)),
             total,
         ))
     }
@@ -599,8 +631,7 @@ impl<T: Read> IonParser<T> {
         }
 
         let (length, _, total) = self.consume_value_len(header)?;
-        let mut buffer = vec![0; length];
-        self.parser.read_bytes(&mut buffer)?;
+        let buffer = self.parser.read_value_bytes(length)?;
 
         Ok((IonValue::Clob(buffer), total))
     }
@@ -618,8 +649,7 @@ impl<T: Read> IonParser<T> {
         }
 
         let (length, _, total) = self.consume_value_len(header)?;
-        let mut buffer = vec![0; length];
-        self.parser.read_bytes(&mut buffer)?;
+        let buffer = self.parser.read_value_bytes(length)?;
 
         Ok((IonValue::Blob(buffer), total))
     }
@@ -628,7 +658,8 @@ impl<T: Read> IonParser<T> {
     fn consume_annotation(
         &mut self,
         header: &ValueHeader,
-    ) -> Result<(Option<IonValue>, usize), IonParserError> {
+        nested_level: u64,
+    ) -> Result<(Vec<usize>, IonValue, usize), IonParserError> {
         trace!("Consuming Annotation");
 
         if self.is_value_null(header) {
@@ -665,39 +696,25 @@ impl<T: Read> IonParser<T> {
 
         trace!("Annotations found: {:?}", symbols);
 
-        let is_shared_table_declaration =
-            self.contains_system_symbol(&symbols, SystemSymbolIds::IonSharedSymbolTable);
-
-        let is_local_table_declaration =
-            self.contains_system_symbol(&symbols, SystemSymbolIds::IonSymbolTable);
-
-        let value = self.consume_value()?;
-        if let IonValue::Annotation(_, _) = value.0 {
+        let value_header = self.parser.consume_value_header(nested_level + 1)?;
+        if value_header.is_nop() {
+            return Err(IonParserError::BadAnnotationLength);
+        }
+        if value_header.get_type() == ValueType::Annotation {
             return Err(IonParserError::NestedAnnotations);
         }
 
-        consumed_bytes += value.1;
-        if consumed_bytes != length {
+        let (value, value_len) = if value_header.get_type() == ValueType::Struct {
+            let local_symbol_table =
+                nested_level == 0 && symbols[0] == SystemSymbolIds::IonSymbolTable as usize;
+            self.consume_struct(&value_header, nested_level + 1, local_symbol_table)?
+        } else {
+            self.consume_value_body(&value_header, nested_level + 1)?
+        };
+        if Self::with_header(consumed_bytes, value_len)? != length {
             return Err(IonParserError::BadAnnotationLength);
         }
-
-        match (is_shared_table_declaration, is_local_table_declaration) {
-            (true, true) => {
-                Err(IonParserError::SharedTableAndLocalTableDeclarationIntTheSameAnnotation)
-            }
-            (true, false) => {
-                self.load_shared_table(value.0)?;
-                Ok((None, total_consumed_bytes))
-            }
-            (false, true) => {
-                self.load_local_table(value.0)?;
-                Ok((None, total_consumed_bytes))
-            }
-            (false, false) => Ok((
-                Some(self.construct_raw_annotation(&symbols, value.0)?),
-                total_consumed_bytes,
-            )),
-        }
+        Ok((symbols, value, total_consumed_bytes))
     }
 
     #[inline]
@@ -723,7 +740,9 @@ impl<T: Read> IonParser<T> {
             header.get_len().into()
         };
 
-        let total = consumed_bytes + length;
+        let total = consumed_bytes
+            .checked_add(length)
+            .ok_or(IonParserError::ValueLenTooBig)?;
 
         Ok((length, consumed_bytes, total))
     }
@@ -751,7 +770,9 @@ impl<T: Read> IonParser<T> {
             header.get_len().into()
         };
 
-        let total = consumed_bytes + length;
+        let total = consumed_bytes
+            .checked_add(length)
+            .ok_or(IonParserError::ValueLenTooBig)?;
 
         Ok((length, consumed_bytes, total))
     }
@@ -800,15 +821,16 @@ impl<T: Read> IonParser<T> {
         let imports = table.get(self.get_symbol_name_by_type(SystemSymbolIds::Imports));
 
         let imports = match imports {
-            None => Vec::new(),
             Some(IonValue::Symbol(symbol))
                 if symbol == self.get_symbol_name_by_type(SystemSymbolIds::IonSymbolTable) =>
             {
-                self.context.set_new_table_from_current(symbols);
-                return Ok(());
+                return self
+                    .context
+                    .set_new_table_from_current(symbols)
+                    .map_err(IonParserError::ErrorAddingCreatingLocal);
             }
             Some(IonValue::List(list)) => self.decode_imports(list)?,
-            _ => return Err(IonParserError::LocalSymbolTableWithoutValidImport),
+            _ => Vec::new(),
         };
 
         self.context
@@ -829,13 +851,13 @@ impl<T: Read> IonParser<T> {
             };
 
             let name = match value.get(self.get_symbol_name_by_type(SystemSymbolIds::Name)) {
-                Some(IonValue::String(name)) => name.clone(),
+                Some(IonValue::String(name)) if !name.is_empty() => name.clone(),
                 _ => continue,
             };
 
             let version: u32 =
                 match value.get(self.get_symbol_name_by_type(SystemSymbolIds::Version)) {
-                    Some(IonValue::Integer(version)) => (*version)
+                    Some(IonValue::Integer(version)) if *version > 0 => (*version)
                         .try_into()
                         .map_err(|_| IonParserError::TableVersionTooBig)?,
                     _ => 1,
@@ -843,8 +865,8 @@ impl<T: Read> IonParser<T> {
 
             let max_len: Option<usize> =
                 match value.get(self.get_symbol_name_by_type(SystemSymbolIds::MaxId)) {
-                    Some(IonValue::Integer(version)) => Some(
-                        (*version)
+                    Some(IonValue::Integer(max_id)) if *max_id >= 0 => Some(
+                        (*max_id)
                             .try_into()
                             .map_err(|_| IonParserError::TableVersionTooBig)?,
                     ),
@@ -915,11 +937,6 @@ impl<T: Read> IonParser<T> {
         }
 
         Ok(IonValue::Annotation(symbols_names, Box::new(value)))
-    }
-
-    #[inline]
-    fn contains_system_symbol(&self, symbols: &[usize], symbol: SystemSymbolIds) -> bool {
-        symbols.iter().any(|&s| s == symbol as usize)
     }
 
     #[inline]

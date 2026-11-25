@@ -136,19 +136,7 @@ fn item1() {
     // So, after accounting for all that we just add some predefined symbols for
     // the imported tables in order to make the test pass.
 
-    let ids: Vec<std::string::String> = (1..=10)
-        .map(|v| "iopc".to_owned() + &v.to_string())
-        .collect();
-    parser
-        .with_shared_table("iopc".to_string(), 1, &ids)
-        .unwrap();
-
-    let ids: Vec<std::string::String> = (11..=14277)
-        .map(|v| "iopg".to_owned() + &v.to_string())
-        .collect();
-    parser
-        .with_shared_table("iopg".to_string(), 1, &ids)
-        .unwrap();
+    crate::tests::test_utils::add_item1_symbol_tables(&mut parser);
 
     use chrono::DateTime as ChronoDateTime;
     use IonValue::*;

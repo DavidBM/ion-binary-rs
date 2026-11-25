@@ -1,11 +1,11 @@
 use crate::binary_parser_types::*;
 use num_bigint::{BigInt, BigUint, Sign};
 use std::fmt::Debug;
-use std::io::Read;
+use std::io::{self, Read};
 
 pub struct IonBinaryParser<T: Read> {
     reader: T,
-    current_ion_version: Option<(u8, u8)>,
+    symbol_reset_pending: bool,
     temp_buffer: Vec<u8>,
 }
 
@@ -14,19 +14,19 @@ impl<T: Read> IonBinaryParser<T> {
     pub fn new(reader: T) -> IonBinaryParser<T> {
         IonBinaryParser {
             reader,
-            current_ion_version: None,
+            symbol_reset_pending: false,
             temp_buffer: Vec::with_capacity(256),
         }
     }
 
-    #[inline]
-    fn read(&mut self, buffer: &mut [u8]) -> Result<usize, std::io::Error> {
-        IonBinaryParser::read_no_self(&mut self.reader, buffer)
+    fn read_byte(&mut self) -> Result<u8, ParsingError> {
+        let mut byte = [0];
+        Self::read_bytes_no_self(&mut self.reader, &mut byte)?;
+        Ok(byte[0])
     }
 
-    #[inline]
-    fn read_no_self(reader: &mut T, buffer: &mut [u8]) -> Result<usize, std::io::Error> {
-        reader.read(buffer)
+    pub fn take_symbol_reset(&mut self) -> bool {
+        std::mem::take(&mut self.symbol_reset_pending)
     }
 
     //             7                       0
@@ -46,9 +46,7 @@ impl<T: Read> IonBinaryParser<T> {
             return Err(ParsingError::CannotReadZeroBytes);
         }
 
-        self.temp_buffer.resize(octets, 0);
-
-        IonBinaryParser::read_bytes_no_self(&mut self.reader, &mut self.temp_buffer)?;
+        Self::read_to_buffer(&mut self.reader, &mut self.temp_buffer, octets)?;
 
         let number = BigUint::from_bytes_be(&self.temp_buffer);
 
@@ -60,21 +58,60 @@ impl<T: Read> IonBinaryParser<T> {
         IonBinaryParser::read_bytes_no_self(&mut self.reader, buffer)
     }
 
-    #[inline]
-    pub fn read_bytes_no_self(reader: &mut T, buffer: &mut [u8]) -> Result<(), ParsingError> {
-        let read_bytes = IonBinaryParser::<T>::read_no_self(reader, buffer);
-
-        match read_bytes {
-            Ok(0) => Err(ParsingError::NoDataToRead),
-            Err(e) => Err(ParsingError::ErrorReadingData(e)),
-            Ok(len) => {
-                if len < buffer.len() {
-                    return Err(ParsingError::NotEnoughtDataToRead(len));
-                }
-
-                Ok(())
+    fn read_bytes_no_self(reader: &mut T, buffer: &mut [u8]) -> Result<(), ParsingError> {
+        let mut read = 0;
+        while read < buffer.len() {
+            match reader.read(&mut buffer[read..]) {
+                Ok(0) => return Err(Self::incomplete_read(read)),
+                Ok(len) => read += len,
+                Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
+                Err(error) => return Err(error.into()),
             }
         }
+        Ok(())
+    }
+
+    fn incomplete_read(read: usize) -> ParsingError {
+        match read {
+            0 => ParsingError::NoDataToRead,
+            read => ParsingError::NotEnoughtDataToRead(read),
+        }
+    }
+
+    fn read_to_buffer(
+        reader: &mut T,
+        buffer: &mut Vec<u8>,
+        length: usize,
+    ) -> Result<(), ParsingError> {
+        buffer.clear();
+        if length <= 256 {
+            buffer.resize(length, 0);
+            return Self::read_bytes_no_self(reader, buffer);
+        }
+
+        // Grow only as the bytes arrive. The length comes from the input stream.
+        let read = reader.take(length as u64).read_to_end(buffer)?;
+        if read != length {
+            return Err(Self::incomplete_read(read));
+        }
+        Ok(())
+    }
+
+    pub fn read_value_bytes(&mut self, length: usize) -> Result<Vec<u8>, ParsingError> {
+        let mut buffer = Vec::new();
+        Self::read_to_buffer(&mut self.reader, &mut buffer, length)?;
+        Ok(buffer)
+    }
+
+    pub fn skip_bytes(&mut self, length: usize) -> Result<(), ParsingError> {
+        let read = io::copy(
+            &mut self.reader.by_ref().take(length as u64),
+            &mut io::sink(),
+        )?;
+        if read != length as u64 {
+            return Err(Self::incomplete_read(read as usize));
+        }
+        Ok(())
     }
 
     //              7  6                   0
@@ -98,9 +135,7 @@ impl<T: Read> IonBinaryParser<T> {
             return Err(ParsingError::CannotReadZeroBytes);
         }
 
-        self.temp_buffer.resize(octets, 0);
-
-        IonBinaryParser::read_bytes_no_self(&mut self.reader, &mut self.temp_buffer)?;
+        Self::read_to_buffer(&mut self.reader, &mut self.temp_buffer, octets)?;
 
         let is_negative = (self.temp_buffer[0] & 0b1000_0000) > 0;
 
@@ -181,24 +216,12 @@ impl<T: Read> IonBinaryParser<T> {
     // Note: Guarantees to return at least one byte if it succeed
     #[inline]
     fn consume_var_number(&mut self) -> Result<&mut Vec<u8>, ParsingError> {
-        let mut byte = [0u8; 1];
-
         self.temp_buffer.clear();
-
         loop {
-            let read_bytes = self.read(&mut byte);
-
-            match read_bytes {
-                Ok(0) => return Err(ParsingError::NoDataToRead),
-                Err(e) => return Err(ParsingError::ErrorReadingData(e)),
-                Ok(_) => {
-                    self.temp_buffer.push(byte[0]);
-
-                    // Last byte is marked with a 1 in the highest bite
-                    if 0b1000_0000 & byte[0] == 0b1000_0000 {
-                        break;
-                    }
-                }
+            let byte = self.read_byte()?;
+            self.temp_buffer.push(byte);
+            if byte & 0x80 != 0 {
+                break;
             }
         }
 
@@ -211,61 +234,28 @@ impl<T: Read> IonBinaryParser<T> {
     //  +---------+---------+
     #[inline]
     pub fn consume_value_header(&mut self, nested_level: u64) -> Result<ValueHeader, ParsingError> {
-        let mut byte = [0u8; 1];
-
-        let read_bytes = self.read(&mut byte);
-
-        match read_bytes {
-            Ok(0) => Err(ParsingError::NoDataToRead),
-            Err(e) => Err(ParsingError::ErrorReadingData(e)),
-            Ok(_) => {
-                let byte = byte[0];
-
-                // If the byte has T as E (annotation) with a L of 0 (invalid)
-                // it means that this is a ion version header, so we read it
-                // and set the decoder to the new version.
-                if byte == 0xE0 {
-                    if nested_level != 0 {
-                        return Err(ParsingError::NestedVersionMarker);
-                    }
-                    let version = self.consume_ion_version_once_identified()?;
-                    self.set_current_ion_version(version);
-                    return self.consume_value_header(nested_level);
-                }
-
-                ValueHeader::new(byte)
+        loop {
+            let byte = self.read_byte()?;
+            if byte != 0xE0 {
+                return ValueHeader::new(byte);
             }
-        }
-    }
+            if nested_level != 0 {
+                return Err(ParsingError::NestedVersionMarker);
+            }
 
-    //                        7    0 7     0 7     0 7    0
-    //                       +------+-------+-------+------+
-    // binary version marker | 0xE0 | major | minor | 0xEA |
-    //                       +------+-------+-------+------+
-    // When calling this function we have already consumed the first byte
-    // (that is how we identify we need to call this function)
-    #[inline]
-    fn consume_ion_version_once_identified(&mut self) -> Result<(u8, u8), ParsingError> {
-        let mut byte = [0u8; 3];
-
-        let read_bytes = self.read(&mut byte);
-
-        match read_bytes {
-            Ok(0) => Err(ParsingError::NoDataToRead),
-            Err(e) => Err(ParsingError::ErrorReadingData(e)),
-            Ok(_) => {
-                if byte[2] != 0xEA {
+            let mut marker = [0; 3];
+            match self.read_bytes(&mut marker) {
+                Err(ParsingError::NoDataToRead | ParsingError::NotEnoughtDataToRead(_)) => {
                     return Err(ParsingError::BadFormedVersionHeader);
                 }
-
-                Ok((byte[0], byte[1]))
+                result => result?,
+            }
+            match marker {
+                [1, 0, 0xEA] => self.symbol_reset_pending = true,
+                [major, minor, 0xEA] => return Err(ParsingError::UnsupportedVersion(major, minor)),
+                _ => return Err(ParsingError::BadFormedVersionHeader),
             }
         }
-    }
-
-    #[inline]
-    fn set_current_ion_version(&mut self, version: (u8, u8)) {
-        self.current_ion_version = Some(version);
     }
 }
 

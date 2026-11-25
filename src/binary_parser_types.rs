@@ -109,6 +109,8 @@ pub enum ParsingError {
     CannotReadZeroBytes,
     #[error("Ion Stream Header is wrong")]
     BadFormedVersionHeader,
+    #[error("Unsupported Ion binary version {0}.{1}")]
+    UnsupportedVersion(u8, u8),
     #[error("Null cannot have len")]
     InvalidNullLength(u8),
     #[error("Annotation cannot be shorter than 3 bytes")]
@@ -130,6 +132,7 @@ impl PartialEq for ParsingError {
             (NoDataToRead, NoDataToRead) => true,
             (CannotReadZeroBytes, CannotReadZeroBytes) => true,
             (BadFormedVersionHeader, BadFormedVersionHeader) => true,
+            (UnsupportedVersion(a, b), UnsupportedVersion(x, y)) => (a, b) == (x, y),
             (ThisIsABugConsumingVarUInt, ThisIsABugConsumingVarUInt) => true,
             (ThisIsABugConsumingVarInt, ThisIsABugConsumingVarInt) => true,
             (NestedVersionMarker, NestedVersionMarker) => true,
@@ -137,8 +140,7 @@ impl PartialEq for ParsingError {
             (ErrorReadingData(a), ErrorReadingData(b)) => a.kind() == b.kind(),
             (InvalidNullLength(a), InvalidNullLength(b)) => a == b,
             (InvalidAnnotationLength(a), InvalidAnnotationLength(b)) => a == b,
-            _ => false
-            
+            _ => false,
         }
     }
 }
