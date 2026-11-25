@@ -11,6 +11,11 @@ Parse, encode, and hash Amazon Ion 1.0 binary data in Rust.
 uses string symbols, Rust maps for structs, and Chrono timestamps. Configure
 shared symbol imports with `IonParser::with_shared_table`.
 
+The native parser rejects values nested more than 128 levels deep. Bound input
+size and choose `consume_value` to process streams without keeping all decoded
+top-level values in memory. The optional `ion_data` APIs use the upstream reader
+and its own limits.
+
 ## Ion data model
 
 Enable the `ion-data` Cargo feature to use the official `ion-rs` value model.

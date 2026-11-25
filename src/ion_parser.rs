@@ -11,6 +11,7 @@ use std::convert::{TryFrom, TryInto};
 use std::{collections::HashMap, io::Read};
 
 /// In order to use it call the new method and then the "consume_all" method.
+/// Parsing rejects values nested more than 128 levels deep.
 ///
 /// ### Example
 ///

@@ -3,6 +3,8 @@ use num_bigint::{BigInt, BigUint, Sign};
 use std::fmt::Debug;
 use std::io::{self, Read};
 
+const MAX_NESTING_DEPTH: u64 = 128;
+
 pub struct IonBinaryParser<T: Read> {
     reader: T,
     symbol_reset_pending: bool,
@@ -234,6 +236,9 @@ impl<T: Read> IonBinaryParser<T> {
     //  +---------+---------+
     #[inline]
     pub fn consume_value_header(&mut self, nested_level: u64) -> Result<ValueHeader, ParsingError> {
+        if nested_level > MAX_NESTING_DEPTH {
+            return Err(ParsingError::NestingLimitExceeded(MAX_NESTING_DEPTH));
+        }
         loop {
             let byte = self.read_byte()?;
             if byte != 0xE0 {
