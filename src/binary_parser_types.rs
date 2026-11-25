@@ -95,6 +95,8 @@ impl TryFrom<u8> for ValueType {
 /// wrapped by the "BinaryError" of the error type "IonParserError".
 #[derive(Debug, Error)]
 pub enum ParsingError {
+    #[error("Ion value exceeds the nesting limit of {0}")]
+    NestingLimitExceeded(u64),
     #[error("Header type not valid")]
     InvalidHeaderType,
     #[error("Header length not valid")]
