@@ -112,6 +112,9 @@ the `#![deny(unsafe_code)]` line.
 
 ## Contributing
 
+Run `git submodule update --init` to fetch the pinned Ion conformance
+fixtures before running `cargo test` from a Git checkout.
+
 We would be thrilled if you decide to check the library and/or contribute to it!
 Just open an issue or pull request and we can check what you would like to implement.
 Bug hunting and proposals are always welcomed. And of course, feel free to ask anything.
